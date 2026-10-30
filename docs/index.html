@@ -20,6 +20,11 @@
   #help b { color: #ffd479; }
   #status { top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font-size: 15px; text-align: center; white-space: nowrap; }
   #minimap { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); border: 2px solid rgba(255, 220, 160, 0.4); border-radius: 8px; background: #111; }
+  #hpwrap { position: fixed; top: calc(58px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 220px; height: 12px; border-radius: 6px;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,220,160,0.35); overflow: hidden; pointer-events: none; }
+  #hpbar { height: 100%; width: 100%; background: linear-gradient(#e8574a, #a3241b); transition: width 0.15s; }
+  #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s;
+    background: radial-gradient(ellipse at center, rgba(160,0,0,0) 45%, rgba(170,0,0,0.65) 100%); }
   #prompt { bottom: 70px; left: 50%; transform: translateX(-50%); font-size: 18px; display: none; }
   #prompt kbd { background: #ffd479; color: #2a1d08; border-radius: 4px; padding: 1px 7px; font-weight: bold; }
   #banner { position: fixed; top: 28%; width: 100%; text-align: center; font-size: 42px; font-weight: 700; letter-spacing: 2px; text-shadow: 0 3px 10px #000; opacity: 0; transition: opacity 0.8s; pointer-events: none; }
@@ -45,12 +50,14 @@
     display: flex; align-items: center; justify-content: center; text-align: center; font-size: 26px; touch-action: none; }
   .tbtn.on { background: rgba(255,212,121,0.5); color: #2a1d08; }
   .tbtn:active, .tbtn.pressed { transform: scale(0.93); background: rgba(255,212,121,0.35); }
-  #btnJump { width: 78px; height: 78px; right: calc(28px + env(safe-area-inset-right)); bottom: calc(34px + env(safe-area-inset-bottom)); }
-  #btnRun { width: 58px; height: 58px; right: calc(122px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); font-size: 22px; }
-  #btnAct { right: calc(40px + env(safe-area-inset-right)); bottom: calc(132px + env(safe-area-inset-bottom)); height: 54px; padding: 0 20px; border-radius: 27px; font-size: 17px; display: none;
+  #btnAttack { width: 88px; height: 88px; right: calc(24px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); font-size: 38px; border-color: rgba(255,140,110,0.7); }
+  #btnJump { width: 64px; height: 64px; right: calc(124px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); }
+  #btnRun { width: 54px; height: 54px; right: calc(40px + env(safe-area-inset-right)); bottom: calc(128px + env(safe-area-inset-bottom)); font-size: 22px; }
+  #btnAct { right: calc(110px + env(safe-area-inset-right)); bottom: calc(100px + env(safe-area-inset-bottom)); height: 54px; padding: 0 20px; border-radius: 27px; font-size: 17px; display: none;
     background: rgba(255,212,121,0.85); color: #2a1d08; border-color: #fff3d0; max-width: 46vw; }
   @media (max-height: 500px) {
     #status { font-size: 13px; padding: 6px 10px; }
+    #hpwrap { top: calc(44px + env(safe-area-inset-top)); width: 180px; height: 10px; }
     #banner { font-size: 30px; top: 22%; } #banner small { font-size: 15px; }
     #start h1 { font-size: 34px; }
   }
@@ -64,15 +71,19 @@
 <div id="help" class="panel">
   <b>WASD</b> — ходьба &nbsp; <b>Shift</b> — бег<br>
   <b>Пробел</b> — прыжок &nbsp; <b>E</b> — действие<br>
+  <b>ЛКМ / F</b> — удар мечом<br>
   <b>Мышь</b> — камера &nbsp; <b>Колесо</b> — зум<br>
   <b>Esc</b> — освободить курсор
 </div>
-<div id="status" class="panel"><span id="loc">Долина</span> &nbsp;·&nbsp; Сокровища: <span id="treasure">0</span>/2</div>
+<div id="status" class="panel"><span id="loc">Долина</span> &nbsp;·&nbsp; Сокровища: <span id="treasure">0</span>/2 &nbsp;·&nbsp; ⚔ <span id="kills">0</span></div>
+<div id="hpwrap"><div id="hpbar"></div></div>
+<div id="hurt"></div>
 <canvas id="minimap" width="180" height="180"></canvas>
 <div id="prompt" class="panel"></div>
 <div id="touch">
   <div id="joyHint"></div>
   <div id="joyBase"><div id="joyKnob"></div></div>
+  <div id="btnAttack" class="tbtn">⚔</div>
   <div id="btnJump" class="tbtn">⤒</div>
   <div id="btnRun" class="tbtn">🏃</div>
   <div id="btnAct" class="tbtn"></div>
@@ -81,8 +92,8 @@
 <div id="fade"></div>
 <div id="start">
   <h1>Земли Приключений</h1>
-  <p>Исследуй долину, найди два подземелья и сокровища в них.</p>
-  <p class="touch-only" style="opacity:.8">Левая половина экрана — ходьба, правая — камера, щипок — зум</p>
+  <p>Исследуй долину, найди два подземелья и сокровища в них. Берегись чудовищ!</p>
+  <p class="touch-only" style="opacity:.8">Левая половина экрана — ходьба, правая — камера, щипок — зум, ⚔ — удар</p>
   <p style="opacity:.7">Нажми, чтобы начать</p>
 </div>
 <div id="rotate"><div>📱</div><p>Поверни телефон горизонтально</p></div>
@@ -455,17 +466,17 @@ const DUNGEON_DEFS = [
     map: [
       '#####################',
       '#S..#.......#.......#',
-      '#...#..T....#...B...#',
+      '#...#..T....#.E.B...#',
       '#.......P.P.....P...#',
-      '#.T.#.......#.......#',
+      '#.T.#...E...#.......#',
       '##.####.#####.#######',
-      '#......T.#.........##',
+      '#......T.#.....E...##',
       '#.######.#.#######..#',
       '#.#....#...#.....#.T#',
-      '#.#.B..###.#..C..#..#',
+      '#.#.BE.###.#E.C.E#..#',
       '#.#....T...#.....#..#',
-      '#.###.######P...P#..#',
-      '#.....T.............#',
+      '#.###.######P...P#.E#',
+      '#.....T.....E.......#',
       '#####################',
     ],
   },
@@ -474,16 +485,16 @@ const DUNGEON_DEFS = [
     map: [
       '########################',
       '####S..######......#####',
-      '###.....####..K.....####',
+      '###.....####..K..E..####',
       '##...T...##....##....###',
-      '##......#.....####...###',
+      '##......#..E..####...###',
       '###..K.......#####..K..#',
-      '####....###...###......#',
+      '####....###...###...E..#',
       '#####..#####.........###',
       '####...######..T..#..###',
-      '###...K####.....###..###',
+      '###.E.K####..E..###..###',
       '##....#####..C...##.T###',
-      '##..T..###K.....######.#',
+      '##..T..###K..E..######.#',
       '###......#.....#########',
       '########################',
     ],
@@ -517,7 +528,7 @@ const tileTex = makeTexture((ctx, s) => {
   speckle(ctx, s, 1200, 0.18);
 });
 const rockTex = makeTexture((ctx, s) => {
-  ctx.fillStyle = '#4a4550'; ctx.fillRect(0, 0, s, s);
+  ctx.fillStyle = '#8a8496'; ctx.fillRect(0, 0, s, s);
   speckle(ctx, s, 4000, 0.2);
   for (let i = 0; i < 40; i++) { ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.moveTo(r2() * s, r2() * s); ctx.lineTo(r2() * s, r2() * s); ctx.stroke(); }
 });
@@ -531,7 +542,7 @@ function buildDungeon(def, di) {
   const cellCenter = (i, j) => new THREE.Vector3((i - cols / 2 + 0.5) * CELL, Y, (j - rows / 2 + 0.5) * CELL);
   const ch = (i, j) => (i < 0 || j < 0 || i >= cols || j >= rows) ? '#' : map[j][i];
   const solid = (i, j) => ch(i, j) === '#';
-  const floors = [], walls = [], circles = [], torches = [], crystals = [];
+  const floors = [], walls = [], circles = [], torches = [], crystals = [], spawns = [];
   let start = null, chestCell = null;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const c = ch(i, j);
@@ -546,13 +557,14 @@ function buildDungeon(def, di) {
     if (c === 'C') chestCell = [i, j];
     if (c === 'T') torches.push([i, j]);
     if (c === 'P') circles.push({ ...cellCenter(i, j), r: 0.8, kind: 'P' });
-    if (c === 'K') { circles.push({ ...cellCenter(i, j), r: 1.0, kind: 'K' }); crystals.push([i, j]); }
+    if (c === 'K') crystals.push([i, j]);
+    if (c === 'E') spawns.push([i, j]);
   }
 
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3();
   const floorTex = (cave ? rockTex : tileTex);
   const floorGeo = new THREE.PlaneGeometry(CELL, CELL); floorGeo.rotateX(-Math.PI / 2);
-  const floorMesh = new THREE.InstancedMesh(floorGeo, new THREE.MeshStandardMaterial({ map: floorTex, color: cave ? 0x7a7280 : 0xbbb2a6, roughness: 0.95 }), floors.length);
+  const floorMesh = new THREE.InstancedMesh(floorGeo, new THREE.MeshStandardMaterial({ map: floorTex, color: cave ? 0x9a92a6 : 0xbbb2a6, roughness: 0.95 }), floors.length);
   const ceilGeo = new THREE.PlaneGeometry(CELL, CELL); ceilGeo.rotateX(Math.PI / 2);
   const ceilMesh = new THREE.InstancedMesh(ceilGeo, new THREE.MeshStandardMaterial({ map: cave ? rockTex : brickTex, color: cave ? 0x4a4450 : 0x6a625a, roughness: 1 }), floors.length);
   floors.forEach(([i, j], k) => {
@@ -565,15 +577,15 @@ function buildDungeon(def, di) {
 
   let wallMesh;
   if (cave) {
-    const g = new THREE.DodecahedronGeometry(CELL * 0.7, 1);
-    wallMesh = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ map: rockTex, color: 0x8a8296, roughness: 1, flatShading: true }), walls.length * 2);
+    const g = new THREE.DodecahedronGeometry(CELL * 0.66, 1);
+    wallMesh = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ map: rockTex, color: 0xb4acc4, roughness: 1, flatShading: true }), walls.length * 2);
     const col = new THREE.Color();
     walls.forEach(([i, j], k) => {
       const c = cellCenter(i, j);
       for (let layer = 0; layer < 2; layer++) {
         q.setFromEuler(new THREE.Euler(r2() * 6, r2() * 6, r2() * 6));
-        p.set(c.x + (r2() - 0.5) * 0.8, Y + 1.2 + layer * 2.8, c.z + (r2() - 0.5) * 0.8);
-        sc.set(1 + r2() * 0.25, 1 + r2() * 0.3, 1 + r2() * 0.25);
+        p.set(c.x + (r2() - 0.5) * 0.5, Y + 1.2 + layer * 2.8, c.z + (r2() - 0.5) * 0.5);
+        sc.set(1 + r2() * 0.15, 1 + r2() * 0.3, 1 + r2() * 0.15);
         m4.compose(p, q, sc); wallMesh.setMatrixAt(k * 2 + layer, m4);
         wallMesh.setColorAt(k * 2 + layer, col.setHSL(0.72 + r2() * 0.08, 0.08, 0.45 + r2() * 0.15));
       }
@@ -610,21 +622,67 @@ function buildDungeon(def, di) {
     flickers.push({ light, flame: fl, base: 22, seed: r2() * 100 });
   }
 
-  // Кристаллы
-  for (const [i, j] of crystals) {
-    const c = cellCenter(i, j);
-    const hue = r2() < 0.5 ? 0.52 : 0.78;
-    const cm = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(hue, 0.8, 0.6), emissive: new THREE.Color().setHSL(hue, 0.9, 0.35), roughness: 0.2, flatShading: true });
-    for (let n = 0; n < 6; n++) {
-      const h = 0.8 + r2() * 1.8;
-      const k = new THREE.Mesh(new THREE.ConeGeometry(0.25 + r2() * 0.15, h, 5), cm);
-      k.position.set(c.x + (r2() - 0.5) * 1.2, Y + h / 2 - 0.1, c.z + (r2() - 0.5) * 1.2);
-      k.rotation.set((r2() - 0.5) * 0.7, r2() * 6, (r2() - 0.5) * 0.7);
-      group.add(k);
+  // Кристаллы растут на стенах и потолке пещеры и мягко светятся
+  if (cave) {
+    const faces = [];
+    for (const [i, j] of floors) for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (solid(i + a, j + b)) faces.push({ i, j, a, b });
+    const clusters = [];
+    // Клетки K — кластеры с источником света на ближайшей стене
+    for (const [i, j] of crystals) {
+      let best = null, bd = 1e9;
+      for (const f of faces) { const d = Math.hypot(f.i - i, f.j - j); if (d < bd) { bd = d; best = f; } }
+      if (best) clusters.push({ ...best, lit: true, big: true });
     }
-    const light = new THREE.PointLight(new THREE.Color().setHSL(hue, 0.8, 0.6), 18, 14, 1.5);
-    light.position.set(c.x, Y + 2, c.z); group.add(light);
-    flickers.push({ light, base: 18, seed: r2() * 100, slow: true });
+    for (const f of faces) if (r2() < 0.3) clusters.push({ ...f, lit: false });
+    for (const [i, j] of floors) if (r2() < 0.12) clusters.push({ i, j, a: 0, b: 0, ceil: true, lit: false });
+    // Каждый 4-й обычный кластер тоже даёт немного света
+    let n = 0; for (const c of clusters) if (!c.lit && !c.ceil && n++ % 4 === 0) c.lit = true;
+
+    const coneGeo = new THREE.ConeGeometry(1, 1, 5); coneGeo.translate(0, 0.5, 0);
+    const hues = [0.52, 0.8];
+    const cmats = hues.map(h => new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(h, 0.75, 0.62), emissive: new THREE.Color().setHSL(h, 0.9, 0.42),
+      emissiveIntensity: 1.1, roughness: 0.25, flatShading: true }));
+    const parts = [[], []];
+    const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+    let lights = 0;
+    for (const cl of clusters) {
+      const hi = r2() < 0.6 ? 0 : 1;
+      const c = cellCenter(cl.i, cl.j);
+      let bx, by, bz;
+      if (cl.ceil) { bx = c.x + (r2() - 0.5) * 2.5; bz = c.z + (r2() - 0.5) * 2.5; by = Y + WALL_H + 0.4; }
+      else {
+        const along = (r2() - 0.5) * 2.4;
+        bx = c.x + cl.a * (CELL / 2 - 0.3) + (cl.b !== 0 ? along : 0);
+        bz = c.z + cl.b * (CELL / 2 - 0.3) + (cl.a !== 0 ? along : 0);
+        by = Y + (cl.big ? 1.2 + r2() * 1.2 : 0.3 + r2() * 3.3);
+      }
+      const count = cl.big ? 7 : 3 + Math.floor(r2() * 3);
+      for (let k = 0; k < count; k++) {
+        if (cl.ceil) dir.set((r2() - 0.5) * 0.8, -1, (r2() - 0.5) * 0.8);
+        else dir.set(-cl.a * (0.5 + r2() * 0.6) + (r2() - 0.5) * 0.7, 0.4 + r2() * 0.9, -cl.b * (0.5 + r2() * 0.6) + (r2() - 0.5) * 0.7);
+        dir.normalize();
+        const h = (cl.big ? 0.8 : 0.4) + r2() * (cl.big ? 1.2 : 0.7);
+        p.set(bx + (r2() - 0.5) * 0.3, by + (r2() - 0.5) * 0.4, bz + (r2() - 0.5) * 0.3);
+        q.setFromUnitVectors(up, dir);
+        const w = h * (0.16 + r2() * 0.08);
+        sc.set(w, h, w);
+        m4.compose(p, q, sc);
+        parts[hi].push(m4.clone());
+      }
+      if (cl.lit && lights < 12) {
+        lights++;
+        const light = new THREE.PointLight(new THREE.Color().setHSL(hues[hi], 0.7, 0.6), cl.big ? 7 : 4, 11, 1.6);
+        light.position.set(bx - cl.a * 0.8, by + 0.5, bz - cl.b * 0.8); group.add(light);
+        flickers.push({ light, base: light.intensity, seed: r2() * 100, slow: true });
+      }
+    }
+    sc.set(1, 1, 1);
+    parts.forEach((list, hi) => {
+      const im = new THREE.InstancedMesh(coneGeo, cmats[hi], list.length);
+      list.forEach((m, k) => im.setMatrixAt(k, m));
+      group.add(im);
+    });
   }
 
   // Декор: кости в склепе, сталагмиты в пещере
@@ -674,7 +732,8 @@ function buildDungeon(def, di) {
   // Направление старта — в сторону свободной клетки
   const free = [[0, 1], [1, 0], [-1, 0], [0, -1]].find(([a, b]) => !solid(start[0] + a, start[1] + b));
   return {
-    def, di, group, map, rows, cols, Y, solid, cellCenter, circles, wallMesh, flickers, exitRing,
+    def, di, group, map, rows, cols, Y, solid, cellCenter, circles, wallMesh, flickers, exitRing, spawns, cave,
+    pad: cave ? 0.55 : 0, fog: cave ? new THREE.Fog(0x0b0d18, 10, 60) : CAVE_FOG, bg: new THREE.Color(cave ? 0x0b0d18 : 0x050407),
     start: sc0, startYaw: Math.atan2(free[0], free[1]),
     chest: { pos: cc, lidPivot, light: chestLight, opened: false, t: 0 },
   };
@@ -697,9 +756,6 @@ function makeHero() {
   box(0.46, 0.32, 0.1, hair, 0, 0.06, -0.2, head);
   box(0.07, 0.07, 0.02, M(0x1a1a1a), -0.1, 0.03, 0.215, head);
   box(0.07, 0.07, 0.02, M(0x1a1a1a), 0.1, 0.03, 0.215, head);
-  // Меч и щит за спиной
-  const blade = box(0.09, 1.05, 0.03, steel, 0, 1.3, -0.24); blade.rotation.z = 0.6;
-  const hilt = box(0.3, 0.07, 0.07, M(0x8a6a2a), 0.27, 1.69, -0.24); hilt.rotation.z = 0.6;
   const legs = [], arms = [];
   for (const s of [-1, 1]) {
     const lp = new THREE.Group(); lp.position.set(0.16 * s, 0.88, 0); g.add(lp);
@@ -711,7 +767,12 @@ function makeHero() {
     box(0.19, 0.17, 0.19, skin, 0, -0.66, 0, ap);
     arms.push(ap);
   }
-  g.userData = { legs, arms, head };
+  // Меч в правой руке: клинок смотрит вперёд, когда рука опущена
+  const sword = new THREE.Group(); sword.position.set(0, -0.68, 0.04); sword.rotation.x = Math.PI / 2; arms[0].add(sword);
+  box(0.08, 1.0, 0.03, steel, 0, 0.62, 0, sword);
+  box(0.32, 0.07, 0.09, M(0x8a6a2a), 0, 0.1, 0, sword);
+  box(0.06, 0.2, 0.06, M(0x3a2410), 0, -0.02, 0, sword);
+  g.userData = { legs, arms, head, sword };
   return g;
 }
 const hero = makeHero();
@@ -725,19 +786,25 @@ const state = {
   pos: new THREE.Vector3(0, groundAt(0, 0), 8),
   vy: 0, onGround: true, facing: Math.PI, walk: 0, speedNow: 0,
   yaw: 0, pitch: 0.35, dist: 8, treasures: 0, busy: false,
+  hp: 100, maxHp: 100, attackT: -1, attackHit: false, invuln: 0, hurtAgo: 99, dead: false, kills: 0,
+  pushX: 0, pushZ: 0,
 };
 
 const keys = {};
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyE') interact();
+  if (e.code === 'KeyF' || e.code === 'KeyJ') attack();
   if (e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
 let dragging = false;
-canvas.addEventListener('mousedown', () => { dragging = true; if (document.pointerLockElement !== canvas) canvas.requestPointerLock?.(); });
+canvas.addEventListener('mousedown', e => {
+  if (document.pointerLockElement === canvas) { if (e.button === 0) attack(); return; }
+  dragging = true; canvas.requestPointerLock?.();
+});
 addEventListener('mouseup', () => { dragging = false; });
 addEventListener('mousemove', e => {
   if (document.pointerLockElement !== canvas && !dragging) return;
@@ -832,6 +899,7 @@ function initTouch() {
     el.addEventListener('touchend', e => { el.classList.remove('pressed'); up?.(); e.preventDefault(); }, { passive: false });
     el.addEventListener('touchcancel', () => { el.classList.remove('pressed'); up?.(); });
   };
+  press(document.getElementById('btnAttack'), attack);
   press(btnJump, () => touch.jump = true, () => touch.jump = false);
   press(btnRun, () => { touch.run = !touch.run; btnRun.classList.toggle('on', touch.run); });
   press(btnAct, interact);
@@ -864,11 +932,13 @@ function setMode(mode) {
   const inside = mode >= 0;
   surface.visible = !inside; sky.visible = !inside;
   sun.visible = !inside;
-  scene.fog = inside ? CAVE_FOG : SKY_FOG;
-  scene.background = inside ? new THREE.Color(0x050407) : null;
-  hemi.intensity = inside ? 0.5 : 1.1;
-  hemi.color.set(inside ? 0x6a6a90 : 0xcfe6ff);
-  hemi.groundColor.set(inside ? 0x201810 : 0x6b5a3a);
+  const dg = inside ? dungeons[mode] : null;
+  scene.fog = inside ? dg.fog : SKY_FOG;
+  scene.background = inside ? dg.bg : null;
+  // В пещере ровный мягкий свет, чтобы было всё видно; кристаллы лишь подкрашивают
+  hemi.intensity = inside ? (dg.cave ? 1.6 : 0.6) : 1.1;
+  hemi.color.set(inside ? (dg.cave ? 0x8c9ad6 : 0x6a6a90) : 0xcfe6ff);
+  hemi.groundColor.set(inside ? (dg.cave ? 0x3a3050 : 0x201810) : 0x6b5a3a);
   dungeons.forEach((d, i) => d.group.visible = i === mode);
   heroLight.visible = inside;
   locEl.textContent = inside ? dungeons[mode].def.name : 'Долина';
@@ -887,6 +957,7 @@ function enterDungeon(idx) {
     state.facing = d.startYaw; state.yaw = d.startYaw + Math.PI; state.pitch = 0.3;
     state.dist = Math.min(state.dist, 6);
     camPos.set(0, 0, 0); camInit = false;
+    resetEnemies(idx);
     showBanner(d.def.name, d.def.sub);
   });
 }
@@ -936,9 +1007,9 @@ function openChest(d) {
 //  Движение и столкновения
 // ============================================================
 const PLAYER_R = 0.4;
-function pushOutCircles(p, list) {
+function pushOutCircles(p, list, rad = PLAYER_R) {
   for (const o of list) {
-    const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz), min = o.r + PLAYER_R;
+    const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz), min = o.r + rad;
     if (d < min && d > 1e-5) { p.x = o.x + dx / d * min; p.z = o.z + dz / d * min; }
   }
 }
@@ -949,20 +1020,38 @@ function surfaceObstaclesNear(p) {
   }
   return out;
 }
-function dungeonCollide(d, p) {
-  const fi = p.x / CELL + d.cols / 2 - 0.5, fj = p.z / CELL + d.rows / 2 - 0.5;
-  const ci = Math.round(fi), cj = Math.round(fj);
+// Стены — квадраты клеток (в пещере чуть шире из-за неровных скал)
+function dungeonCollide(d, p, rad = PLAYER_R) {
+  const ci = Math.round(p.x / CELL + d.cols / 2 - 0.5), cj = Math.round(p.z / CELL + d.rows / 2 - 0.5);
+  const half = CELL / 2 + d.pad;
   for (let j = cj - 1; j <= cj + 1; j++) for (let i = ci - 1; i <= ci + 1; i++) {
     if (!d.solid(i, j)) continue;
     const c = d.cellCenter(i, j);
-    const nx = clamp(p.x, c.x - CELL / 2, c.x + CELL / 2), nz = clamp(p.z, c.z - CELL / 2, c.z + CELL / 2);
+    const nx = clamp(p.x, c.x - half, c.x + half), nz = clamp(p.z, c.z - half, c.z + half);
     const dx = p.x - nx, dz = p.z - nz, dist = Math.hypot(dx, dz);
-    if (dist < PLAYER_R) {
-      if (dist > 1e-5) { p.x = nx + dx / dist * PLAYER_R; p.z = nz + dz / dist * PLAYER_R; }
-      else { p.x = c.x + Math.sign(p.x - c.x || 1) * (CELL / 2 + PLAYER_R); }
+    if (dist < rad) {
+      if (dist > 1e-5) { p.x = nx + dx / dist * rad; p.z = nz + dz / dist * rad; }
+      else { p.x = c.x + Math.sign(p.x - c.x || 1) * (half + rad); }
     }
   }
-  pushOutCircles(p, d.circles);
+  pushOutCircles(p, d.circles, rad);
+}
+
+// Общее перемещение с учётом стен, деревьев, склонов (и воды — для врагов)
+function moveEntity(p, dx, dz, rad, mode, avoidWater = false) {
+  if (mode >= 0) { p.x += dx; p.z += dz; dungeonCollide(dungeons[mode], p, rad); return; }
+  const swimming = groundAt(p.x, p.z) < WATER - 1.0;
+  const tryMove = (mx, mz) => {
+    const nx = clamp(p.x + mx, -HALF + 4, HALF - 4), nz = clamp(p.z + mz, -HALF + 4, HALF - 4);
+    const g = groundAt(nx, nz);
+    if (avoidWater && g < 0.4) return false;
+    const rise = g - groundAt(p.x, p.z), run = Math.hypot(mx, mz) || 1;
+    if (rise / run > 1.25 && !swimming) return false;
+    p.x = nx; p.z = nz; return true;
+  };
+  // Пробуем шаг, затем по осям — чтобы скользить вдоль склонов
+  if (!tryMove(dx, dz)) { tryMove(dx, 0) || tryMove(0, dz); }
+  pushOutCircles(p, surfaceObstaclesNear(p), rad);
 }
 
 const tmp = new THREE.Vector3();
@@ -973,7 +1062,7 @@ function updatePlayer(dt) {
   if (keys.KeyS || keys.ArrowDown) iz -= 1;
   if (keys.KeyA || keys.ArrowLeft) ix -= 1;
   if (keys.KeyD || keys.ArrowRight) ix += 1;
-  if (state.busy) ix = iz = 0;
+  if (state.busy || state.dead) ix = iz = 0;
   const fwdX = -Math.sin(state.yaw), fwdZ = -Math.cos(state.yaw);
   const rgtX = Math.cos(state.yaw), rgtZ = -Math.sin(state.yaw);
   let mx = fwdX * iz + rgtX * ix, mz = fwdZ * iz + rgtZ * ix;
@@ -985,36 +1074,27 @@ function updatePlayer(dt) {
   let speed = keys.ShiftLeft || keys.ShiftRight || touch.run ? 11 : 5.5;
   speed *= Math.max(0.3, Math.min(1, len)); // джойстик: чем сильнее наклон, тем быстрее
   if (swimming) speed *= 0.5;
+  if (state.attackT >= 0) speed *= 0.45;
+  let dx = 0, dz = 0;
   if (len > 0.12) {
     mx /= len; mz /= len;
-    const target = Math.atan2(mx, mz);
-    let diff = target - state.facing;
-    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    state.facing += diff * Math.min(1, dt * 12);
-    const step = speed * dt;
-    if (inside) {
-      p.x += mx * step; p.z += mz * step;
-      dungeonCollide(dungeons[state.mode], p);
-    } else {
-      // Пробуем шаг, затем по осям — чтобы скользить вдоль склонов
-      const tryMove = (dx, dz) => {
-        const nx = clamp(p.x + dx, -HALF + 4, HALF - 4), nz = clamp(p.z + dz, -HALF + 4, HALF - 4);
-        const rise = groundAt(nx, nz) - groundAt(p.x, p.z);
-        const run = Math.hypot(dx, dz) || 1;
-        if (rise / run > 1.25 && !swimming) return false;
-        p.x = nx; p.z = nz; return true;
-      };
-      if (!tryMove(mx * step, mz * step)) { tryMove(mx * step, 0) || tryMove(0, mz * step); }
-      pushOutCircles(p, surfaceObstaclesNear(p));
+    if (state.attackT < 0) {
+      const diff = Math.atan2(Math.sin(Math.atan2(mx, mz) - state.facing), Math.cos(Math.atan2(mx, mz) - state.facing));
+      state.facing += diff * Math.min(1, dt * 12);
     }
+    dx = mx * speed * dt; dz = mz * speed * dt;
     state.speedNow = lerp(state.speedNow, speed, Math.min(1, dt * 10));
   } else {
     state.speedNow = lerp(state.speedNow, 0, Math.min(1, dt * 10));
   }
+  // Отбрасывание от ударов врагов
+  dx += state.pushX * dt; dz += state.pushZ * dt;
+  const decay = Math.exp(-dt * 7); state.pushX *= decay; state.pushZ *= decay;
+  if (dx || dz) moveEntity(p, dx, dz, PLAYER_R, state.mode);
 
   // Вертикаль
   const floorY = inside ? dungeons[state.mode].Y : Math.max(groundAt(p.x, p.z), swimming ? WATER - 1.1 : -Infinity);
-  if (state.onGround && (keys.Space || touch.jump) && !swimming && !state.busy) { state.vy = 9; state.onGround = false; }
+  if (state.onGround && (keys.Space || touch.jump) && !swimming && !state.busy && !state.dead) { state.vy = 9; state.onGround = false; }
   state.vy -= 25 * dt;
   p.y += state.vy * dt;
   if (inside) p.y = Math.min(p.y, dungeons[state.mode].Y + WALL_H - 2.1);
@@ -1032,10 +1112,401 @@ function updatePlayer(dt) {
   ud.legs[1].rotation.x = state.onGround ? -sw * amp : 0.3;
   ud.arms[0].rotation.x = state.onGround ? -sw * amp * 0.8 : -2.4;
   ud.arms[1].rotation.x = state.onGround ? sw * amp * 0.8 : -2.4;
+  // Удар мечом: замах над головой → рубящий удар вперёд → возврат
+  ud.arms[0].rotation.z = 0;
+  slash.material.opacity = 0;
+  if (state.attackT >= 0) {
+    state.attackT += dt;
+    const t = state.attackT;
+    let ax, az;
+    if (t < 0.12) { const k = t / 0.12; ax = lerp(0, -2.7, k); az = lerp(0, 0.45, k); }
+    else if (t < 0.3) { const k = smoothstep(0, 1, (t - 0.12) / 0.18); ax = lerp(-2.7, 0.5, k); az = lerp(0.45, -0.3, k); }
+    else { const k = Math.min(1, (t - 0.3) / 0.18); ax = lerp(0.5, 0, k); az = lerp(-0.3, 0, k); }
+    ud.arms[0].rotation.x = ax; ud.arms[0].rotation.z = az;
+    if (t > 0.14 && t < 0.36) slash.material.opacity = 0.55 * (1 - Math.abs(t - 0.22) / 0.14);
+    if (!state.attackHit && t >= 0.2) { state.attackHit = true; swordHit(); }
+    if (t >= 0.48) state.attackT = -1;
+  }
+
+  // Здоровье: восстанавливается вне боя, у костра — быстро
+  state.invuln -= dt; state.hurtAgo += dt;
+  if (!state.dead && state.hp < state.maxHp) {
+    const nearFire = state.mode < 0 && Math.hypot(p.x - campfire.position.x, p.z - campfire.position.z) < 7;
+    if (nearFire || state.hurtAgo > 5) state.hp = Math.min(state.maxHp, state.hp + (nearFire ? 15 : 4) * dt);
+  }
+
   const bob = moving && state.onGround ? Math.abs(Math.cos(state.walk)) * 0.08 : Math.sin(performance.now() / 600) * 0.015;
   hero.position.set(p.x, p.y + bob, p.z);
   hero.rotation.y = state.facing;
+  if (state.dead) {
+    state.deadT += dt;
+    hero.rotation.x = -Math.min(1, state.deadT * 2.5) * 1.45;
+    hero.position.y = p.y + Math.min(1, state.deadT * 2.5) * 0.25;
+  } else hero.rotation.x = 0;
 }
+
+// ============================================================
+//  Бой
+// ============================================================
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+const turnTo = (cur, target, k) => cur + angDiff(target, cur) * Math.min(1, k);
+const hurtEl = document.getElementById('hurt'), hpBarEl = document.getElementById('hpbar'), killsEl = document.getElementById('kills');
+
+// След от взмаха меча
+const slash = new THREE.Mesh(
+  new THREE.RingGeometry(1.0, 2.1, 20, 1, 0, Math.PI),
+  new THREE.MeshBasicMaterial({ color: 0xfff4d8, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: false })
+);
+slash.rotation.y = Math.PI / 2; slash.position.set(-0.3, 1.2, 0.3);
+hero.add(slash);
+hero.rotation.order = 'YXZ';
+
+function attack() {
+  if (state.attackT >= 0 || state.busy || state.dead) return;
+  state.attackT = 0; state.attackHit = false;
+  // Автонаведение на ближайшего врага рядом — удобно на телефоне
+  let best = null, bd = 4.5;
+  for (const e of enemies) {
+    if (e.mode !== state.mode || e.dead) continue;
+    const d = Math.hypot(e.pos.x - state.pos.x, e.pos.z - state.pos.z);
+    if (d < bd) { bd = d; best = e; }
+  }
+  if (best) state.facing = Math.atan2(best.pos.x - state.pos.x, best.pos.z - state.pos.z);
+}
+
+function swordHit() {
+  for (const e of enemies) {
+    if (e.mode !== state.mode || e.dead) continue;
+    const dx = e.pos.x - state.pos.x, dz = e.pos.z - state.pos.z, d = Math.hypot(dx, dz) || 0.01;
+    if (d > 2.3 + e.T.r || Math.abs(e.pos.y - state.pos.y) > 2.5) continue;
+    if (Math.abs(angDiff(Math.atan2(dx, dz), state.facing)) > 1.25 && d > e.T.r + 0.7) continue;
+    hitEnemy(e, 22 + Math.floor(Math.random() * 10), dx / d, dz / d);
+  }
+}
+
+function hitEnemy(e, dmg, nx, nz) {
+  e.hp -= dmg; e.flash = 1;
+  e.kx = nx * 9; e.kz = nz * 9;
+  if (e.hp <= 0) {
+    e.dead = true; e.deadT = 0; e.bar.visible = false;
+    state.kills++; killsEl.textContent = state.kills;
+    return;
+  }
+  // Удар сбивает замах врага
+  if (e.st === 'windup') { e.st = 'recover'; e.t = e.T.cd - 0.45; }
+  else if (e.st === 'idle' || e.st === 'return') e.st = 'chase';
+}
+
+function damagePlayer(dmg, fromX, fromZ) {
+  if (state.invuln > 0 || state.dead || state.busy) return;
+  state.hp = Math.max(0, state.hp - dmg);
+  state.invuln = 0.5; state.hurtAgo = 0;
+  const dx = state.pos.x - fromX, dz = state.pos.z - fromZ, d = Math.hypot(dx, dz) || 1;
+  state.pushX = dx / d * 10; state.pushZ = dz / d * 10;
+  hurtEl.style.transition = 'none'; hurtEl.style.opacity = 1;
+  requestAnimationFrame(() => requestAnimationFrame(() => { hurtEl.style.transition = 'opacity 0.6s'; hurtEl.style.opacity = 0; }));
+  navigator.vibrate?.(60);
+  if (state.hp <= 0) playerDie();
+}
+
+function playerDie() {
+  state.dead = true; state.deadT = 0; state.attackT = -1;
+  showBanner('Ты пал в бою', 'Очнёшься у костра…');
+  setTimeout(() => transition(() => {
+    setMode(-1);
+    const x = campfire.position.x - 2.5, z = campfire.position.z + 2.5;
+    state.pos.set(x, groundAt(x, z), z);
+    state.hp = state.maxHp; state.dead = false; state.vy = 0; state.pushX = state.pushZ = 0;
+    state.facing = Math.PI * 0.75; state.yaw = state.facing + Math.PI;
+    camInit = false;
+    resetEnemies(-1);
+    showBanner('Долина', 'Отдохни у костра и попробуй снова');
+  }), 1800);
+}
+
+// ============================================================
+//  Враги
+// ============================================================
+const ENEMY_TYPES = {
+  slime:    { hp: 45, dmg: 7,  speed: 3.4, r: 0.6,  aggro: 11, reach: 1.5, cd: 1.3, windup: 0.45, barY: 1.5, lunge: true },
+  goblin:   { hp: 70, dmg: 10, speed: 4.6, r: 0.45, aggro: 15, reach: 1.7, cd: 1.1, windup: 0.4,  barY: 2.0 },
+  skeleton: { hp: 80, dmg: 12, speed: 3.9, r: 0.45, aggro: 13, reach: 1.8, cd: 1.2, windup: 0.45, barY: 2.4 },
+  spider:   { hp: 55, dmg: 9,  speed: 5.2, r: 0.7,  aggro: 12, reach: 1.7, cd: 0.9, windup: 0.35, barY: 1.4, lunge: true },
+};
+const enemies = [];
+
+function enemyMat(list, color, extra = {}) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true, ...extra });
+  m.userData.base = m.emissive.clone();
+  list.push(m);
+  return m;
+}
+function addBox(parent, w, h, d, m, x, y, z) {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+  b.position.set(x, y, z); b.castShadow = true; parent.add(b); return b;
+}
+
+function buildSlime(mats) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const hue = 0.26 + Math.random() * 0.12;
+  const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(0.62, 1),
+    enemyMat(mats, new THREE.Color().setHSL(hue, 0.6, 0.5), { roughness: 0.3, transparent: true, opacity: 0.88 }));
+  blob.scale.set(1, 0.8, 1); blob.position.y = 0.5; blob.castShadow = true; body.add(blob);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), enemyMat(mats, new THREE.Color().setHSL(hue, 0.6, 0.3)));
+  core.position.y = 0.45; body.add(core);
+  const eye = enemyMat(mats, 0x111111);
+  addBox(body, 0.1, 0.16, 0.05, eye, -0.18, 0.62, 0.52);
+  addBox(body, 0.1, 0.16, 0.05, eye, 0.18, 0.62, 0.52);
+  return {
+    g, anim(e, dt) {
+      if (e.dead) return;
+      e.hop += dt * (e.moving ? 7 : 2.5);
+      const k = Math.abs(Math.sin(e.hop));
+      if (e.st === 'windup') {
+        const w = Math.min(1, e.t / e.T.windup);
+        body.scale.set(1 + 0.3 * w, 1 - 0.35 * w, 1 + 0.3 * w); body.position.y = 0;
+      } else {
+        body.position.y = e.moving ? k * 0.45 : 0;
+        body.scale.set(1 + (1 - k) * 0.1, 0.9 + k * 0.18, 1 + (1 - k) * 0.1);
+      }
+    },
+  };
+}
+
+function buildHumanoid(mats, o) {
+  const g = new THREE.Group(), inner = new THREE.Group(); inner.scale.setScalar(o.scale); g.add(inner);
+  const skin = enemyMat(mats, o.skin), cloth = enemyMat(mats, o.cloth), dark = enemyMat(mats, o.dark);
+  addBox(inner, o.bw, 0.7, 0.3, cloth, 0, 1.22, 0);
+  if (o.ribs) for (let k = 0; k < 3; k++) addBox(inner, o.bw + 0.02, 0.05, 0.31, dark, 0, 1.08 + k * 0.17, 0);
+  const head = new THREE.Group(); head.position.y = 1.82; inner.add(head);
+  addBox(head, 0.42, 0.4, 0.4, skin, 0, 0, 0);
+  const eye = enemyMat(mats, o.eye, { emissive: o.eye, emissiveIntensity: o.glow });
+  eye.userData.base = eye.emissive.clone();
+  addBox(head, 0.09, 0.07, 0.02, eye, -0.1, 0.03, 0.205);
+  addBox(head, 0.09, 0.07, 0.02, eye, 0.1, 0.03, 0.205);
+  if (o.ears) for (const sx of [-1, 1]) { const ear = addBox(head, 0.2, 0.1, 0.06, skin, sx * 0.28, 0.08, 0); ear.rotation.z = sx * 0.5; }
+  if (o.jaw) addBox(head, 0.3, 0.06, 0.02, dark, 0, -0.12, 0.205);
+  const legs = [], arms = [];
+  for (const sx of [-1, 1]) {
+    const lp = new THREE.Group(); lp.position.set(0.15 * sx, 0.88, 0); inner.add(lp);
+    addBox(lp, o.limb, 0.62, o.limb, sx < 0 ? dark : dark, 0, -0.32, 0);
+    legs.push(lp);
+    const ap = new THREE.Group(); ap.position.set((o.bw / 2 + 0.1) * sx, 1.52, 0); inner.add(ap);
+    addBox(ap, o.limb * 0.9, 0.62, o.limb * 0.9, o.ribs ? skin : cloth, 0, -0.28, 0);
+    addBox(ap, o.limb * 0.9, 0.16, o.limb * 0.9, skin, 0, -0.65, 0);
+    arms.push(ap);
+  }
+  const weapon = new THREE.Group(); weapon.position.set(0, -0.66, 0.04); weapon.rotation.x = Math.PI / 2; arms[0].add(weapon);
+  if (o.weapon === 'club') {
+    const club = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.05, 0.9, 6), enemyMat(mats, 0x5a3a1c));
+    club.position.y = 0.4; club.castShadow = true; weapon.add(club);
+  } else {
+    addBox(weapon, 0.07, 0.85, 0.03, enemyMat(mats, 0x8a7a68, { metalness: 0.4 }), 0, 0.5, 0);
+    addBox(weapon, 0.26, 0.06, 0.07, dark, 0, 0.08, 0);
+  }
+  return {
+    g, anim(e, dt) {
+      if (e.dead) return;
+      e.walk += dt * e.speedNow * 1.8;
+      const amp = e.moving ? Math.min(1, e.speedNow / 4) * 0.8 : 0, sw = Math.sin(e.walk);
+      legs[0].rotation.x = sw * amp; legs[1].rotation.x = -sw * amp;
+      arms[1].rotation.x = sw * amp * 0.7;
+      let ax = -sw * amp * 0.7;
+      if (e.st === 'windup') ax = -2.6 * Math.min(1, e.t / (e.T.windup * 0.8));
+      else if (e.st === 'recover' && e.t < 0.25) ax = lerp(-2.6, 0.4, smoothstep(0, 1, e.t / 0.15));
+      arms[0].rotation.x = ax;
+    },
+  };
+}
+const buildGoblin = mats => buildHumanoid(mats, { scale: 0.82, skin: 0x6aa84f, cloth: 0x6b4a2b, dark: 0x3d2a18, eye: 0xffd400, glow: 0.6, bw: 0.56, limb: 0.2, ears: true, weapon: 'club' });
+const buildSkeleton = mats => buildHumanoid(mats, { scale: 1.0, skin: 0xe6dfc8, cloth: 0xd8d0b8, dark: 0x3a3228, eye: 0x6fd0ff, glow: 1.5, bw: 0.46, limb: 0.13, ribs: true, jaw: true, weapon: 'sword' });
+
+function buildSpider(mats) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const shell = enemyMat(mats, 0x3a2a4a), legM = enemyMat(mats, 0x2a1f36);
+  const abd = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), shell); abd.scale.set(1, 0.75, 1.2); abd.position.set(0, 0.7, -0.45); abd.castShadow = true; body.add(abd);
+  const thorax = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 0), shell); thorax.position.set(0, 0.6, 0.15); thorax.castShadow = true; body.add(thorax);
+  const eye = enemyMat(mats, 0xff3020, { emissive: 0xff2010, emissiveIntensity: 1.5 }); eye.userData.base = eye.emissive.clone();
+  for (const [x, y] of [[-0.1, 0.7], [0.1, 0.7], [-0.17, 0.63], [0.17, 0.63]]) addBox(body, 0.06, 0.06, 0.04, eye, x, y, 0.44);
+  const legs = [];
+  for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) {
+    const pv = new THREE.Group(); pv.position.set(sx * 0.2, 0.62, 0.25 - k * 0.17); body.add(pv);
+    const holder = new THREE.Group(); holder.rotation.y = sx * (k - 1.5) * 0.4; pv.add(holder);
+    const up = addBox(holder, 0.6, 0.07, 0.07, legM, sx * 0.28, 0.14, 0); up.rotation.z = sx * 0.5;
+    const low = addBox(holder, 0.07, 0.75, 0.07, legM, sx * 0.62, -0.12, 0); low.rotation.z = sx * -0.3;
+    legs.push({ pv, ph: k * 1.6 + (sx > 0 ? Math.PI : 0) });
+  }
+  return {
+    g, anim(e, dt) {
+      if (e.dead) return;
+      e.walk += dt * (e.moving ? 14 : 2);
+      const amp = e.moving ? 0.35 : 0.05;
+      for (const l of legs) l.pv.rotation.x = Math.sin(e.walk + l.ph) * amp;
+      body.rotation.x = e.st === 'windup' ? -0.45 * Math.min(1, e.t / e.T.windup) : 0;
+    },
+  };
+}
+const BUILDERS = { slime: buildSlime, goblin: buildGoblin, skeleton: buildSkeleton, spider: buildSpider };
+
+const barGeo = new THREE.PlaneGeometry(1, 0.12); barGeo.translate(0.5, 0, 0);
+function makeBar() {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.06, 0.18), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6, depthTest: false, fog: false }));
+  const fg = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0xe04a3a, transparent: true, depthTest: false, fog: false }));
+  fg.position.set(-0.5, 0, 0.001);
+  bg.renderOrder = 10; fg.renderOrder = 11;
+  g.add(bg, fg); g.userData.fg = fg; g.visible = false;
+  return g;
+}
+
+const enemyGround = e => e.mode >= 0 ? dungeons[e.mode].Y : groundAt(e.pos.x, e.pos.z);
+function spawnEnemy(type, mode, x, z, parent) {
+  const T = ENEMY_TYPES[type], mats = [], model = BUILDERS[type](mats);
+  const bar = makeBar();
+  parent.add(model.g, bar);
+  const e = {
+    type, T, mode, mats, model, g: model.g, bar, home: { x, z }, pos: new THREE.Vector3(x, 0, z),
+    hp: T.hp, st: 'idle', t: 0, facing: Math.random() * 6.28, kx: 0, kz: 0, flash: 0, flashOn: false,
+    walk: 0, hop: Math.random() * 6, speedNow: 0, moving: false, wander: null, wanderT: Math.random() * 3, dead: false, deadT: 0,
+  };
+  e.pos.y = enemyGround(e);
+  e.g.position.copy(e.pos);
+  enemies.push(e);
+  return e;
+}
+function reviveEnemy(e) {
+  e.dead = false; e.hp = e.T.hp; e.st = 'idle'; e.kx = e.kz = 0;
+  e.pos.set(e.home.x, 0, e.home.z); e.pos.y = enemyGround(e);
+  e.g.visible = true; e.g.scale.setScalar(1); e.g.rotation.set(0, e.facing, 0);
+}
+function resetEnemies(mode) {
+  for (const e of enemies) if (e.mode === mode && !e.dead) {
+    e.hp = e.T.hp; e.st = 'idle'; e.kx = e.kz = 0;
+    e.pos.set(e.home.x, 0, e.home.z); e.pos.y = enemyGround(e);
+  }
+}
+
+// Расстановка врагов
+{
+  const er = mulberry32(555);
+  const ok = (x, z) => {
+    const h = groundAt(x, z);
+    return h > 1.5 && h < 30 && normalYAt(x, z) > 0.85 && Math.hypot(x, z) > 40
+      && !DUNGEON_SITES.some(s => Math.hypot(x - s.x, z - s.z) < 10)
+      && surfaceObstaclesNear({ x, z }).every(o => Math.hypot(o.x - x, o.z - z) > o.r + 1);
+  };
+  let slimes = 0, goblins = 0;
+  for (let n = 0; n < 5000 && (slimes < 14 || goblins < 6); n++) {
+    const x = (er() * 2 - 1) * (HALF - 40), z = (er() * 2 - 1) * (HALF - 40);
+    if (!ok(x, z)) continue;
+    if (slimes < 14) { spawnEnemy('slime', -1, x, z, surface); slimes++; }
+    else { spawnEnemy('goblin', -1, x, z, surface); goblins++; }
+  }
+  // Гоблины охраняют входы в подземелья
+  for (const en of surfaceEntrances) for (const side of [-1, 1]) {
+    const x = en.door.x + en.dir.x * 8 + en.dir.z * side * 3.5, z = en.door.z + en.dir.z * 8 - en.dir.x * side * 3.5;
+    spawnEnemy('goblin', -1, x, z, surface);
+  }
+  // В склепе — скелеты, в пещере — пауки
+  dungeons.forEach((d, di) => d.spawns.forEach(([i, j]) => {
+    const c = d.cellCenter(i, j);
+    spawnEnemy(d.cave ? 'spider' : 'skeleton', di, c.x, c.z, d.group);
+  }));
+}
+
+function updateEnemies(dt) {
+  const P = state.pos;
+  for (const e of enemies) {
+    if (e.mode !== state.mode) continue;
+    const T = e.T;
+    if (e.dead) {
+      e.deadT += dt;
+      const k = Math.min(1, e.deadT / 0.4);
+      e.g.rotation.z = k * 1.4;
+      e.g.scale.setScalar(Math.max(0.001, 1 - Math.max(0, e.deadT - 0.6) / 0.5));
+      if (e.deadT > 1.1) e.g.visible = false;
+      // В долине враги со временем возвращаются (когда героя нет рядом)
+      if (e.mode < 0 && e.deadT > 45 && Math.hypot(P.x - e.home.x, P.z - e.home.z) > 40) reviveEnemy(e);
+      continue;
+    }
+    const dx = P.x - e.pos.x, dz = P.z - e.pos.z, dist = Math.hypot(dx, dz) || 0.01;
+    const canSee = !state.dead && !state.busy && Math.abs(P.y - e.pos.y) < 4;
+    const homeD = Math.hypot(e.pos.x - e.home.x, e.pos.z - e.home.z);
+    let mvx = 0, mvz = 0, sp = 0;
+    e.t += dt;
+    switch (e.st) {
+      case 'idle':
+        e.wanderT -= dt;
+        if (e.wanderT <= 0) {
+          e.wanderT = 2 + Math.random() * 4;
+          e.wander = Math.random() < 0.6 ? { x: e.home.x + (Math.random() - 0.5) * 12, z: e.home.z + (Math.random() - 0.5) * 12 } : null;
+        }
+        if (e.wander) {
+          const wx = e.wander.x - e.pos.x, wz = e.wander.z - e.pos.z, wd = Math.hypot(wx, wz);
+          if (wd > 0.6) { mvx = wx / wd; mvz = wz / wd; sp = T.speed * 0.35; } else e.wander = null;
+        }
+        if (canSee && dist < T.aggro) e.st = 'chase';
+        break;
+      case 'chase':
+        if (!canSee || dist > T.aggro * 1.8 || homeD > 40) { e.st = 'return'; break; }
+        if (dist < T.reach) { e.st = 'windup'; e.t = 0; break; }
+        mvx = dx / dist; mvz = dz / dist; sp = T.speed;
+        break;
+      case 'windup':
+        e.facing = turnTo(e.facing, Math.atan2(dx, dz), dt * 10);
+        if (e.t >= T.windup) {
+          e.st = 'recover'; e.t = 0;
+          if (T.lunge) { e.kx += Math.sin(e.facing) * 7; e.kz += Math.cos(e.facing) * 7; }
+          if (canSee && dist < T.reach + 0.6 && Math.abs(angDiff(Math.atan2(dx, dz), e.facing)) < 1.2) damagePlayer(T.dmg, e.pos.x, e.pos.z);
+        }
+        break;
+      case 'recover':
+        if (e.t >= T.cd) e.st = canSee && dist < T.aggro * 1.8 ? 'chase' : 'return';
+        break;
+      case 'return':
+        if (homeD < 1.5) { e.st = 'idle'; break; }
+        mvx = (e.home.x - e.pos.x) / homeD; mvz = (e.home.z - e.pos.z) / homeD; sp = T.speed * 0.7;
+        e.hp = Math.min(T.hp, e.hp + 10 * dt);
+        if (canSee && dist < T.aggro * 0.6) e.st = 'chase';
+        break;
+    }
+    if (sp > 0) e.facing = turnTo(e.facing, Math.atan2(mvx, mvz), dt * 8);
+    e.moving = sp > 0.1;
+    e.speedNow = lerp(e.speedNow, sp, Math.min(1, dt * 8));
+    const mx = mvx * sp * dt + e.kx * dt, mz = mvz * sp * dt + e.kz * dt;
+    const dec = Math.exp(-dt * 6); e.kx *= dec; e.kz *= dec;
+    if (mx || mz) moveEntity(e.pos, mx, mz, T.r, e.mode, true);
+    // Не проходим сквозь героя и друг сквозь друга
+    if (!state.dead) {
+      const min = T.r + PLAYER_R, ox = e.pos.x - P.x, oz = e.pos.z - P.z, od = Math.hypot(ox, oz);
+      if (od < min && od > 1e-4) { e.pos.x = P.x + ox / od * min; e.pos.z = P.z + oz / od * min; }
+    }
+    for (const o of enemies) {
+      if (o === e || o.dead || o.mode !== e.mode) continue;
+      const ox = e.pos.x - o.pos.x, oz = e.pos.z - o.pos.z, od = Math.hypot(ox, oz), min = T.r + o.T.r;
+      if (od < min && od > 1e-4) { const push = (min - od) / 2; e.pos.x += ox / od * push; e.pos.z += oz / od * push; }
+    }
+    e.pos.y = enemyGround(e);
+    e.g.position.copy(e.pos);
+    e.g.rotation.y = e.facing;
+    e.model.anim(e, dt);
+
+    // Вспышка при попадании
+    if (e.flash > 0 || e.flashOn) {
+      e.flash = Math.max(0, e.flash - dt * 5);
+      for (const m of e.mats) m.emissive.copy(m.userData.base).lerp(WHITE, e.flash * 0.8);
+      e.flashOn = e.flash > 0;
+    }
+    // Полоска здоровья над раненым врагом
+    e.bar.visible = e.hp < T.hp;
+    if (e.bar.visible) {
+      e.bar.position.set(e.pos.x, e.pos.y + T.barY, e.pos.z);
+      e.bar.quaternion.copy(camera.quaternion);
+      e.bar.userData.fg.scale.x = Math.max(0.001, e.hp / T.hp);
+    }
+  }
+}
+const WHITE = new THREE.Color(1, 1, 1);
 
 // ============================================================
 //  Камера
@@ -1103,7 +1574,7 @@ function drawMinimapBase() {
     const ox = (S - cs * d.cols) / 2, oy = (S - cs * d.rows) / 2;
     for (let j = 0; j < d.rows; j++) for (let i = 0; i < d.cols; i++) {
       const c = d.map[j][i];
-      ctx.fillStyle = c === '#' ? '#1c1a20' : (c === 'K' ? '#5ad2e6' : '#6e665c');
+      ctx.fillStyle = c === '#' ? '#1c1a20' : '#6e665c';
       ctx.fillRect(ox + i * cs, oy + j * cs, cs, cs);
     }
     d.mm = { cs, ox, oy };
@@ -1118,12 +1589,14 @@ function drawMinimap() {
     const toMap = (x, z) => [(x + HALF) / WORLD * S, (z + HALF) / WORLD * S];
     for (const e of surfaceEntrances) { const [x, y] = toMap(e.site.x, e.site.z); dot(x, y, '#000', 5.5); dot(x, y, '#e04a3a', 4); }
     const [cx, cy] = toMap(campfire.position.x, campfire.position.z); dot(cx, cy, '#ffb040', 2.5);
+    for (const e of enemies) if (e.mode === state.mode && !e.dead) { const [x, y] = toMap(e.pos.x, e.pos.z); dot(x, y, '#ff7a3a', 2); }
     [px, py] = toMap(state.pos.x, state.pos.z);
   } else {
     const d = dungeons[state.mode], { cs, ox, oy } = d.mm;
     const toMap = (x, z) => [ox + (x / CELL + d.cols / 2) * cs, oy + (z / CELL + d.rows / 2) * cs];
     { const [x, y] = toMap(d.start.x, d.start.z); dot(x, y, '#7fd8ff', 3.5); }
     if (!d.chest.opened) { const [x, y] = toMap(d.chest.pos.x, d.chest.pos.z); dot(x, y, '#ffd34d', 3.5); }
+    for (const e of enemies) if (e.mode === state.mode && !e.dead) { const [x, y] = toMap(e.pos.x, e.pos.z); dot(x, y, '#ff7a3a', 2); }
     [px, py] = toMap(state.pos.x, state.pos.z);
   }
   mctx.save(); mctx.translate(px, py); mctx.rotate(-state.facing + Math.PI);
@@ -1143,6 +1616,9 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   updatePlayer(dt);
   updateCamera(dt);
+  updateEnemies(dt);
+  const hpW = Math.round(state.hp / state.maxHp * 100) + '%';
+  if (hpBarEl.style.width !== hpW) hpBarEl.style.width = hpW;
 
   // Огонь и свечение
   const cf = campfire.userData;
@@ -1183,7 +1659,8 @@ frame();
 if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Capacitor)
   navigator.serviceWorker.register('sw.js').catch(() => {});
 
-window.__game = { touch, state, dungeons, surfaceEntrances, groundAt, normalYAt, enterDungeon, exitDungeon, HALF };
+window.__move = moveEntity;
+window.__game = { touch, enemies, attack, damagePlayer, hitEnemy, state, dungeons, surfaceEntrances, groundAt, normalYAt, enterDungeon, exitDungeon, HALF };
 </script>
 </body>
 </html>

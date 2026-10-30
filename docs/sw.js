@@ -1,5 +1,5 @@
 // Офлайн-кэш: игра работает без интернета после первого запуска
-const CACHE = 'adventure-v1';
+const CACHE = 'adventure-v2';
 const FILES = ['./', './index.html', './three.module.min.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
