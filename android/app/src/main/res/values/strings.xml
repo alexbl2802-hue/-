@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Земли Приключений</string>
+    <string name="title_activity_main">Земли Приключений</string>
+    <string name="package_name">com.alexbl.zemlipriklyucheniy</string>
+    <string name="custom_url_scheme">com.alexbl.zemlipriklyucheniy</string>
+</resources>
