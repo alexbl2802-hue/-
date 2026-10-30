@@ -12,7 +12,8 @@
 Каждый пуш в `main` автоматически собирает новый APK (вкладка **Actions** → *Android APK*). Новая версия ставится поверх старой.
 
 ### Любой телефон (Android и iPhone): веб-версия
-Когда GitHub Pages включён (Settings → Pages → Source: **GitHub Actions**), игра открывается по ссылке
+Один раз включи GitHub Pages: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, папка `/docs` → Save**.
+Через минуту игра откроется по ссылке
 `https://alexbl2802-hue.github.io/-/`.
 В браузере нажми «Добавить на главный экран», и игра установится как приложение. После первого запуска она работает и без интернета.
 
@@ -38,14 +39,13 @@
 
 ## Структура
 ```
-www/            игра (index.html, Three.js, PWA-манифест, офлайн-кэш, иконки)
+docs/           игра (index.html, Three.js, PWA-манифест, офлайн-кэш, иконки)
 android/        Android-проект Capacitor
 assets/icon.png исходник иконки
 .github/workflows/android.yml  сборка APK и публикация в Releases
-.github/workflows/pages.yml    публикация веб-версии на GitHub Pages
 ```
 
-Карты подземелий нарисованы символами в `DUNGEON_DEFS` в `www/index.html`:
+Карты подземелий нарисованы символами в `DUNGEON_DEFS` в `docs/index.html`:
 `#` стена, `S` вход/выход, `C` сундук, `T` факел, `P` колонна, `K` кристалл, `B` кости.
 
 ## Запуск на компьютере
@@ -54,4 +54,4 @@ npm install
 npm run serve      # открой http://localhost:8080
 npm run apk        # собрать APK локально (нужен Android SDK)
 ```
-> Просто открыть `www/index.html` двойным кликом не получится: браузер не загружает модули с `file://`. Нужен локальный сервер.
+> Просто открыть `docs/index.html` двойным кликом не получится: браузер не загружает модули с `file://`. Нужен локальный сервер.

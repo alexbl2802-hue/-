@@ -1,7 +1,7 @@
 {
   "appId": "com.alexbl.zemlipriklyucheniy",
   "appName": "Земли Приключений",
-  "webDir": "www",
+  "webDir": "docs",
   "android": {
     "backgroundColor": "#000000"
   }
