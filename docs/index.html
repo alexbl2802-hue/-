@@ -131,7 +131,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="status" class="panel"><span id="loc">Долина</span> &nbsp;·&nbsp; Сокровища: <span id="treasure">0</span>/2 &nbsp;·&nbsp; ⚔ <span id="kills">0</span></div>
+<div id="status" class="panel"><span id="loc">Камнеград</span> &nbsp;·&nbsp; Сокровища: <span id="treasure">0</span>/2 &nbsp;·&nbsp; ⚔ <span id="kills">0</span></div>
 <div id="bars"><div id="lvlBadge">1</div><div class="col">
   <div id="hpwrap"><div id="hpbar"></div><div id="hptext"></div></div>
   <div id="xpwrap"><div id="xpbar"></div></div>
@@ -227,6 +227,9 @@ function ridged(x, z, oct = 5) {
 // ============================================================
 const WORLD = 600, HALF = WORLD / 2, SEG = 300, STEP = WORLD / SEG;
 const WATER = 0;
+// Город на месте появления: квадрат стен ±TOWN_WALL, земля внутри ровная на высоте TOWN_Y
+const TOWN_Y = 4, TOWN_WALL = 34, TOWN_NAME = 'Камнеград';
+const townDist = (x, z) => Math.max(Math.abs(x), Math.abs(z));
 
 // Подземелья: где на поверхности стоят входы
 const DUNGEON_SITES = [
@@ -247,7 +250,7 @@ function rawHeight(x, z) {
   const massif = Math.max(0, 1 - md);
   h += massif * massif * (r * 70 + 25);
   // Ровная поляна в центре (точка старта)
-  h = lerp(4, h, smoothstep(0.03, 0.14, d));
+  h = lerp(TOWN_Y, h, smoothstep(40, 72, townDist(x, z)));
   return h;
 }
 for (const s of DUNGEON_SITES) s.h = Math.max(2, rawHeight(s.x, s.z));
@@ -352,6 +355,7 @@ const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, rough
       const d = Math.hypot(x - s.x, z - s.z);
       c.lerp(dirt, (1 - smoothstep(4, 9, d)) * 0.7);
     }
+    if (Math.abs(x) < 3.5 && Math.abs(z) > 30 && Math.abs(z) < 75) c.lerp(dirt, 0.75);
     colors[k * 3] = c.r; colors[k * 3 + 1] = c.g; colors[k * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -386,7 +390,7 @@ const treePoints = [];
     const h = groundAt(x, z);
     if (h < 1.3 || h > 42) continue;
     if (normalYAt(x, z) < 0.82) continue;
-    if (Math.hypot(x, z) < 16) continue;
+    if (townDist(x, z) < 42) continue;
     if (DUNGEON_SITES.some(s => Math.hypot(x - s.x, z - s.z) < s.r + 3)) continue;
     const forest = fbm(x * 0.012 + 100, z * 0.012 - 30, 3);
     if (forest < -0.05 && rand() > 0.08) continue;
@@ -435,7 +439,7 @@ const treePoints = [];
   for (let n = 0; n < 3000 && rocks.length < Q.rocks; n++) {
     const x = (rand() * 2 - 1) * (HALF - 5), z = (rand() * 2 - 1) * (HALF - 5);
     const h = groundAt(x, z);
-    if (h < 0.5 || Math.hypot(x, z) < 12) continue;
+    if (h < 0.5 || townDist(x, z) < 42) continue;
     if (DUNGEON_SITES.some(s => Math.hypot(x - s.x, z - s.z) < s.r)) continue;
     const big = rand() < 0.3;
     rocks.push({ x, z, h, s: big ? 1.2 + rand() * 1.6 : 0.3 + rand() * 0.6, rot: rand() * 6.28 });
@@ -451,6 +455,7 @@ const treePoints = [];
   const tufts = [];
   for (let n = 0; n < 20000 && tufts.length < Q.tufts; n++) {
     const x = (rand() * 2 - 1) * (HALF - 20), z = (rand() * 2 - 1) * (HALF - 20);
+    if (townDist(x, z) < 37) continue;
     const h = groundAt(x, z);
     if (h < 1.4 || h > 30 || normalYAt(x, z) < 0.86) continue;
     tufts.push({ x, z, h, s: 0.5 + rand() * 0.6, rot: rand() * 6.28 });
@@ -607,6 +612,229 @@ const rockTex = makeTexture((ctx, s) => {
 });
 
 const dungeons = DUNGEON_DEFS.map((def, di) => buildDungeon(def, di));
+
+// ============================================================
+//  Город: крепостная стена, 10 домов и поместье
+// ============================================================
+const townBoxes = [], townSolids = [], townMap = [];
+{
+  const G = TOWN_Y, W = TOWN_WALL, GATE = 3.5;
+  const town = new THREE.Group(); surface.add(town);
+  const solid = (box, m) => { townBoxes.push(box); if (m) townMap.push({ ...box, c: m }); };
+  const texRep = (t, rx, ry) => { const c = t.clone(); c.repeat.set(rx, ry); c.needsUpdate = true; return c; };
+  const stone = new THREE.MeshStandardMaterial({ map: brickTex, color: 0xd6cdbb, roughness: 0.95 });
+  const timber = mat(0x4a3220), darkWood = mat(0x3a2414);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x6a8aa8, emissive: 0x30404c, roughness: 0.15, metalness: 0.3 });
+  const mesh = (geo, m, x, y, z, parent = town, shadow = true) => {
+    const o = new THREE.Mesh(geo, m); o.position.set(x, y, z);
+    o.castShadow = shadow; o.receiveShadow = true; parent.add(o); return o;
+  };
+  const boxM = (w, h, d, m, x, y, z, parent) => mesh(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent);
+  // Двускатная крыша: конёк вдоль длинной стороны
+  function roof(w, d, rh, m, x, y, z) {
+    const along = Math.max(w, d) + 0.8, across = Math.min(w, d) + 0.9;
+    const sh = new THREE.Shape([new THREE.Vector2(-across / 2, 0), new THREE.Vector2(across / 2, 0), new THREE.Vector2(0, rh)]);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: along, bevelEnabled: false }); g.translate(0, 0, -along / 2);
+    const r = mesh(g, m, x, y, z); if (w > d) r.rotation.y = Math.PI / 2;
+    townSolids.push(r); return r;
+  }
+
+  // --- Крепостная стена из блоков 4 м + зубцы
+  const segs = [], merlons = [];
+  for (let t = -W + 2; t < W; t += 4) {
+    segs.push([t, -W, 0], [t, W, 0], [-W, t, 1], [W, t, 1]);
+  }
+  const wallSegs = segs.filter(([a, b, v]) => !(v === 0 && Math.abs(a) < GATE + 1));
+  const segGeo = new THREE.BoxGeometry(4, 5, 1.6);
+  const wallIM = new THREE.InstancedMesh(segGeo, stone, wallSegs.length);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  // Сегмент [a, b, v]: центр в (x=a, z=b), v — стена идёт вдоль оси z
+  wallSegs.forEach(([a, b, v], i) => {
+    q.setFromAxisAngle(up, v ? Math.PI / 2 : 0);
+    m4.compose(new THREE.Vector3(a, G + 2.5, b), q, new THREE.Vector3(1, 1, 1));
+    wallIM.setMatrixAt(i, m4);
+    for (const o of [-1, 1]) merlons.push([v ? a : a + o, v ? b + o : b, v]);
+  });
+  wallIM.castShadow = true; wallIM.receiveShadow = true; town.add(wallIM); townSolids.push(wallIM);
+  const merIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.9, 1.7), stone, merlons.length);
+  merlons.forEach(([x, z, v], i) => { q.setFromAxisAngle(up, v ? Math.PI / 2 : 0); m4.compose(new THREE.Vector3(x, G + 5.45, z), q, new THREE.Vector3(1, 1, 1)); merIM.setMatrixAt(i, m4); });
+  merIM.castShadow = true; town.add(merIM);
+  const T = 0.8; // половина толщины стены
+  solid({ x0: -W - T, x1: -W + T, z0: -W, z1: W }); solid({ x0: W - T, x1: W + T, z0: -W, z1: W });
+  for (const zz of [-W, W]) { solid({ x0: -W, x1: -GATE - 1, z0: zz - T, z1: zz + T }); solid({ x0: GATE + 1, x1: W, z0: zz - T, z1: zz + T }); }
+
+  // --- Башни: 4 угловые и по две у каждых ворот
+  const towerTex = texRep(brickTex, 5, 2), towerMat = new THREE.MeshStandardMaterial({ map: towerTex, color: 0xd6cdbb, roughness: 0.95 });
+  const roofRed = mat(0x9a3b2a), roofSlate = mat(0x4a5058), roofThatch = mat(0xb8913f), roofBrown = mat(0x7a4228);
+  function tower(x, z, r, h, roofM) {
+    const t = mesh(new THREE.CylinderGeometry(r, r * 1.08, h, 12), towerMat, x, G + h / 2, z); townSolids.push(t);
+    mesh(new THREE.ConeGeometry(r * 1.25, r * 1.5, 12), roofM, x, G + h + r * 0.75, z);
+    addObstacle(x, z, r);
+  }
+  for (const x of [-W, W]) for (const z of [-W, W]) tower(x, z, 3, 8.5, roofRed);
+  for (const zz of [-W, W]) {
+    for (const x of [-GATE - 1.4, GATE + 1.4]) tower(x, zz, 2, 7, roofRed);
+    // Арка над воротами и открытые створки
+    boxM(9.4, 1.6, 2.2, stone, 0, G + 5.6, zz);
+    const s = Math.sign(zz);
+    for (const side of [-1, 1]) {
+      const leaf = boxM(2.6, 4.4, 0.2, darkWood, side * (GATE - 0.3), G + 2.2, zz - s * 2.4);
+      leaf.rotation.y = side * s * 1.25;
+    }
+  }
+
+  // --- Улицы и площадь
+  const cobble = makeTexture((ctx, n) => {
+    ctx.fillStyle = '#6f6658'; ctx.fillRect(0, 0, n, n);
+    for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 8; xx++) {
+      ctx.fillStyle = `hsl(35, 10%, ${45 + r2() * 18}%)`;
+      ctx.beginPath(); ctx.ellipse(xx * n / 8 + n / 16 + (yy % 2) * n / 16, yy * n / 8 + n / 16, n / 18, n / 20, 0, 0, 7); ctx.fill();
+    }
+  });
+  const roadMat = (rx, ry) => new THREE.MeshStandardMaterial({ map: texRep(cobble, rx, ry), roughness: 1 });
+  const flat = (w, d, m, x, z, y) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); const o = mesh(g, m, x, G + y, z, town, false); return o; };
+  flat(6, W * 2 + 4, roadMat(1.5, 18), 0, 0, 0.03);
+  flat(W * 2 - 2, 5, roadMat(16, 1.2), 0, 0, 0.035);
+  const plaza = new THREE.CircleGeometry(10, 28); plaza.rotateX(-Math.PI / 2);
+  mesh(plaza, roadMat(5, 5), 0, G + 0.045, 0, town, false);
+
+  // --- Дома
+  const plasters = [0xeee4cf, 0xe8d8b0, 0xf2efe6, 0xdcc6a0, 0xe9d3c0];
+  const roofs = [roofRed, roofBrown, roofThatch, roofSlate];
+  function house(x, z, w, d, floors, face, k) {
+    const hb = 3.1 * floors, wallM = mat(plasters[k % plasters.length]);
+    boxM(w + 0.3, 0.5, d + 0.3, stone, x, G + 0.25, z);
+    const body = boxM(w, hb, d, wallM, x, G + hb / 2, z); townSolids.push(body);
+    // Фахверк: угловые стойки и балки
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) boxM(0.26, hb, 0.26, timber, x + sx * w / 2, G + hb / 2, z + sz * d / 2);
+    for (let f = 1; f <= floors; f++) {
+      boxM(w + 0.06, 0.22, 0.12, timber, x, G + 3.1 * f - 0.1, z + d / 2); boxM(w + 0.06, 0.22, 0.12, timber, x, G + 3.1 * f - 0.1, z - d / 2);
+      boxM(0.12, 0.22, d + 0.06, timber, x + w / 2, G + 3.1 * f - 0.1, z); boxM(0.12, 0.22, d + 0.06, timber, x - w / 2, G + 3.1 * f - 0.1, z);
+    }
+    roof(w, d, Math.min(w, d) * 0.55, roofs[k % roofs.length], x, G + hb, z);
+    // Труба
+    boxM(0.6, 1.8, 0.6, stone, x + (w > d ? w * 0.3 : 0.6), G + hb + 1.3, z + (w > d ? 0.6 : d * 0.3));
+    // Дверь и окна: дверь смотрит на улицу
+    const [fx, fz] = { '+x': [1, 0], '-x': [-1, 0], '+z': [0, 1], '-z': [0, -1] }[face];
+    const halfF = fx ? w / 2 : d / 2, along = fx ? d : w;
+    const at = (off, y, ww, hh, m) => {
+      const o = boxM(fx ? 0.12 : ww, hh, fx ? ww : 0.12, m, x + fx * (halfF + 0.04) + (fx ? 0 : off), y, z + fz * (halfF + 0.04) + (fx ? off : 0));
+      return o;
+    };
+    at(0, G + 1.15, 1.1, 2.2, darkWood);
+    for (const off of [-along * 0.3, along * 0.3]) at(off, G + 1.6, 0.8, 0.8, glass);
+    if (floors > 1) for (const off of [-along * 0.3, 0, along * 0.3]) at(off, G + 4.6, 0.8, 0.8, glass);
+    // Окна на боковых стенах
+    for (const sd of [-1, 1]) {
+      const sx = fx ? 0 : sd, sz = fx ? sd : 0, half = fx ? d / 2 : w / 2;
+      boxM(sx ? 0.12 : 0.8, 0.8, sx ? 0.8 : 0.12, glass, x + sx * (half + 0.04), G + 1.6, z + sz * (half + 0.04));
+    }
+    solid({ x0: x - w / 2 - 0.15, x1: x + w / 2 + 0.15, z0: z - d / 2 - 0.15, z1: z + d / 2 + 0.15 }, '#8a4a32');
+  }
+  const HOUSES = [
+    [-11, 12, 7, 6, 1, '+x'], [-11, 24, 6.5, 7, 2, '+x'], [-23, 14, 7.5, 6, 1, '+x'], [-24, 26, 7, 6.5, 2, '+x'],
+    [11, 12, 7, 6.5, 2, '-x'], [11, 24, 6.5, 6, 1, '-x'], [23, 15, 7, 6, 1, '-x'], [24, 26.5, 7.5, 6.5, 2, '-x'],
+    [11, -12, 7, 6, 2, '+z'], [23, -12, 7.5, 6, 1, '+z'],
+  ];
+  HOUSES.forEach(([x, z, w, d, f, face], k) => house(x, z, w, d, f, face, k));
+
+  // --- Огород за домами на северо-востоке
+  const soil = mat(0x5a4028), green = mat(0x4f8a32), fence = mat(0x7a5a38);
+  for (let i = 0; i < 5; i++) {
+    boxM(16, 0.25, 1.4, soil, 20, G + 0.12, -29.5 + i * 2.2);
+    for (let k = 0; k < 10; k++) mesh(new THREE.IcosahedronGeometry(0.32, 0), green, 13 + k * 1.55, G + 0.45, -29.5 + i * 2.2, town, false);
+  }
+  for (const [x0, z0, x1, z1] of [[11, -31.5, 29, -31.5], [11, -19.6, 29, -19.6], [11, -31.5, 11, -19.6], [29, -31.5, 29, -19.6]]) {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const f = boxM(x0 === x1 ? 0.12 : len, 0.9, x0 === x1 ? len : 0.12, fence, (x0 + x1) / 2, G + 0.45, (z0 + z1) / 2);
+  }
+  townMap.push({ x0: 11, x1: 29, z0: -31.5, z1: -19.6, c: '#6a8a3a' });
+
+  // --- Площадь: колодец и торговые лавки (костёр уже стоит здесь)
+  mesh(new THREE.CylinderGeometry(1.1, 1.2, 1.0, 12), stone, -6, G + 0.5, 6);
+  mesh(new THREE.CircleGeometry(0.9, 12).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1d4a6a, roughness: 0.1 }), -6, G + 0.85, 6, town, false);
+  for (const sx of [-1, 1]) boxM(0.18, 2.4, 0.18, timber, -6 + sx * 1.05, G + 1.7, 6);
+  roof(2.6, 2.6, 0.9, roofBrown, -6, G + 2.8, 6);
+  addObstacle(-6, 6, 1.3);
+  const cloths = [mat(0xb83a32), mat(0x2f5f9a)];
+  [[7.5, -7], [7, 7.5]].forEach(([x, z], i) => {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) boxM(0.14, 2.4, 0.14, timber, x + sx * 1.5, G + 1.2, z + sz * 1.1);
+    boxM(3.0, 0.9, 1.0, timber, x, G + 0.45, z + 0.6);
+    const c = boxM(3.6, 0.08, 2.8, cloths[i], x, G + 2.5, z); c.rotation.x = 0.18;
+    for (let k = 0; k < 4; k++) mesh(new THREE.IcosahedronGeometry(0.2, 0), mat([0xd8402a, 0xe8b030, 0x6aa040, 0xa05a2a][k]), x - 1 + k * 0.65, G + 1.05, z + 0.6, town, false);
+    solid({ x0: x - 1.6, x1: x + 1.6, z0: z - 1.2, z1: z + 1.2 });
+  });
+
+  // --- Поместье: двор с оградой, главный дом с крыльями, башенка, фонтан и сад
+  const MX0 = -31, MX1 = -7, MZ0 = -31, MZ1 = -7;
+  const lowWall = (x0, z0, x1, z1) => {
+    const len = Math.hypot(x1 - x0, z1 - z0), vert = x0 === x1;
+    const o = boxM(vert ? 0.6 : len, 1.3, vert ? len : 0.6, stone, (x0 + x1) / 2, G + 0.65, (z0 + z1) / 2);
+    solid({ x0: Math.min(x0, x1) - 0.3, x1: Math.max(x0, x1) + 0.3, z0: Math.min(z0, z1) - 0.3, z1: Math.max(z0, z1) + 0.3 });
+    return o;
+  };
+  lowWall(MX0, MZ0, MX1, MZ0); lowWall(MX0, MZ0, MX0, MZ1); lowWall(MX1, MZ0, MX1, MZ1);
+  lowWall(MX0, MZ1, -21.5, MZ1); lowWall(-16.5, MZ1, MX1, MZ1);
+  for (const x of [-21.8, -16.2]) {
+    boxM(0.9, 2.2, 0.9, stone, x, G + 1.1, MZ1);
+    mesh(new THREE.BoxGeometry(0.35, 0.45, 0.35), new THREE.MeshStandardMaterial({ color: 0xffe0a0, emissive: 0xffb050, emissiveIntensity: 0.8 }), x, G + 2.45, MZ1, town, false);
+  }
+  townMap.push({ x0: MX0, x1: MX1, z0: MZ0, z1: MZ1, c: '#7a9a50' });
+  // Дорожка от площади к дому
+  flat(4, 10.5, roadMat(1, 3), -19, -12.2, 0.03);
+  const white = mat(0xf4f0e6), quoin = stone;
+  const mansion = (x, z, w, d, h, roofM, rh) => {
+    boxM(w + 0.4, 0.6, d + 0.4, stone, x, G + 0.3, z);
+    const b = boxM(w, h, d, white, x, G + h / 2, z); townSolids.push(b);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) boxM(0.5, h, 0.5, quoin, x + sx * w / 2, G + h / 2, z + sz * d / 2);
+    boxM(w + 0.1, 0.3, d + 0.1, quoin, x, G + h - 0.15, z);
+    roof(w, d, rh, roofM, x, G + h, z);
+    solid({ x0: x - w / 2 - 0.25, x1: x + w / 2 + 0.25, z0: z - d / 2 - 0.25, z1: z + d / 2 + 0.25 }, '#4a5058');
+    return b;
+  };
+  mansion(-19, -23.5, 13, 8, 7, roofSlate, 4);
+  mansion(-27.5, -23, 4.5, 7, 5.2, roofSlate, 2.6);
+  mansion(-10.5, -23, 4.5, 7, 5.2, roofSlate, 2.6);
+  // Окна в два этажа и парадная дверь
+  for (let k = -2; k <= 2; k++) {
+    for (const y of [1.8, 5.0]) if (!(k === 0 && y < 3)) boxM(0.9, 1.3, 0.12, glass, -19 + k * 2.4, G + y, -19.45);
+  }
+  for (const x of [-27.5, -10.5]) boxM(0.9, 1.3, 0.12, glass, x, G + 2.2, -19.45);
+  boxM(1.6, 2.6, 0.14, darkWood, -19, G + 1.3, -19.42);
+  // Крыльцо с колоннами
+  boxM(4.4, 0.35, 2.2, stone, -19, G + 0.18, -18.3);
+  for (const sx of [-1, 1]) mesh(new THREE.CylinderGeometry(0.22, 0.25, 3.2, 8), white, -19 + sx * 1.8, G + 1.9, -17.5);
+  boxM(4.6, 0.3, 2.6, roofSlate, -19, G + 3.6, -18.2);
+  // Башенка с флагом
+  const tw = mesh(new THREE.CylinderGeometry(1.8, 1.9, 10, 12), white, -12.3, G + 5, -27.2); townSolids.push(tw);
+  mesh(new THREE.ConeGeometry(2.3, 3.4, 12), roofSlate, -12.3, G + 11.7, -27.2);
+  boxM(0.08, 2.2, 0.08, darkWood, -12.3, G + 14.3, -27.2);
+  const flag = boxM(1.3, 0.75, 0.04, mat(0x9a2a2a), -11.6, G + 15, -27.2);
+  for (let k = 0; k < 3; k++) boxM(0.12, 1.1, 0.7, glass, -10.45, G + 2.5 + k * 3, -27.2);
+  addObstacle(-12.3, -27.2, 1.9);
+  // Фонтан
+  mesh(new THREE.CylinderGeometry(2.4, 2.6, 0.7, 20), stone, -19, G + 0.35, -12.5);
+  mesh(new THREE.CircleGeometry(2.15, 20).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a8ac0, roughness: 0.1, metalness: 0.1 }), -19, G + 0.62, -12.5, town, false);
+  mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.8, 10), stone, -19, G + 1.3, -12.5);
+  mesh(new THREE.CylinderGeometry(0.9, 0.4, 0.35, 14), stone, -19, G + 2.2, -12.5);
+  addObstacle(-19, -12.5, 2.6);
+  // Сад: деревья и живая изгородь
+  const hedge = mat(0x3f7a2e);
+  for (const [x, z] of [[-28, -10], [-28, -14.5], [-10, -10], [-10, -14.5]]) {
+    boxM(0.35, 1.6, 0.35, timber, x, G + 0.8, z);
+    mesh(new THREE.IcosahedronGeometry(1.4, 0), mat(0x4f8f3a), x, G + 2.4, z);
+    addObstacle(x, z, 0.5);
+  }
+  for (const sx of [-1, 1]) boxM(0.8, 0.9, 7, hedge, -19 + sx * 3.2, G + 0.45, -11.5);
+
+  // --- Фонари вдоль главной улицы (без источников света — экономим силы телефона)
+  const lantern = new THREE.MeshStandardMaterial({ color: 0xffe0a0, emissive: 0xffb050, emissiveIntensity: 0.8 });
+  for (const z of [-28, -18, 18, 28]) for (const sx of [-1, 1]) {
+    boxM(0.15, 3.2, 0.15, darkWood, sx * 3.6, G + 1.6, z);
+    mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), lantern, sx * 3.6, G + 3.4, z, town, false);
+    addObstacle(sx * 3.6, z, 0.25);
+  }
+}
 
 function buildDungeon(def, di) {
   const map = def.map, rows = map.length, cols = map[0].length, Y = def.y;
@@ -876,7 +1104,7 @@ startEl.addEventListener('click', () => {
   startEl.remove();
   initTouch();
   document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
-  showBanner('Долина', 'Где-то здесь скрыты два подземелья');
+  showBanner(TOWN_NAME, 'За стенами в долине скрыты два подземелья');
 });
 
 const rotateEl = document.getElementById('rotate');
@@ -996,6 +1224,7 @@ function setMode(mode) {
   dungeons.forEach((d, i) => d.group.visible = i === mode);
   heroLight.visible = inside;
   locEl.textContent = inside ? dungeons[mode].def.name : 'Долина';
+  lastZone = null;
   drawMinimapBase();
 }
 const heroLight = new THREE.PointLight(0xffd9a0, 6, 9, 1.5);
@@ -1110,6 +1339,19 @@ function moveEntity(p, dx, dz, rad, mode, avoidWater = false) {
   // Пробуем шаг, затем по осям — чтобы скользить вдоль склонов
   if (!tryMove(dx, dz)) { tryMove(dx, 0) || tryMove(0, dz); }
   pushOutCircles(p, surfaceObstaclesNear(p), rad);
+  if (townDist(p.x, p.z) < TOWN_WALL + 6) pushOutBoxes(p, rad);
+}
+function pushOutBoxes(p, rad) {
+  for (const b of townBoxes) {
+    if (p.x < b.x0 - rad || p.x > b.x1 + rad || p.z < b.z0 - rad || p.z > b.z1 + rad) continue;
+    const nx = clamp(p.x, b.x0, b.x1), nz = clamp(p.z, b.z0, b.z1);
+    const dx = p.x - nx, dz = p.z - nz, d = Math.hypot(dx, dz);
+    if (d > 1e-5) { if (d < rad) { p.x = nx + dx / d * rad; p.z = nz + dz / d * rad; } continue; }
+    // Центр внутри прямоугольника — выталкиваем через ближайшую сторону
+    const pen = [p.x - b.x0, b.x1 - p.x, p.z - b.z0, b.z1 - p.z], m = Math.min(...pen);
+    if (m === pen[0]) p.x = b.x0 - rad; else if (m === pen[1]) p.x = b.x1 + rad;
+    else if (m === pen[2]) p.z = b.z0 - rad; else p.z = b.z1 + rad;
+  }
 }
 
 const tmp = new THREE.Vector3();
@@ -1309,7 +1551,7 @@ function playerDie() {
     state.facing = Math.PI * 0.75; state.yaw = state.facing + Math.PI;
     camInit = false;
     resetEnemies(-1);
-    showBanner('Долина', 'Отдохни у костра и попробуй снова');
+    showBanner(TOWN_NAME, 'Отдохни у костра и попробуй снова');
   }), 1800);
 }
 
@@ -1480,7 +1722,7 @@ function resetEnemies(mode) {
   const er = mulberry32(555);
   const ok = (x, z) => {
     const h = groundAt(x, z);
-    return h > 1.5 && h < 30 && normalYAt(x, z) > 0.85 && Math.hypot(x, z) > 40
+    return h > 1.5 && h < 30 && normalYAt(x, z) > 0.85 && townDist(x, z) > 55
       && !DUNGEON_SITES.some(s => Math.hypot(x - s.x, z - s.z) < 10)
       && surfaceObstaclesNear({ x, z }).every(o => Math.hypot(o.x - x, o.z - z) > o.r + 1);
   };
@@ -2053,6 +2295,18 @@ skillsEl.addEventListener('click', e => {
 });
 document.getElementById('btnSkills').addEventListener('click', () => openSkills(!skillsOpen));
 
+// --- Название места: город или долина (баннер при входе в город)
+let lastZone = 'town';
+function updateZone() {
+  if (state.mode >= 0) return;
+  const zone = townDist(state.pos.x, state.pos.z) < TOWN_WALL ? 'town' : 'valley';
+  if (zone === lastZone) return;
+  const first = lastZone === null;
+  lastZone = zone;
+  locEl.textContent = zone === 'town' ? TOWN_NAME : 'Долина';
+  if (zone === 'town' && !first) showBanner(TOWN_NAME, 'Под защитой крепостных стен');
+}
+
 // --- Полоски и счётчики на экране
 const lvlEl = document.getElementById('lvlBadge'), xpBarEl = document.getElementById('xpbar'), hpTextEl = document.getElementById('hptext'), potionEl = document.getElementById('potionN');
 let hudKey = '';
@@ -2089,9 +2343,9 @@ function updateCamera(dt) {
   const tgt = tmp.set(state.pos.x, state.pos.y + 1.7, state.pos.z);
   let dist = inside ? Math.min(state.dist, 7) : state.dist;
   const dir = new THREE.Vector3(Math.sin(state.yaw) * Math.cos(state.pitch), Math.sin(state.pitch), Math.cos(state.yaw) * Math.cos(state.pitch));
-  if (inside) {
+  if (inside || townDist(state.pos.x, state.pos.z) < TOWN_WALL + 12) {
     raycaster.set(tgt, dir); raycaster.far = dist;
-    const hit = raycaster.intersectObject(dungeons[state.mode].wallMesh, false)[0];
+    const hit = inside ? raycaster.intersectObject(dungeons[state.mode].wallMesh, false)[0] : raycaster.intersectObjects(townSolids, false)[0];
     if (hit) dist = Math.max(0.8, hit.distance - 0.4);
   }
   const want = tgt.clone().addScaledVector(dir, dist);
@@ -2139,6 +2393,13 @@ function drawMinimapBase() {
     ctx.putImageData(img, 0, 0);
     ctx.fillStyle = 'rgba(25,60,20,0.55)';
     for (const t of treePoints) ctx.fillRect((t.x + HALF) / WORLD * S - 0.5, (t.z + HALF) / WORLD * S - 0.5, 1.2, 1.2);
+    const mx = v => (v + HALF) / WORLD * S;
+    ctx.fillStyle = '#c9b48a';
+    ctx.fillRect(mx(-3), mx(-TOWN_WALL), mx(3) - mx(-3), mx(TOWN_WALL) - mx(-TOWN_WALL));
+    ctx.fillRect(mx(-TOWN_WALL), mx(-2.5), mx(TOWN_WALL) - mx(-TOWN_WALL), mx(2.5) - mx(-2.5));
+    for (const r of townMap) { ctx.fillStyle = r.c; ctx.fillRect(mx(r.x0), mx(r.z0), Math.max(1, mx(r.x1) - mx(r.x0)), Math.max(1, mx(r.z1) - mx(r.z0))); }
+    ctx.strokeStyle = '#5a554c'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(mx(-TOWN_WALL), mx(-TOWN_WALL), mx(TOWN_WALL) - mx(-TOWN_WALL), mx(TOWN_WALL) - mx(-TOWN_WALL));
   } else {
     const d = dungeons[state.mode], cs = Math.floor(170 / Math.max(d.cols, d.rows));
     const ox = (S - cs * d.cols) / 2, oy = (S - cs * d.rows) / 2;
@@ -2194,6 +2455,7 @@ function frame() {
   updateFx(dt);
   updateHud();
   updateSkillButtons();
+  updateZone();
 
   // Огонь и свечение
   const cf = campfire.userData;
