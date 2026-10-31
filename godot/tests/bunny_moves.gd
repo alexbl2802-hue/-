@@ -39,6 +39,21 @@ func _ready() -> void:
 	e._ap.speed_scale = 0.0        # стойка неподвижна: видно только движения BunnyMoves
 	var m: BunnyMoves = e._moves
 	print("moves: ", m != null)
+	# Стойка
+	await _row("stand", 2, 0.05, func(dt): m.update(dt, false, 0.0, false))
+	# Строго сбоку ноги — видно сгиб назад ниже колена
+	var c0 := Vector3(e.global_position.x, WorldGen.ground_at(e.global_position.x, e.global_position.z), e.global_position.z)
+	# Ось сгиба левого бедра в текущей позе (нога в стойке развёрнута вместе с тазом)
+	var lb: Array = m._legs["L"]
+	var thigh: int = lb[0][0]
+	var side: Vector3 = (m._sk.global_basis * m._sk.get_bone_global_pose(thigh).basis * (lb[1][0] as Vector3)).normalized()
+	side.y = 0.0
+	side = side.normalized()
+	cam.global_position = c0 + side * 2.6 + Vector3(0, 0.45, 0)
+	cam.look_at(c0 + Vector3(0, 0.45, 0))
+	for i in 3:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(out + "legside.png")
 	# Ходьба и бег
 	await _row("walk", 8, 1.0 / 1.4 / 8.0, func(dt): m.update(dt, true, 0.9, false))
 	await _row("run", 8, 1.0 / 3.5 / 8.0, func(dt): m.update(dt, true, 7.8, false))

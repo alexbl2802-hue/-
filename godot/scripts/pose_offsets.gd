@@ -9,6 +9,11 @@ extends SkeletonModifier3D
 
 var _rot := {}   # индекс кости → [ось в системе скелета, угол]
 var _local := {} # индекс кости → [ось в системе самой кости, угол] — сгиб как у шарнира
+var _scale := {} # индекс кости → растяжение (например, длиннее вдоль кости)
+
+func set_bone_stretch(bone: int, s: Vector3) -> void:
+	if bone >= 0:
+		_scale[bone] = s
 
 ## Поворот вокруг оси самой кости: ось поворачивается вместе с костью в анимации,
 ## поэтому колено сгибается по своему шарниру, как бы ни была развёрнута нога
@@ -24,6 +29,8 @@ func _process_modification() -> void:
 	var sk := get_skeleton()
 	if not sk:
 		return
+	for b in _scale:
+		sk.set_bone_pose_scale(b, sk.get_bone_pose_scale(b) * _scale[b])
 	for b in _local:
 		if absf(_local[b][1]) > 0.0001:
 			sk.set_bone_pose_rotation(b, sk.get_bone_pose_rotation(b) * Quaternion(_local[b][0], _local[b][1]))

@@ -91,6 +91,12 @@ const LEAP_SMASH := {
 # ---------- Шаг и бег: стопа на земле не скользит — частота шагов от скорости и длины ног
 const WALK := {"duty": 0.62, "swing": 22.0, "knee": 35.0, "lean": 4.0, "bob": 0.015}
 const RUN := {"duty": 0.3, "swing": 40.0, "knee": 70.0, "lean": 16.0, "bob": 0.05}
+# Ноги оборотня: растяжение костей и поза «на носках» (бедро вперёд, голень назад,
+# плюсна круто вниз — сгиб назад ниже колена, пальцы лежат на земле)
+const LEG_STRETCH := 1.15
+const META_STRETCH := 1.6
+const DIGI := Vector3(24.0, 55.0, -9.0)
+const TOE_LEVEL := 1.0
 const TURN := 0.9   # в стойке корпус развёрнут на ~50°: на ходу доворачиваем грудью вперёд
 const FIGHT_TURN := 0.5   # в бою — наполовину: голова смотрит на противника, стойка остаётся боковой
 
@@ -117,6 +123,11 @@ var _phase := 0.0
 var _loco_w := 0.0
 var _turn_w := 0.0
 var _dust_done := {}
+var _toes := []
+var _toe_ends := {}
+var _loco_y := 0.0
+var _lift := 0.0          # на сколько поднять тело, чтобы длинные ноги стояли на земле
+var _calib := 0           # кадров до замера подъёма
 
 func setup(char_node: Node3D) -> bool:
 	_char = char_node
@@ -136,13 +147,16 @@ func setup(char_node: Node3D) -> bool:
 	# Поворот вокруг этой оси уводит направленную вниз кость вперёд
 	_flex = Vector3.DOWN.cross(fwd.normalized()).normalized()
 	for side in ["Left", "Right"]:
-		var bones: Array = [find.call(side + "UpLeg"), find.call(side + "Leg"), find.call(side + "Foot")]
+		var bones: Array = [find.call(side + "UpLeg"), find.call(side + "Leg"), find.call(side + "Foot"), find.call(side + "ToeBase")]
 		if bones.has(-1):
 			return false
 		var axes: Array = bones.map(func(b): return (gr.call(b).basis.orthonormalized().inverse() * _flex).normalized())
 		_legs[side[0]] = [bones, axes]
 	var lb: Array = _legs["L"][0]
 	_leg_len = (gr.call(lb[1]).origin.distance_to(gr.call(lb[0]).origin) + gr.call(lb[2]).origin.distance_to(gr.call(lb[1]).origin)) * _char.scale.x
+	_leg_len *= LEG_STRETCH
+	_toes = [_legs["L"][0][3], _legs["R"][0][3]]
+	_toe_ends = {"L": find.call("LeftToe_End"), "R": find.call("RightToe_End")}
 	_spine = find.call("Spine")
 	if _spine >= 0:
 		_spine_axis = (gr.call(_spine).basis.orthonormalized().inverse() * _flex).normalized()
@@ -152,6 +166,13 @@ func setup(char_node: Node3D) -> bool:
 			_twist_bones.append(b)
 	_mod = PoseOffsets.new()
 	_sk.add_child(_mod)
+	# Ноги как у оборотня: бедро и голень длиннее, плюсна (кость стопы) длинная —
+	# кролик стоит на носках, и ниже колена нога сгибается назад
+	for k in ["L", "R"]:
+		var bones: Array = _legs[k][0]
+		_mod.set_bone_stretch(bones[0], Vector3(1, LEG_STRETCH, 1))
+		_mod.set_bone_stretch(bones[1], Vector3(1, LEG_STRETCH, 1))
+		_mod.set_bone_stretch(bones[2], Vector3(1, META_STRETCH, 1))
 	# IK рук — после поворотов корпуса, чтобы кулак попадал в точку уже с учётом разворота
 	for side in ["Left", "Right"]:
 		var k: String = side[0]
@@ -241,13 +262,23 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 	var walking := moving and not leap_now and def.is_empty() and not frozen
 	_loco_w = move_toward(_loco_w, 1.0 if walking else 0.0, dt * 6.0)
 	_turn_w = move_toward(_turn_w, 1.0 if (walking or (leap_now and not leap_attack)) else 0.0, dt * 5.0)
+	var loco := {"L": Vector3.ZERO, "R": Vector3.ZERO}
+	var stance_drop := 0.0
 	if _loco_w > 0.0:
 		var g := _gait(speed)
 		_phase = fmod(_phase + dt * g["f"], 1.0)
 		for k in ["L", "R"]:
-			legs[k] += _step(fmod(_phase + (0.0 if k == "L" else 0.5), 1.0), g) * _loco_w
+			var p := fmod(_phase + (0.0 if k == "L" else 0.5), 1.0)
+			loco[k] = _step(p, g) * _loco_w
+			# Тело опускается только по опорной ноге: нога в воздухе согнута, но тело не тянет
+			if p < g["duty"]:
+				var th := deg_to_rad(loco[k].x)
+				stance_drop = maxf(stance_drop, _leg_len * (1.0 - cos(th)))
 		lean += g["lean"] * _loco_w
-		y += g["bob"] * absf(sin(TAU * 2.0 * _phase)) * _loco_w
+		stance_drop -= g["bob"] * (1.0 - cos(TAU * 2.0 * _phase)) * 0.5
+	# Покачивание тела на шагу — плавно: опора переходит с ноги на ногу скачком,
+	# и без сглаживания тело дёргалось вверх-вниз на каждом шаге
+	_loco_y = lerpf(_loco_y, -stance_drop * _loco_w, 1.0 - exp(-dt * 12.0))
 	if leap_now:
 		var lp: Vector3 = _track(LEAP_LEGS, leap_t)
 		legs["L"] += lp
@@ -278,7 +309,7 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 			lean += _track(def["lean"], t)
 		if def.has("kt"):
 			legs["L"] += Vector3(_track(def["kt"], t), _track(def["kk"], t), 0.0)
-	# Высота тела: присед опускает тело, чтобы стопы оставались на земле
+	# Высота тела: присед (прыжок) опускает тело, чтобы стопы оставались на земле
 	var drop := 0.0
 	for k in ["L", "R"]:
 		var a: Vector3 = legs[k] * deg_to_rad(1.0)
@@ -287,16 +318,19 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 		drop = 0.0   # в воздухе поджатые ноги тело не опускают
 	if def.has("kt"):
 		drop = 0.0   # удар ногой — стоит на опорной ноге
-	_char.position.y = y - drop
+	_calibrate()
+	_char.position.y = y - drop + _loco_y + _lift
 	_char.rotation.y = rot
 	# Применяем: ноги и корпус — поворотами костей, руки — IK
 	for k in ["L", "R"]:
 		var bones: Array = _legs[k][0]
 		var axes: Array = _legs[k][1]
-		var a: Vector3 = legs[k] * deg_to_rad(1.0)
+		var a: Vector3 = (legs[k] + loco[k] + DIGI) * deg_to_rad(1.0)
 		_mod.set_local(bones[0], axes[0], a.x)
 		_mod.set_local(bones[1], axes[1], -a.y)
 		_mod.set_local(bones[2], axes[2], -a.z)
+		# Пальцы — параллельно земле: снимаем общий наклон бедра, голени и плюсны
+		_mod.set_local(bones[3], axes[3], (a.y + a.z - a.x) * TOE_LEVEL)
 	if _spine >= 0:
 		_mod.set_local(_spine, _spine_axis, -deg_to_rad(lean))
 	for b in _twist_bones:
@@ -305,6 +339,31 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 		var ik: TwoBoneIK3D = _ik[k]
 		ik.influence = clampf(arm_w[k], 0.0, 1.0)
 		ik.active = arm_w[k] > 0.001
+
+## Подъём тела под длинные ноги. Скелет отдаёт позу стойки без наших поворотов, поэтому
+## сами проводим цепочку бедро → голень → плюсна → пальцы с растяжением и сгибами
+## и поднимаем тело на столько, на сколько опустились пальцы.
+func _calibrate() -> void:
+	if _calib > 3:
+		return
+	_calib += 1
+	if _calib < 3:
+		return
+	var a := DIGI * deg_to_rad(1.0)
+	var turns := [a.x, a.x - a.y, a.x - a.y - a.z, 0.0]
+	var stretch := [LEG_STRETCH, LEG_STRETCH, META_STRETCH * LEG_STRETCH, 1.0]
+	var lift := 0.0
+	for k in ["L", "R"]:
+		var bones: Array = _legs[k][0]
+		var chain: Array = bones.map(func(b): return _sk.get_bone_global_pose(b).origin)
+		var tip: int = _toe_ends[k]
+		chain.append(_sk.get_bone_global_pose(tip).origin if tip >= 0 else chain[3])
+		var p: Vector3 = chain[0]
+		for i in 4:
+			var v: Vector3 = (chain[i + 1] - chain[i]) * stretch[i]
+			p += v.rotated(_flex, turns[i]) if turns[i] != 0.0 else v
+		lift = maxf(lift, chain[4].y - p.y)
+	_lift = lift * _char.scale.y
 
 ## Параметры шага при этой скорости: от спокойного шага к бегу
 func _gait(speed: float) -> Dictionary:

@@ -52,6 +52,7 @@ const BUNNY_MODEL := "res://models/bunny.glb"
 # Времена — секунды внутри анимаций: петля стойки и момент удара.
 const B_PUNCH := "Boxing_Guard_Prep_Straight_Punch"
 const B_DODGE := "Roll_Dodge_2"
+const B_STANCE := 0.5             # кадр боксёрской стойки
 const B_GUARD := [0.1, 1.5]       # петля стойки в начале анимации удара рукой
 var _moves: BunnyMoves       # движения кролика по раскадровке
 var _wind_len := 0.0         # замах до первого удара (у кролика — свой у каждой атаки)
@@ -111,7 +112,7 @@ func _attach_bunny() -> void:
 	for n in _ap.get_animation_list():
 		_ap.get_animation(n).loop_mode = Animation.LOOP_NONE
 	_ap.play(B_PUNCH)
-	_ap.seek(randf_range(B_GUARD[0], B_GUARD[1]), true)
+	_ap.seek(B_STANCE, true)
 	_bunny = true
 	_setup_flash()
 	_moves = BunnyMoves.new()
@@ -126,10 +127,11 @@ func _animate_bunny(dt: float) -> void:
 		if _dodge_t > 0.9:
 			_dodge_t = -1.0
 	if _dodge_t < 0.0:
-		if _ap.current_animation != B_PUNCH or _ap.current_animation_position > B_GUARD[1] or _ap.current_animation_position < B_GUARD[0] - 0.05:
+		# Стойка — одна неподвижная поза из анимации: петля по кадрам перескакивала и дёргала кролика
+		if _ap.current_animation != B_PUNCH or absf(_ap.current_animation_position - B_STANCE) > 0.01:
 			_ap.play(B_PUNCH, 0.15)
-			_ap.seek(B_GUARD[0], true)
-		_ap.speed_scale = 1.0
+			_ap.seek(B_STANCE, true)
+		_ap.speed_scale = 0.0
 	if _moves:
 		_moves.update(dt, _moving and (st == "idle" or st == "chase" or st == "return"), _speed_now, _dodge_t >= 0.0)
 
