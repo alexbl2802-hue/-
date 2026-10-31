@@ -44,6 +44,9 @@ var _dash_t := -1.0
 var _dash_dir := Vector3.FORWARD
 var _dash_hit: Array = []
 var _dead_t := 0.0
+var _char: Node3D           # модель персонажа из models/hero.glb
+var _anim: AnimationPlayer
+var _new_swing := false
 
 func _ready() -> void:
 	collision_layer = 2
@@ -58,6 +61,7 @@ func _ready() -> void:
 	cs.position.y = 0.95
 	add_child(cs)
 	_build_model()
+	_attach_character()
 	Game.changed.connect(update_look)
 	update_look()
 
@@ -129,6 +133,85 @@ func _build_model() -> void:
 	_slash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_model.add_child(_slash)
 
+## Модель персонажа (Meshy, скелет Mixamo, анимации бега, ходьбы и удара мечом).
+## Блочная модель остаётся запасной: её прячем, а меч переносим в правую кисть.
+const CHAR_PATH := "res://models/hero.glb"
+const CHAR_SCALE := 1.1
+const A_WALK := "Walking"
+const A_RUN := "Running"
+const A_SLASH := "Right_Hand_Sword_Slash"
+
+func _attach_character() -> void:
+	if not ResourceLoader.exists(CHAR_PATH):
+		return
+	_char = (load(CHAR_PATH) as PackedScene).instantiate()
+	_char.scale = Vector3.ONE * CHAR_SCALE
+	_model.add_child(_char)
+	for c in _model.get_children():
+		if c != _char and c != _slash:
+			c.visible = false
+	_anim = _char.find_children("*", "AnimationPlayer", true, false)[0]
+	_anim.playback_default_blend_time = 0.15
+	for n in [A_WALK, A_RUN]:
+		_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+	_anim.get_animation(A_SLASH).loop_mode = Animation.LOOP_NONE
+	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
+	for m in _char.find_children("*", "MeshInstance3D", true, false):
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var hand := -1
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("RightHand"):
+			hand = i
+	var att := BoneAttachment3D.new()
+	sk.add_child(att)
+	att.bone_name = sk.get_bone_name(hand)
+	att.bone_idx = hand
+	# Хват: рукоять поперёк ладони, клинок выходит над большим и указательным пальцами.
+	# В системе кости кисти пальцы смотрят по +Y, линия костяшек — от мизинца к указательному.
+	var idx := _bone_local(sk, hand, "RightHandIndex1")
+	var pinky := _bone_local(sk, hand, "RightHandPinky1")
+	var fingers := ((idx + pinky) / 2.0).normalized()
+	var blade := (idx - pinky)
+	blade = (blade - fingers * blade.dot(fingers)).normalized()
+	var flat := fingers.cross(blade).normalized()
+	var grip := fingers * ((idx + pinky) / 2.0).length() * 0.7 - flat * 0.02
+	_sword.get_parent().remove_child(_sword)
+	att.add_child(_sword)
+	_sword.transform = Transform3D(Basis(fingers, blade, flat), grip + blade * 0.02)
+	_sword.scale = Vector3.ONE / CHAR_SCALE
+	_anim.play(A_WALK)
+
+func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with(suffix):
+			return sk.get_bone_global_rest(parent).affine_inverse() * sk.get_bone_global_rest(i).origin
+	return Vector3.UP * 0.1
+
+## Анимации модели: стойка, ходьба, бег, удар, вихрь, рывок, прыжок
+func _animate_char(on_floor: bool, moving: bool) -> void:
+	var want := A_WALK
+	var speed := 1.0
+	if attack_t >= 0.0 or _spin_t >= 0.0:
+		want = A_SLASH
+		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
+		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility"))
+	elif _dash_t >= 0.0 or not on_floor:
+		want = A_RUN
+		speed = 1.6 if _dash_t >= 0.0 else 0.0
+	elif moving:
+		want = A_RUN if _speed_now > 7.0 else A_WALK
+		speed = _speed_now / (9.0 if want == A_RUN else 3.2)
+	else:
+		speed = 0.0   # стойка: первый кадр ходьбы
+	if _anim.current_animation != want or (want == A_SLASH and _new_swing):
+		_anim.play(want, 0.1 if want == A_SLASH else -1.0)
+		if want == A_SLASH:
+			_anim.seek(0.08, true)
+		elif speed == 0.0:
+			_anim.seek(0.0, true)
+		_new_swing = false
+	_anim.speed_scale = speed
+
 ## Полукольцо в вертикальной плоскости: от спины через верх вперёд
 func _half_ring(r0: float, r1: float, segs: int) -> ArrayMesh:
 	var verts := PackedVector3Array()
@@ -190,6 +273,7 @@ func attack() -> void:
 	if best:
 		var v := _flat(best.global_position - global_position)
 		facing = atan2(v.x, v.z)
+	_new_swing = true
 
 func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0, v.z)
@@ -220,6 +304,7 @@ func use_skill(id: String) -> void:
 	if r == 0 or cd[id] > 0.0 or dead or busy or _spin_t >= 0.0 or _dash_t >= 0.0:
 		return
 	attack_t = -1.0
+	_new_swing = true
 	if id == "whirl":
 		_spin_t = 0.0
 		_spin_hit = false
@@ -421,6 +506,9 @@ func _animate(dt: float) -> void:
 		if _spin_t >= 0.45:
 			_spin_t = -1.0
 	var bob := absf(cos(_walk)) * 0.08 if moving and on_floor else sin(_time * 1.7) * 0.015
+	if _char:
+		bob = 0.0
+		_animate_char(on_floor, moving)
 	_model.position.y = bob
 	_model.rotation.y = facing + spin
 	if dead:

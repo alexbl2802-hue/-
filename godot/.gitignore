@@ -1,2 +1,5 @@
 .godot/
 /android/
+# Текстуры, которые Godot сам достаёт из .glb при импорте
+/models/*_Image_*.png
+/models/*_Image_*.png.import
