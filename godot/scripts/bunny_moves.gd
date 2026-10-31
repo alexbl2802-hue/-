@@ -101,6 +101,7 @@ const LEG_STRETCH := 1.0    # у оборотня Shadowclaw ноги длинн
 const META_STRETCH := 1.0
 const DIGI := Vector3(24.0, 55.0, -9.0)
 const TOE_LEVEL := 1.0
+const LEG_SPREAD := 7.0   # бёдра чуть врозь (°): ноги не выглядят переплетёнными; стопы ровно на земле
 const TURN := 0.9   # в стойке корпус развёрнут на ~50°: на ходу доворачиваем грудью вперёд
 const FIGHT_TURN := 0.5   # в бою — наполовину: голова смотрит на противника, стойка остаётся боковой
 
@@ -157,7 +158,10 @@ func setup(char_node: Node3D) -> bool:
 		if bones.has(-1):
 			return false
 		var axes: Array = bones.map(func(b): return (gr.call(b).basis.orthonormalized().inverse() * _flex).normalized())
-		_legs[side[0]] = [bones, axes]
+		# Ось отведения бедра наружу: левая нога (+X) уходит к +X, правая — к −X
+		var out_axis := Vector3(0, 0, 1) if side == "Left" else Vector3(0, 0, -1)
+		var abd: Array = bones.map(func(b): return (gr.call(b).basis.orthonormalized().inverse() * out_axis).normalized())
+		_legs[side[0]] = [bones, axes, abd]
 	var lb: Array = _legs["L"][0]
 	_leg_len = (gr.call(lb[1]).origin.distance_to(gr.call(lb[0]).origin) + gr.call(lb[2]).origin.distance_to(gr.call(lb[1]).origin)) * _char.scale.x
 	_leg_len *= LEG_STRETCH
@@ -342,10 +346,12 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 	for k in ["L", "R"]:
 		var bones: Array = _legs[k][0]
 		var axes: Array = _legs[k][1]
+		var abd: Array = _legs[k][2]
 		var a: Vector3 = (legs[k] + loco[k] + DIGI) * deg_to_rad(1.0)
-		_mod.set_local(bones[0], axes[0], a.x)
+		var spread := deg_to_rad(LEG_SPREAD)
+		_mod.set_local_quat(bones[0], Quaternion(abd[0], spread) * Quaternion(axes[0], a.x))
 		_mod.set_local(bones[1], axes[1], -a.y)
-		_mod.set_local(bones[2], axes[2], -a.z)
+		_mod.set_local_quat(bones[2], Quaternion(abd[2], -spread) * Quaternion(axes[2], -a.z))
 		# Пальцы — параллельно земле: снимаем общий наклон бедра, голени и плюсны
 		_mod.set_local(bones[3], axes[3], (a.y + a.z - a.x) * TOE_LEVEL)
 	if _spine >= 0:
