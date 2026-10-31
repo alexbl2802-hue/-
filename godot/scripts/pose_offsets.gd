@@ -10,6 +10,12 @@ extends SkeletonModifier3D
 var _rot := {}   # индекс кости → [ось в системе скелета, угол]
 var _local := {} # индекс кости → [ось в системе самой кости, угол] — сгиб как у шарнира
 var _scale := {} # индекс кости → растяжение (например, длиннее вдоль кости)
+var _rest := {}  # индекс кости → доля перехода от позы анимации к позе покоя (0…1)
+
+## Плавно увести кость из позы анимации в позу покоя (например, ровные параллельные ноги)
+func set_rest_blend(bone: int, w: float) -> void:
+	if bone >= 0:
+		_rest[bone] = clampf(w, 0.0, 1.0)
 
 func set_bone_stretch(bone: int, s: Vector3) -> void:
 	if bone >= 0:
@@ -29,6 +35,10 @@ func _process_modification() -> void:
 	var sk := get_skeleton()
 	if not sk:
 		return
+	for b in _rest:
+		if _rest[b] > 0.0001:
+			var r := sk.get_bone_rest(b).basis.get_rotation_quaternion()
+			sk.set_bone_pose_rotation(b, sk.get_bone_pose_rotation(b).slerp(r, _rest[b]))
 	for b in _scale:
 		sk.set_bone_pose_scale(b, sk.get_bone_pose_scale(b) * _scale[b])
 	for b in _local:

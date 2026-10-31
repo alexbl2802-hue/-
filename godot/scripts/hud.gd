@@ -36,6 +36,7 @@ func _ready() -> void:
 	_enemy_bars.draw.connect(_draw_enemy_bars)
 	_enemy_bars.draw.connect(_draw_floaters)
 	_enemy_bars.draw.connect(_draw_name_tag)
+	_enemy_bars.draw.connect(_draw_enemy_tags)
 	root.add_child(_enemy_bars)
 	# Красная вспышка по краям экрана при уроне
 	var grad := Gradient.new()
@@ -253,5 +254,33 @@ func _draw_name_tag() -> void:
 	var s := camera.unproject_position(p)
 	var font := _enemy_bars.get_theme_default_font()
 	var t := Game.player_name if Game.player_name != "" else "Странник"
-	_enemy_bars.draw_string_outline(font, s + Vector2(-150, 0), t, HORIZONTAL_ALIGNMENT_CENTER, 300, 13, 4, Color(0, 0, 0, 0.85))
-	_enemy_bars.draw_string(font, s + Vector2(-150, 0), t, HORIZONTAL_ALIGNMENT_CENTER, 300, 13, UiKit.CREAM)
+	_tag(s, t, Game.level, UiKit.CREAM)
+
+## Надпись над персонажем: «Имя · Ур. N» (имя может быть пустым — тогда только уровень)
+func _tag(s: Vector2, title: String, level: int, color: Color) -> void:
+	var font := _enemy_bars.get_theme_default_font()
+	var lv := "Ур. %d" % level
+	var fs := 13
+	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if title != "" else 0.0
+	var sep := "  ·  " if title != "" else ""
+	var sw := font.get_string_size(sep, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var lw := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var x := s.x - (tw + sw + lw) / 2.0
+	for part in [[title, color], [sep, Color(1, 1, 1, 0.6)], [lv, Color("#ffd479")]]:
+		if part[0] == "":
+			continue
+		_enemy_bars.draw_string_outline(font, Vector2(x, s.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0, 0, 0, 0.85))
+		_enemy_bars.draw_string(font, Vector2(x, s.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, part[1])
+		x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+
+# ---------- Название и уровень над монстрами (название пока есть только у кролика-оборотня)
+func _draw_enemy_tags() -> void:
+	if not camera or not enemies or menu.visible:
+		return
+	for e in enemies.list:
+		if e.dead or not e.visible or not e.is_physics_processing():
+			continue
+		var p: Vector3 = e.global_position + Vector3(0, e.T["bar"] + 0.3, 0)
+		if camera.is_position_behind(p) or camera.global_position.distance_to(p) > 30.0:
+			continue
+		_tag(camera.unproject_position(p), e.T.get("name", ""), e.level, Color("#ff9a7a"))

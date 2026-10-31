@@ -20,6 +20,13 @@ warden — герой Shadowwarden без меча (его единственн�
 bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD_PUNCH.glb KICK.glb DODGE.glb
   (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
 
+shadowclaw — кролик-оборотень Shadowclaw Rabbit без скелета (только сетка с текстурами):
+  python3 tools/prepare_models.py shadowclaw RIGGED_BUNNY.glb SHADOWCLAW.glb
+  сетка упрощается до ~40 тыс. треугольников, текстуры 1024/512; скелет и анимации берутся у
+  прежнего боевого кролика (RIGGED_BUNNY — его godot/models/bunny.glb) и подгоняются под новое тело:
+  суставы переносятся по опорным высотам (низ ступней, плечи, макушка), веса кожи — с ближайших
+  вершин старой модели. Результат заменяет godot/models/bunny.glb.
+
 sword — длинный меч: сетка упрощается (gltfpack, ~2,5 тыс. треугольников), текстуры 1024,
 рядом пишется ржавая версия цветовой текстуры (longsword_rust.jpg).
   python3 tools/prepare_models.py blade NAME BLADE.glb — другие клинки (bone_blade, crystal_blade).
@@ -414,6 +421,174 @@ def bunny(guard, kick, dodge):
     write_glb(OUT / "bunny.glb", j, bld.blob)
 
 
+# ---------- Кролик-оборотень Shadowclaw: перенос скелета, весов и анимаций со старого кролика
+def _landmarks(P):
+    """Низ ступней, высота рук в T-позе, макушка; размах рук; середина по глубине."""
+    arm = P[np.abs(P[:, 0]) > 0.45, 1].mean()
+    return P[:, 1].min(), arm, P[:, 1].max(), np.abs(P[:, 0]).max(), (P[:, 2].min() + P[:, 2].max()) / 2
+
+
+class BodyMap:
+    """Старое тело → новое: по высоте кусочно-линейно (ступни, плечи, макушка), по ширине — размах рук."""
+
+    def __init__(self, old_p, new_p):
+        o, n = _landmarks(old_p), _landmarks(new_p)
+        self.yo, self.yn = np.array(o[:3]), np.array(n[:3])
+        self.sx = n[3] / o[3]
+        self.dz = n[4] - o[4]
+
+    def fwd(self, p):
+        p = np.array(p, dtype=np.float64).reshape(-1, 3).copy()
+        p[:, 0] *= self.sx
+        p[:, 1] = np.interp(p[:, 1], self.yo, self.yn)
+        p[:, 2] += self.dz
+        return p
+
+    def inv(self, p):
+        p = np.array(p, dtype=np.float64).reshape(-1, 3).copy()
+        p[:, 0] /= self.sx
+        p[:, 1] = np.interp(p[:, 1], self.yn, self.yo)
+        p[:, 2] -= self.dz
+        return p
+
+
+def _skin_transfer(old_p, old_j, old_w, new_p_old_space, k=6):
+    """Веса кожи для новых вершин: средние по k ближайшим вершинам старой модели (по 1/расстояние)."""
+    n_joints = int(old_j.max()) + 1
+    dense = np.zeros((len(old_p), n_joints), np.float32)
+    for c in range(4):
+        np.add.at(dense, (np.arange(len(old_p)), old_j[:, c].astype(int)), old_w[:, c])
+    J = np.zeros((len(new_p_old_space), 4), np.uint16)
+    W = np.zeros((len(new_p_old_space), 4), np.float32)
+    o2 = (old_p ** 2).sum(1)
+    for s in range(0, len(new_p_old_space), 2048):
+        q = new_p_old_space[s:s + 2048]
+        d2 = (q ** 2).sum(1)[:, None] + o2[None, :] - 2 * q @ old_p.T
+        idx = np.argpartition(d2, k, axis=1)[:, :k]
+        dd = np.sqrt(np.maximum(np.take_along_axis(d2, idx, 1), 1e-12))
+        wk = 1.0 / (dd + 1e-4)
+        acc = (dense[idx] * wk[:, :, None]).sum(1)
+        top = np.argsort(-acc, axis=1)[:, :4]
+        tw = np.take_along_axis(acc, top, 1)
+        tw /= tw.sum(1, keepdims=True)
+        J[s:s + 2048] = top
+        W[s:s + 2048] = tw
+    return J, W
+
+
+def _acc(j, bld, arr, ctype, typ, target=None, minmax=False):
+    a = {"bufferView": bld.add(np.ascontiguousarray(arr).tobytes(), target), "componentType": ctype,
+         "count": int(arr.shape[0]), "type": typ}
+    if minmax:
+        a["min"] = arr.min(0).tolist()
+        a["max"] = arr.max(0).tolist()
+    j["accessors"].append(a)
+    return len(j["accessors"]) - 1
+
+
+def shadowclaw(rig_path, mesh_path):
+    # 1. Новая сетка: упрощение и текстуры поменьше
+    tmp = ROOT / "tools/_shadowclaw_lo.glb"
+    subprocess.run(["npx", "--yes", "gltfpack@0.22.0", "-i", str(mesh_path), "-o", str(tmp), "-si", "0.025", "-noq", "-kn"], check=True)
+    nj, nb = read_glb(tmp)
+    tmp.unlink()
+    imgs = shrink_textures(nj, nb, {"color": 1024, "attrib": 512, "normal": 1024})
+    nprim = nj["meshes"][0]["primitives"][0]
+    NP = accessor(nj, nb, nprim["attributes"]["POSITION"]).astype(np.float64)
+    NP[:, 1] -= NP[:, 1].min()   # модель стоит центром в нуле — ставим ступни на землю
+    NN = accessor(nj, nb, nprim["attributes"]["NORMAL"])
+    NT = accessor(nj, nb, nprim["attributes"]["TEXCOORD_0"])
+    NI = accessor(nj, nb, nprim["indices"]).astype(np.uint32)
+    # 2. Старый кролик: сетка с весами, скелет, анимации
+    oj, ob = read_glb(rig_path)
+    oprim = oj["meshes"][0]["primitives"][0]
+    OP = accessor(oj, ob, oprim["attributes"]["POSITION"]).astype(np.float64)
+    OJ = accessor(oj, ob, oprim["attributes"]["JOINTS_0"])
+    OW = accessor(oj, ob, oprim["attributes"]["WEIGHTS_0"]).astype(np.float32)
+    bm = BodyMap(OP, NP)
+    print("опорные высоты: старые", bm.yo.round(3), "новые", bm.yn.round(3), "ширина ×", round(bm.sx, 3), "глубина +", round(bm.dz, 3))
+    J, W = _skin_transfer(OP, OJ, OW, bm.inv(NP))
+    # Плащ за спиной двигается с корпусом: без ног, иначе он тянется за ними узкой лентой
+    jnames = [oj["nodes"][n]["name"].split(":")[-1] for n in oj["skins"][0]["joints"]]
+    leg = np.array([any(t in nm for t in ("UpLeg", "Leg", "Foot", "Toe")) for nm in jnames])
+    hips = jnames.index("Hips")
+    cape = (NP[:, 2] - bm.dz < -0.14) & (NP[:, 1] > 0.25)
+    W[cape] *= ~leg[J[cape]]
+    s_ = W[cape].sum(1)
+    Wc, Jc = W[cape], J[cape]
+    Jc[s_ == 0, 0] = hips
+    Wc[s_ == 0, 0] = 1.0
+    Wc /= Wc.sum(1, keepdims=True)
+    W[cape], J[cape] = Wc, Jc
+    print("плащ:", int(cape.sum()), "вершин привязаны к корпусу")
+    # 3. Скелет под новое тело: мировые положения суставов переносим, повороты оставляем
+    sk = oj["skins"][0]
+    joints = sk["joints"]
+    parent = {c: i for i, n in enumerate(oj["nodes"]) for c in n.get("children", [])}
+    ibm = accessor(oj, ob, sk["inverseBindMatrices"]).reshape(-1, 4, 4)
+    bind = {node: np.linalg.inv(ibm[k].T) for k, node in enumerate(joints)}
+    new_pos = {node: bm.fwd(bind[node][:3, 3])[0] for node in joints}
+    new_bind = {}
+    for node in joints:
+        m = bind[node].copy()
+        m[:3, 3] = new_pos[node]
+        new_bind[node] = m
+    new_local = {}
+    for node in joints:
+        pnode = parent.get(node)
+        if pnode in new_bind:
+            loc = np.linalg.inv(new_bind[pnode]) @ new_bind[node]
+            new_local[node] = loc[:3, 3]
+            oj["nodes"][node]["translation"] = loc[:3, 3].tolist()
+        else:   # корень скелета (Hips): его положение задано в системе модели
+            oj["nodes"][node]["translation"] = (np.array(oj["nodes"][node].get("translation", [0, 0, 0])) + new_pos[node] - bind[node][:3, 3]).tolist()
+    # 4. Собираем файл заново: новая сетка и материал, старые узлы и анимации
+    bld = Builder()
+    out = {"asset": oj["asset"], "scene": 0, "scenes": oj["scenes"], "nodes": oj["nodes"], "accessors": [],
+           "materials": nj["materials"], "textures": nj["textures"], "samplers": nj.get("samplers", [{}]), "images": []}
+    for k, img in enumerate(nj["images"]):
+        out["images"].append({"mimeType": img["mimeType"], "bufferView": bld.add(imgs[k])})
+    attrs = {
+        "POSITION": _acc(out, bld, NP.astype(np.float32), 5126, "VEC3", 34962, True),
+        "NORMAL": _acc(out, bld, NN.astype(np.float32), 5126, "VEC3", 34962),
+        "TEXCOORD_0": _acc(out, bld, NT.astype(np.float32), 5126, "VEC2", 34962),
+        "JOINTS_0": _acc(out, bld, J, 5123, "VEC4", 34962),
+        "WEIGHTS_0": _acc(out, bld, W, 5126, "VEC4", 34962),
+    }
+    out["meshes"] = [{"name": "shadowclaw", "primitives": [{"attributes": attrs, "indices": _acc(out, bld, NI, 5125, "SCALAR", 34963), "material": 0}]}]
+    nibm = np.stack([np.linalg.inv(new_bind[node]).T for node in joints]).astype(np.float32)
+    out["skins"] = [{"joints": joints, "inverseBindMatrices": _acc(out, bld, nibm.reshape(-1, 16), 5126, "MAT4")}]
+    hips = [n for n in joints if parent.get(n) not in new_bind]
+    out["animations"] = []
+    for anim in oj["animations"]:
+        samplers = []
+        for ch in anim["channels"]:
+            smp = anim["samplers"][ch["sampler"]]
+            t = accessor(oj, ob, smp["input"]).astype(np.float32)
+            v = accessor(oj, ob, smp["output"]).astype(np.float64)
+            node = ch["target"]["node"]
+            if ch["target"]["path"] == "translation":
+                if node in hips:   # таз двигается в системе модели — переносим как точку тела
+                    v = bm.fwd(v)
+                elif node in new_local:   # длины костей не анимируются — новые постоянные
+                    v = np.tile(new_local[node], (len(v), 1))
+            ti = _acc(out, bld, t.reshape(-1), 5126, "SCALAR", None, False)
+            out["accessors"][ti]["min"] = [float(t.min())]
+            out["accessors"][ti]["max"] = [float(t.max())]
+            vi = _acc(out, bld, v.astype(np.float32), 5126, {3: "VEC3", 4: "VEC4"}[v.shape[1]])
+            samplers.append({"input": ti, "output": vi, "interpolation": smp.get("interpolation", "LINEAR")})
+        chans = [{"sampler": k, "target": c["target"]} for k, c in enumerate(anim["channels"])]
+        out["animations"].append({"name": anim["name"], "channels": chans, "samplers": samplers})
+    out["bufferViews"] = bld.views
+    # Узел сетки — новая сетка со скином
+    for n in out["nodes"]:
+        if "mesh" in n:
+            n["mesh"] = 0
+            n["skin"] = 0
+    write_glb(OUT / "bunny.glb", out, bld.blob)
+    print("суставы: таз", new_pos[hips[0]].round(3), "| высоты:", bm.yn.round(3))
+
+
 if __name__ == "__main__":
     if sys.argv[1] == "ranger":
         ranger(*sys.argv[2:5])
@@ -425,3 +600,5 @@ if __name__ == "__main__":
         warden(*sys.argv[2:6])
     elif sys.argv[1] == "bunny":
         bunny(*sys.argv[2:5])
+    elif sys.argv[1] == "shadowclaw":
+        shadowclaw(*sys.argv[2:4])

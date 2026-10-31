@@ -7,6 +7,7 @@ var main: Node
 var out := ""
 var cam: Camera3D
 var e: Node3D
+var _front := false
 
 func _ready() -> void:
 	out = OS.get_cmdline_user_args()[0] + "/"
@@ -54,6 +55,12 @@ func _ready() -> void:
 	for i in 3:
 		await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png(out + "legside.png")
+	for v in [["back", -side.cross(Vector3.UP)], ["other", -side]]:
+		cam.global_position = c0 + (v[1] as Vector3) * 2.6 + Vector3(0, 0.6, 0)
+		cam.look_at(c0 + Vector3(0, 0.6, 0))
+		for i in 3:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(out + "view_%s.png" % v[0])
 	# Ходьба и бег
 	await _row("walk", 8, 1.0 / 1.4 / 8.0, func(dt): m.update(dt, true, 0.9, false))
 	await _row("run", 8, 1.0 / 3.5 / 8.0, func(dt): m.update(dt, true, 7.8, false))
@@ -61,6 +68,12 @@ func _ready() -> void:
 	# Прыжок и удар в прыжке
 	m.start_leap(3.0, false)
 	await _row("leap", 8, m.LEAP_DUR / 8.0, func(dt): m.update(dt, false, 0.0, false))
+	m.update(1.0, false, 0.0, false)
+	# Тот же прыжок спереди: ноги параллельны, толчок и приземление на обе ноги
+	_front = true
+	m.start_leap(3.0, false)
+	await _row("leapfront", 8, m.LEAP_DUR / 8.0, func(dt): m.update(dt, false, 0.0, false))
+	_front = false
 	m.update(1.0, false, 0.0, false)
 	for kind in ["jab", "straight", "hook", "combo"]:
 		m.start_attack(kind)
@@ -77,7 +90,7 @@ func _row(name: String, n: int, step: float, advance: Callable) -> void:
 	for k in n:
 		advance.call(step)
 		var c := Vector3(e.global_position.x, WorldGen.ground_at(e.global_position.x, e.global_position.z), e.global_position.z)
-		cam.global_position = c + Vector3(0.9, 0.6, 3.0)
+		cam.global_position = c + (Vector3(3.2, 0.6, 0.3) if _front else Vector3(0.9, 0.6, 3.0))
 		cam.look_at(c + Vector3(0, 0.55, 0))
 		for i in 2:
 			await get_tree().process_frame

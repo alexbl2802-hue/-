@@ -8,13 +8,14 @@ const TYPES := {
 	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
 	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
 	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
-	"rabbit": {"hp": 85, "dmg": 16, "speed": 7.8, "walk": 0.9, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 1.6, "lunge": true, "roam": true},
+	"rabbit": {"name": "Кролик-оборотень", "hp": 85, "dmg": 16, "speed": 7.8, "walk": 0.9, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 2.0, "lunge": true, "roam": true},
 	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
 	"kobold": {"hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
 
 var type := "slime"
+var level := 1               # уровень монстра (пока у всех 1) — показывается над ним
 var in_dungeon := false
 var T: Dictionary
 var hero: Node3D
@@ -105,7 +106,7 @@ func _attach_bunny() -> void:
 	for c in _model.get_children():
 		c.visible = false
 	_char = (load(BUNNY_MODEL) as PackedScene).instantiate()
-	_char.scale = Vector3.ONE * 0.95
+	_char.scale = Vector3.ONE * 0.9
 	_model.add_child(_char)
 	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
 	_ap.playback_default_blend_time = 0.12
