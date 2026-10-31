@@ -8,6 +8,8 @@ signal act_pressed
 signal potion_pressed
 signal skills_pressed
 signal skill_pressed(id: String)
+signal inventory_pressed
+signal menu_pressed
 
 const R := 55.0
 
@@ -49,6 +51,8 @@ func _buttons() -> Array:
 		{"id": "attack", "c": Vector2(s.x - 24 - 45.5, s.y - 28 - 45.5), "r": 45.5, "label": "⚔", "fs": 39, "border": Color(1, 0.55, 0.43, 0.75)},
 		{"id": "jump", "c": Vector2(s.x - 126 - 33, s.y - 20 - 33), "r": 33.0, "label": "⤒", "fs": 27},
 		{"id": "run", "c": Vector2(s.x - 40 - 28, s.y - 130 - 28), "r": 28.0, "label": "🏃", "fs": 23},
+		{"id": "inventory", "rect": Rect2(12, 12, 52, 52), "label": "🎒", "fs": 27},
+		{"id": "menu", "rect": Rect2(192, 12, 52, 52), "label": "☰", "fs": 27},
 		{"id": "potion", "rect": Rect2(72, 12, 52, 52), "label": "🧪", "fs": 27, "badge": str(potions), "dim": potions == 0},
 		{"id": "skills", "rect": Rect2(132, 12, 52, 52), "label": "⭐", "fs": 27, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
 	]
@@ -89,6 +93,8 @@ func _press(id: String, down: bool) -> void:
 		"potion": potion_pressed.emit()
 		"skills": skills_pressed.emit()
 		"whirl", "dash": skill_pressed.emit(id)
+		"inventory": inventory_pressed.emit()
+		"menu": menu_pressed.emit()
 
 ## Сбросить все касания (например, когда открывается окно)
 func release_all() -> void:

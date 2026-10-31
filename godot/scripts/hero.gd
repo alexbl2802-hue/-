@@ -18,6 +18,7 @@ var facing := PI
 var attack_t := -1.0
 var dead := false
 var busy := false
+var underground := false   # в подземелье: никакой воды и плавания
 var cd := {"whirl": 0.0, "dash": 0.0}
 
 var _model: Node3D
@@ -306,7 +307,7 @@ func _physics_process(dt: float) -> void:
 	var right := Vector3(cos(yaw), 0, -sin(yaw))
 	var dir := fwd * mv.y + right * mv.x
 	var mag := minf(1.0, dir.length())
-	var swimming := global_position.y < WorldGen.WATER - 1.0
+	var swimming := not underground and global_position.y < WorldGen.WATER - 1.0
 	var speed := (RUN if touch and touch.run else WALK) * maxf(0.3, mag)
 	speed *= 1.0 + 0.08 * Game.rank("agility")
 	if swimming:
@@ -337,7 +338,7 @@ func _physics_process(dt: float) -> void:
 	if is_on_floor() and touch and touch.jump and not swimming and not dead and not busy:
 		velocity.y = JUMP
 	# Плавание: держимся у поверхности воды
-	if global_position.y < WorldGen.WATER - 1.1:
+	if not underground and global_position.y < WorldGen.WATER - 1.1:
 		global_position.y = WorldGen.WATER - 1.1
 		velocity.y = maxf(velocity.y, 0.0)
 	move_and_slide()

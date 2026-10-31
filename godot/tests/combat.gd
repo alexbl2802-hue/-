@@ -13,8 +13,10 @@ func _ready() -> void:
 	Game.new_game()
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
-	while main.hero == null:
+	while main.hero == null or main.hud == null:
 		await get_tree().process_frame
+	await get_tree().process_frame
+	main.hud.menu._on_main()  # закрываем главное меню
 	await _frames(20)
 	var hero: Node3D = main.hero
 	var en: Node = main.enemies

@@ -19,6 +19,16 @@ func spawn_all() -> void:
 		list.append(en)
 	_update_active()
 
+## Монстры подземелья: скелеты/пауки и кобольды
+func spawn_dungeon(d: Node3D) -> void:
+	var script := preload("res://scripts/enemy.gd")
+	for sp in d.spawns:
+		var en: CharacterBody3D = script.new()
+		en.in_dungeon = true
+		en.setup(sp[0], sp[1] + Vector3(0, 0.3, 0), hero)
+		add_child(en)
+		list.append(en)
+
 func _process(dt: float) -> void:
 	_check_t -= dt
 	if _check_t <= 0.0:

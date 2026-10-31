@@ -7,10 +7,15 @@ const TYPES := {
 	"goblin": {"hp": 70, "dmg": 10, "speed": 4.6, "r": 0.45, "aggro": 15.0, "reach": 1.7, "cd": 1.1, "windup": 0.4, "bar": 2.0},
 	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
 	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
+	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
+	"rabbit": {"hp": 85, "dmg": 12, "speed": 6.0, "r": 0.45, "aggro": 14.0, "reach": 1.6, "cd": 1.0, "windup": 0.3, "bar": 1.6, "lunge": true, "roam": true},
+	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
+	"kobold": {"hp": 130, "dmg": 17, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 1.9, "cd": 1.1, "windup": 0.45, "bar": 2.1},
 }
 const GRAVITY := 25.0
 
 var type := "slime"
+var in_dungeon := false
 var T: Dictionary
 var hero: Node3D
 var home := Vector3.ZERO
@@ -63,6 +68,8 @@ func _ready() -> void:
 		"goblin": _build_humanoid(0.82, 0x6aa84f, 0x6b4a2b, 0x3d2a18, 0xffd400, 0.6, 0.56, 0.2, true, false, "club")
 		"skeleton": _build_humanoid(1.0, 0xe6dfc8, 0xd8d0b8, 0x3a3228, 0x6fd0ff, 1.5, 0.46, 0.13, false, true, "sword")
 		"spider": _build_spider()
+		"rabbit": _build_rabbit()
+		"kobold": _build_kobold()
 	global_position = home
 
 # ---------- Модели
@@ -183,6 +190,131 @@ func _build_spider() -> void:
 			low.rotation.z = sx * -0.3
 			_legs.append([pv, k * 1.6 + (PI if sx > 0 else 0.0)])
 
+## Кролик переезжает: новый «дом» в 20–60 м, на суше и вне города
+func _roam() -> void:
+	for i in 8:
+		var a := randf() * TAU
+		var d := randf_range(20.0, 60.0)
+		var p := home + Vector3(cos(a) * d, 0, sin(a) * d)
+		var lim := WorldGen.HALF - 40.0
+		if absf(p.x) > lim or absf(p.z) > lim or WorldGen.town_dist(p.x, p.z) < 50.0:
+			continue
+		var g := WorldGen.ground_at(p.x, p.z)
+		if g < 1.5 or g > 30.0 or WorldGen.normal_y_at(p.x, p.z) < 0.8:
+			continue
+		home = Vector3(p.x, g, p.z)
+		return
+
+func _build_rabbit() -> void:
+	_body = Node3D.new()
+	_model.add_child(_body)
+	var fur_c: int = [0xd8d0c4, 0x9a7a5a, 0x8a8a8a][randi() % 3]
+	var fur := _mat(fur_c)
+	var belly := _mat(0xf2ece0)
+	var claw := _mat(0xf4f4f0, 0.3)
+	var torso := _blob(_body, 0.45, fur, Vector3(0, 0.75, -0.05), 7, 4)
+	torso.scale = Vector3(0.9, 1.0, 1.15)
+	var bl := _blob(_body, 0.3, belly, Vector3(0, 0.72, 0.22), 6, 3)
+	bl.scale = Vector3(0.9, 1.1, 0.6)
+	var head := Node3D.new()
+	head.position = Vector3(0, 1.28, 0.22)
+	_body.add_child(head)
+	_blob(head, 0.28, fur, Vector3.ZERO, 7, 4)
+	# Длинные уши
+	for sx in [-1.0, 1.0]:
+		var ear := _box(head, Vector3(0.1, 0.62, 0.05), fur, Vector3(sx * 0.12, 0.48, -0.04))
+		ear.rotation = Vector3(-0.15, 0, -sx * 0.18)
+		var inner_ear := _box(head, Vector3(0.05, 0.45, 0.02), _mat(0xe8a0a8), Vector3(sx * 0.12, 0.46, -0.01))
+		inner_ear.rotation = Vector3(-0.15, 0, -sx * 0.18)
+	var eye := _mat(0xd02020, 0.4, 0xff2020, 0.8)
+	for sx in [-1.0, 1.0]:
+		_box(head, Vector3(0.06, 0.07, 0.03), eye, Vector3(sx * 0.13, 0.05, 0.25))
+	_box(head, Vector3(0.07, 0.05, 0.04), _mat(0xe88aa0), Vector3(0, -0.04, 0.28))
+	# Мощные задние лапы
+	for sx in [-1.0, 1.0]:
+		var hl := Node3D.new()
+		hl.position = Vector3(sx * 0.28, 0.55, -0.2)
+		_body.add_child(hl)
+		var thigh := _blob(hl, 0.24, fur, Vector3(0, -0.12, 0), 6, 3)
+		thigh.scale = Vector3(0.8, 1.0, 1.3)
+		_box(hl, Vector3(0.16, 0.08, 0.42), fur, Vector3(0, -0.5, 0.12))
+		_legs.append(hl)
+	# Передние лапы с длинными острыми когтями
+	for sx in [-1.0, 1.0]:
+		var ap := Node3D.new()
+		ap.position = Vector3(sx * 0.3, 0.98, 0.25)
+		_body.add_child(ap)
+		_box(ap, Vector3(0.12, 0.42, 0.12), fur, Vector3(0, -0.2, 0))
+		for k in 3:
+			var c := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.0; cm.bottom_radius = 0.035; cm.height = 0.42; cm.radial_segments = 4
+			c.mesh = cm
+			c.material_override = claw
+			c.position = Vector3((k - 1) * 0.045, -0.48, 0.12)
+			c.rotation.x = 0.9
+			ap.add_child(c)
+		_arms.append(ap)
+
+func _build_kobold() -> void:
+	var inner := Node3D.new()
+	inner.scale = Vector3.ONE * 0.9
+	_model.add_child(inner)
+	var scale_c := _mat(0x9a4a2a)
+	var dark := _mat(0x5a2a18)
+	var steel := _mat(0x9aa2ac, 0.35)
+	steel.set_shader_parameter("metallic", 0.6)
+	var leather := _mat(0x4a3220)
+	# Тело в стальном нагруднике
+	_box(inner, Vector3(0.58, 0.72, 0.34), leather, Vector3(0, 1.2, 0))
+	_box(inner, Vector3(0.64, 0.5, 0.4), steel, Vector3(0, 1.32, 0))
+	for sx in [-1.0, 1.0]:
+		_box(inner, Vector3(0.24, 0.14, 0.42), steel, Vector3(sx * 0.36, 1.58, 0))  # наплечники
+	_box(inner, Vector3(0.62, 0.1, 0.38), dark, Vector3(0, 0.9, 0))
+	# Голова-ящерица с мордой, рожками и шлемом
+	var head := Node3D.new()
+	head.position.y = 1.86
+	inner.add_child(head)
+	_box(head, Vector3(0.38, 0.34, 0.38), scale_c, Vector3.ZERO)
+	_box(head, Vector3(0.24, 0.16, 0.26), scale_c, Vector3(0, -0.06, 0.28))
+	_box(head, Vector3(0.44, 0.18, 0.44), steel, Vector3(0, 0.18, -0.01))
+	for sx in [-1.0, 1.0]:
+		var horn := MeshInstance3D.new()
+		var hm := CylinderMesh.new()
+		hm.top_radius = 0.0; hm.bottom_radius = 0.06; hm.height = 0.26; hm.radial_segments = 5
+		horn.mesh = hm
+		horn.material_override = _mat(0xe8dcc0)
+		horn.position = Vector3(sx * 0.17, 0.32, -0.08)
+		horn.rotation = Vector3(-0.5, 0, -sx * 0.4)
+		head.add_child(horn)
+	var eye := _mat(0xffc020, 0.4, 0xffa000, 1.2)
+	for sx in [-1.0, 1.0]:
+		_box(head, Vector3(0.07, 0.05, 0.02), eye, Vector3(sx * 0.1, 0.04, 0.19))
+	# Ноги в поножах и руки
+	for sx in [-1.0, 1.0]:
+		var lp := Node3D.new()
+		lp.position = Vector3(0.15 * sx, 0.88, 0)
+		inner.add_child(lp)
+		_box(lp, Vector3(0.2, 0.62, 0.22), scale_c, Vector3(0, -0.32, 0))
+		_box(lp, Vector3(0.23, 0.32, 0.25), steel, Vector3(0, -0.48, 0))
+		_legs.append(lp)
+		var ap := Node3D.new()
+		ap.position = Vector3(0.4 * sx, 1.52, 0)
+		inner.add_child(ap)
+		_box(ap, Vector3(0.17, 0.62, 0.17), scale_c, Vector3(0, -0.28, 0))
+		_box(ap, Vector3(0.2, 0.22, 0.2), steel, Vector3(0, -0.5, 0))
+		_arms.append(ap)
+	# Меч
+	var w := Node3D.new()
+	w.position = Vector3(0, -0.66, 0.04)
+	w.rotation.x = PI / 2
+	_arms[0].add_child(w)
+	_box(w, Vector3(0.08, 1.0, 0.03), steel, Vector3(0, 0.58, 0))
+	_box(w, Vector3(0.3, 0.07, 0.08), dark, Vector3(0, 0.08, 0))
+	# Небольшой щит на левой руке
+	var shield := _box(_arms[1], Vector3(0.06, 0.5, 0.42), _mat(0x6a4a2a), Vector3(-0.1, -0.45, 0.1))
+	_box(shield, Vector3(0.08, 0.2, 0.2), steel, Vector3(0, 0, 0))
+
 # ---------- Бой
 func hit(dmg: int, dir: Vector3, crit := false) -> void:
 	if dead:
@@ -243,7 +375,7 @@ func _physics_process(dt: float) -> void:
 		_model.scale = Vector3.ONE * maxf(0.001, 1.0 - maxf(0.0, _dead_t - 0.6) / 0.5)
 		if _dead_t > 1.1:
 			visible = false
-		if _dead_t > 45.0 and hero.global_position.distance_to(home) > 40.0:
+		if not in_dungeon and _dead_t > 30.0 and hero.global_position.distance_to(home) > 40.0:
 			revive()
 		return
 	var to_hero: Vector3 = hero.global_position - global_position
@@ -261,6 +393,8 @@ func _physics_process(dt: float) -> void:
 			_wander_t -= dt
 			if _wander_t <= 0.0:
 				_wander_t = randf_range(2.0, 6.0)
+				if T.get("roam", false) and randf() < 0.35:
+					_roam()
 				_wander = home + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)) if randf() < 0.6 else null
 			if _wander != null:
 				var w: Vector3 = _wander - global_position
@@ -309,7 +443,7 @@ func _physics_process(dt: float) -> void:
 	var hv := mv * sp
 	# Не заходим в воду
 	var ahead := global_position + hv.normalized() * 1.0 if sp > 0.0 else global_position
-	if sp > 0.0 and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
+	if sp > 0.0 and not in_dungeon and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
 		hv = Vector3.ZERO
 	hv += _kb
 	_kb *= exp(-dt * 6.0)
@@ -338,6 +472,20 @@ func _animate(dt: float) -> void:
 			else:
 				_body.position.y = k * 0.45 if _moving else 0.0
 				_body.scale = Vector3(1 + (1 - k) * 0.1, 0.9 + k * 0.18, 1 + (1 - k) * 0.1)
+		"rabbit":
+			_hop += dt * (9.0 if _moving else 2.0)
+			var k := absf(sin(_hop))
+			_body.position.y = k * 0.35 if _moving else 0.0
+			_body.rotation.x = -0.25 * k if _moving else 0.0
+			for l in _legs:
+				l.rotation.x = -0.6 * k if _moving else 0.0
+			var ax := 0.3 * sin(_hop) if _moving else 0.0
+			if st == "windup":
+				ax = -2.0 * minf(1.0, _t / T["windup"])
+			elif st == "recover" and _t < 0.2:
+				ax = lerpf(-2.0, 0.8, smoothstep(0.0, 1.0, _t / 0.12))
+			for a in _arms:
+				a.rotation.x = ax
 		"spider":
 			_walk += dt * (14.0 if _moving else 2.0)
 			var amp := 0.35 if _moving else 0.05

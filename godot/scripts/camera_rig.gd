@@ -28,6 +28,10 @@ func _ready() -> void:
 	_arm.add_child(camera)
 	camera.current = true
 
+## Сразу перенести камеру к герою (после перехода в подземелье и обратно)
+func snap() -> void:
+	_snapped = false
+
 func _process(dt: float) -> void:
 	if not target:
 		return

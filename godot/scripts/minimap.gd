@@ -6,6 +6,7 @@ const RES := 180
 var hero: Node3D
 var world: Node3D
 var enemies: Node
+var dungeon: Node3D   # если герой в подземелье — рисуем его план
 var _tex: ImageTexture
 
 func setup(w: Node3D, h: Node3D) -> void:
@@ -63,6 +64,10 @@ func _process(_dt: float) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.07, 0.07, 0.07))
+	if dungeon:
+		_draw_dungeon()
+		draw_rect(Rect2(Vector2.ZERO, size), Color(1, 0.86, 0.63, 0.4), false, 2.0)
+		return
 	if _tex:
 		draw_texture_rect(_tex, Rect2(Vector2.ZERO, size), false)
 	draw_rect(Rect2(Vector2.ZERO, size), Color(1, 0.86, 0.63, 0.4), false, 2.0)
@@ -86,3 +91,30 @@ func _draw() -> void:
 		var pts := PackedVector2Array([p + fwd * 7, p - fwd * 5 + side * 5, p - fwd * 2, p - fwd * 5 - side * 5])
 		draw_colored_polygon(pts, Color.WHITE)
 		draw_polyline(pts + PackedVector2Array([pts[0]]), Color.BLACK, 1.5)
+
+## План подземелья: клетки, выход, сундук, монстры, герой
+func _draw_dungeon() -> void:
+	var d := dungeon
+	var cs := floorf((size.x - 6.0) / maxf(d.cols, d.rows))
+	var o := (size - Vector2(d.cols, d.rows) * cs) / 2.0
+	for j in d.rows:
+		for i in d.cols:
+			draw_rect(Rect2(o + Vector2(i, j) * cs, Vector2(cs, cs)), Color("#1c1a20") if d.solid(i, j) else Color("#6e665c"))
+	var to_map := func(p: Vector3) -> Vector2:
+		return o + Vector2(p.x / DungeonDefs.CELL + d.cols / 2.0, p.z / DungeonDefs.CELL + d.rows / 2.0) * cs
+	draw_circle(to_map.call(d.start_pos), 3.0, Color("#7fd8ff"))
+	if not d.chest.get("opened", false):
+		draw_circle(to_map.call(d.chest["pos"]), 3.0, Color("#ffd34d"))
+	if enemies:
+		for en in enemies.list:
+			if not en.dead and en.in_dungeon and absf(en.global_position.y - d.Y) < 20.0:
+				draw_circle(to_map.call(en.global_position), 1.8, Color("#ff7a3a"))
+	if hero:
+		_arrow(to_map.call(hero.global_position), hero.facing)
+
+func _arrow(p: Vector2, f: float) -> void:
+	var fwd := Vector2(sin(f), cos(f))
+	var side := Vector2(fwd.y, -fwd.x)
+	var pts := PackedVector2Array([p + fwd * 7, p - fwd * 5 + side * 5, p - fwd * 2, p - fwd * 5 - side * 5])
+	draw_colored_polygon(pts, Color.WHITE)
+	draw_polyline(pts + PackedVector2Array([pts[0]]), Color.BLACK, 1.5)

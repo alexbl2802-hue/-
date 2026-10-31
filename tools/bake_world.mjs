@@ -190,12 +190,15 @@ const enemies = [];
       && !SITES.some(s => Math.hypot(x - s.x, z - s.z) < 10)
       && obstacles.every(o => Math.hypot(o.x - x, o.z - z) > o.r + 1);
   };
-  let slimes = 0, goblins = 0;
-  for (let n = 0; n < 8000 && (slimes < 22 || goblins < 10); n++) {
+  // Больше монстров, чем в веб-версии: 30 слизней, 14 гоблинов и 12 кроликов-бродяг
+  const want = { slime: 30, goblin: 14, rabbit: 12 };
+  const have = { slime: 0, goblin: 0, rabbit: 0 };
+  for (let n = 0; n < 16000 && Object.keys(want).some(k => have[k] < want[k]); n++) {
     const x = (er() * 2 - 1) * (HALF - 40), z = (er() * 2 - 1) * (HALF - 40);
     if (!ok(x, z)) continue;
-    if (slimes < 22) { enemies.push(['slime', r3(x), r3(z)]); slimes++; }
-    else { enemies.push(['goblin', r3(x), r3(z)]); goblins++; }
+    const kind = Object.keys(want).find(k => have[k] < want[k]);
+    enemies.push([kind, r3(x), r3(z)]);
+    have[kind]++;
   }
   // Гоблины охраняют входы в подземелья
   for (const en of entrances) for (const side of [-1, 1])

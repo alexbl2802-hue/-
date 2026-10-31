@@ -7,8 +7,11 @@ signal leveled_up(level: int)
 signal message(text: String, color: Color, pos: Vector3)  # всплывающая надпись над точкой
 
 const SAVE_PATH := "user://save.json"
-const ENEMY_XP := {"slime": 12, "goblin": 20, "skeleton": 30, "spider": 28}
+const ENEMY_XP := {"slime": 12, "goblin": 20, "rabbit": 26, "skeleton": 30, "spider": 28, "kobold": 45}
 
+var player_name := ""
+var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»
+var chests: Array = []  # номера подземелий, где сундук уже открыт
 var level := 1
 var xp := 0
 var gold := 0
@@ -24,7 +27,8 @@ var dmg := 22
 var armor := 0
 
 func _ready() -> void:
-	if not load_game():
+	has_save = load_game()
+	if not has_save:
 		new_game()
 	refresh()
 	hp = max_hp
@@ -38,8 +42,42 @@ func new_game() -> void:
 	inv = [{"id": "potion", "n": 2}]
 	equip = {"weapon": "sword_rusty", "armor": null, "helm": null, "amulet": null}
 	skills = {}
+	chests = []
 	refresh()
 	hp = max_hp
+
+## «Новая игра» из меню: стереть сохранение
+func wipe() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	has_save = false
+	new_game()
+
+# ---------- Снаряжение
+func equip_from(i: int) -> void:
+	var st: Dictionary = inv[i]
+	var it := Items.get_item(st["id"])
+	var slot: String = it["kind"]
+	var prev = equip[slot]
+	equip[slot] = st["id"]
+	inv.remove_at(i)
+	if prev != null:
+		inv.insert(i, {"id": prev, "n": 1})
+	refresh()
+	save_game()
+
+func unequip(slot: String) -> bool:
+	if equip[slot] == null or inv.size() >= Items.INV_SIZE:
+		return false
+	inv.append({"id": equip[slot], "n": 1})
+	equip[slot] = null
+	refresh()
+	save_game()
+	return true
+
+func drop_item(i: int) -> void:
+	inv.remove_at(i)
+	save_game()
+	changed.emit()
 
 static func xp_next(lvl: int) -> int:
 	return 30 + lvl * 30
@@ -143,7 +181,7 @@ func reset_skills() -> void:
 func save_game() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
+		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -151,6 +189,10 @@ func load_game() -> bool:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
 	if typeof(d) != TYPE_DICTIONARY:
 		return false
+	player_name = str(d.get("name", ""))
+	chests = []
+	for c in d.get("chests", []):
+		chests.append(int(c))
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
 	gold = int(d.get("gold", 0))

@@ -11,8 +11,10 @@ func _ready() -> void:
 		out = args[0] + "/"
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
-	while main.hero == null:
+	while main.hero == null or main.hud == null:
 		await get_tree().process_frame
+	await get_tree().process_frame
+	main.hud.menu._on_main()  # закрываем главное меню
 	await _frames(30)
 	await _shot("g_spawn.png", func(): pass)
 	# Джойстик: касание слева и сдвиг вверх — герой должен пойти вперёд

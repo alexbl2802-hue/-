@@ -6,6 +6,10 @@ extends CanvasLayer
 var touch: Control
 var minimap: Control
 var skills: Control
+var inventory: Control
+var forge: Control
+var menu: Control
+var hero: Node3D
 var camera: Camera3D
 var enemies: Node
 
@@ -31,6 +35,7 @@ func _ready() -> void:
 	_enemy_bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_enemy_bars.draw.connect(_draw_enemy_bars)
 	_enemy_bars.draw.connect(_draw_floaters)
+	_enemy_bars.draw.connect(_draw_name_tag)
 	root.add_child(_enemy_bars)
 	# Красная вспышка по краям экрана при уроне
 	var grad := Gradient.new()
@@ -91,9 +96,15 @@ func _ready() -> void:
 	touch = preload("res://scripts/touch_ui.gd").new()
 	root.add_child(touch)
 	# Окно навыков
-	skills = preload("res://scripts/skills_panel.gd").new()
+	skills = preload("res://scripts/ui/skills_panel.gd").new()
 	root.add_child(skills)
 	skills.closed.connect(func(): touch.visible = true)
+	inventory = preload("res://scripts/ui/inventory_panel.gd").new()
+	root.add_child(inventory)
+	inventory.closed.connect(func(): touch.visible = true)
+	forge = preload("res://scripts/ui/forge_panel.gd").new()
+	root.add_child(forge)
+	forge.closed.connect(func(): touch.visible = true)
 	# Затемнение для переходов
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
@@ -101,6 +112,10 @@ func _ready() -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade.modulate.a = 0.0
 	root.add_child(_fade)
+	# Главное меню — поверх всего
+	menu = preload("res://scripts/ui/main_menu.gd").new()
+	root.add_child(menu)
+	menu.started.connect(func(_first): touch.visible = true)
 
 func _box(c: Color, radius: int, mx: int, my: int) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -158,6 +173,21 @@ func open_skills() -> void:
 	touch.visible = false
 	skills.open()
 
+func open_inventory() -> void:
+	touch.release_all()
+	touch.visible = false
+	inventory.open()
+
+func open_forge() -> void:
+	touch.release_all()
+	touch.visible = false
+	forge.open()
+
+func open_menu() -> void:
+	touch.release_all()
+	touch.visible = false
+	menu.open()
+
 # ---------- Уровень, здоровье, опыт
 func _draw_bars() -> void:
 	var font := _bars.get_theme_default_font()
@@ -212,3 +242,16 @@ func _draw_floaters() -> void:
 		var w := 400.0
 		_enemy_bars.draw_string_outline(font, s + Vector2(-w / 2, 0), f["text"], HORIZONTAL_ALIGNMENT_CENTER, w, fs, 5, Color(0, 0, 0, c.a * 0.9))
 		_enemy_bars.draw_string(font, s + Vector2(-w / 2, 0), f["text"], HORIZONTAL_ALIGNMENT_CENTER, w, fs, c)
+
+# ---------- Имя над героем
+func _draw_name_tag() -> void:
+	if not camera or not hero or hero.dead or menu.visible:
+		return
+	var p: Vector3 = hero.global_position + Vector3(0, 2.55, 0)
+	if camera.is_position_behind(p):
+		return
+	var s := camera.unproject_position(p)
+	var font := _enemy_bars.get_theme_default_font()
+	var t := Game.player_name if Game.player_name != "" else "Странник"
+	_enemy_bars.draw_string_outline(font, s + Vector2(-150, 0), t, HORIZONTAL_ALIGNMENT_CENTER, 300, 13, 4, Color(0, 0, 0, 0.85))
+	_enemy_bars.draw_string(font, s + Vector2(-150, 0), t, HORIZONTAL_ALIGNMENT_CENTER, 300, 13, UiKit.CREAM)
