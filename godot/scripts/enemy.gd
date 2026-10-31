@@ -136,18 +136,23 @@ func _animate_bunny(dt: float) -> void:
 		hopping = _moving
 	_hop_legs(dt, hopping)
 
-## Прыжки кролика: присел → оттолкнулся ногами → в воздухе поджал ноги →
-## вытянул их к земле → приземлился, спружинив. Обе ноги работают вместе.
-## Ключи цикла: [доля цикла, бедро вперёд, сгиб колена, носок вниз] — в градусах.
+## Прыжки кролика: невысокие и частые — присел → оттолкнулся ногами → короткий прыжок
+## (ноги лишь слегка согнуты) → приземлился, спружинив. Обе ноги работают вместе.
+## Ключи цикла: [доля цикла, бедро вперёд, сгиб колена, носок вниз] — в градусах,
+## добавляются к стойке из анимации (в ней колени уже немного согнуты).
 const HOP_KEYS := [
-	[0.00, 22.0, 40.0, 0.0],     # касание земли
-	[0.12, 48.0, 92.0, -18.0],   # глубокий присед
-	[0.30, -24.0, 4.0, 45.0],    # толчок: ноги вытянуты назад, на носках
-	[0.50, 42.0, 78.0, 25.0],    # в воздухе ноги поджаты
-	[0.82, 34.0, 46.0, 10.0],    # тянется к земле
-	[1.00, 22.0, 40.0, 0.0],
+	[0.00, 8.0, 14.0, 0.0],      # касание земли
+	[0.20, 26.0, 46.0, -10.0],   # присел, пружиня
+	[0.45, -12.0, 2.0, 28.0],    # толчок: ноги выпрямлены, на носках
+	[0.72, 12.0, 20.0, 10.0],    # в воздухе ноги чуть согнуты
+	[1.00, 8.0, 14.0, 0.0],
 ]
-const HOP_GROUND := 0.3          # доля цикла на земле, дальше — полёт
+const HOP_GROUND := 0.45         # доля цикла на земле, дальше — короткий прыжок
+const HOP_HEIGHT := [0.09, 0.16] # высота прыжка: бродит / гонится
+const HOP_RATE := [2.4, 3.2]     # прыжков в секунду
+## В боксёрской стойке корпус развёрнут примерно на 50° (голова — на 37°) от направления
+## модели; в прыжках доворачиваем кролика, чтобы он скакал грудью вперёд, а не боком
+const HOP_TURN := 0.9
 
 var _legs_mod: PoseOffsets
 var _leg_bones := []             # [бедро, колено, стопа] для левой и правой ноги
@@ -179,6 +184,13 @@ func _setup_hop_legs() -> void:
 		fwd = fwd.normalized()
 	# Поворот вокруг этой оси уводит направленную вниз кость вперёд
 	_flex_axis = Vector3.DOWN.cross(fwd).normalized()
+	# Ось сгиба каждого сустава — в системе самой кости (по позе покоя): в стойке нога
+	# развёрнута, и сгиб вокруг общей оси тела выворачивал бы колено вбок
+	for leg in _leg_bones:
+		var axes := []
+		for b in leg:
+			axes.append((sk.get_bone_global_rest(b).basis.orthonormalized().inverse() * _flex_axis).normalized())
+		leg.append(axes)
 	_legs_mod = PoseOffsets.new()
 	sk.add_child(_legs_mod)
 
@@ -187,7 +199,7 @@ func _setup_hop_legs() -> void:
 func _hop_speed() -> float:
 	if _legs_mod == null or _hop_w < 0.5 or not _moving:
 		return 1.0
-	const ON_GROUND := 0.2
+	const ON_GROUND := 0.45
 	return ON_GROUND if _hop_p <= HOP_GROUND else (1.0 - HOP_GROUND * ON_GROUND) / (1.0 - HOP_GROUND)
 
 func _hop_pose(p: float) -> Vector3:
@@ -201,6 +213,7 @@ func _hop_pose(p: float) -> Vector3:
 
 func _hop_legs(dt: float, hopping: bool) -> void:
 	_char.position.y = 0.0
+	_char.rotation.y = HOP_TURN * _hop_w
 	if _legs_mod == null:
 		if hopping:   # запасной вариант: просто подскоки
 			_hop += dt * (9.0 if st == "chase" else 6.0)
@@ -209,7 +222,7 @@ func _hop_legs(dt: float, hopping: bool) -> void:
 	var chase := st == "chase"
 	# Прыжок доводим до приземления, даже если кролик остановился
 	if hopping or _hop_p > HOP_GROUND:
-		_hop_p += dt * (2.7 if chase else 1.9)
+		_hop_p += dt * HOP_RATE[1 if chase else 0]
 		if _hop_p >= 1.0:
 			_hop_p = fmod(_hop_p, 1.0) if hopping else 0.0
 	_hop_w = move_toward(_hop_w, 1.0 if hopping or _hop_p > 0.0 else 0.0, dt * 6.0)
@@ -217,16 +230,16 @@ func _hop_legs(dt: float, hopping: bool) -> void:
 		_hop_p = move_toward(_hop_p, 0.0, dt)
 	var a := _hop_pose(_hop_p) * deg_to_rad(1.0) * _hop_w
 	for lb in _leg_bones:
-		_legs_mod.set_angle(lb[0], _flex_axis, a.x)
-		_legs_mod.set_angle(lb[1], _flex_axis, -a.y)
-		_legs_mod.set_angle(lb[2], _flex_axis, -a.z)
+		_legs_mod.set_local(lb[0], lb[3][0], a.x)
+		_legs_mod.set_local(lb[1], lb[3][1], -a.y)
+		_legs_mod.set_local(lb[2], lb[3][2], -a.z)
 	# Высота тела: на земле — насколько присел, в полёте — дуга прыжка
 	var drop := _leg_len * (1.0 - (cos(a.x) + cos(a.x - a.y)) / 2.0)
 	var y := 0.0
 	var on_ground := 1.0
 	if _hop_p > HOP_GROUND:
 		var f := (_hop_p - HOP_GROUND) / (1.0 - HOP_GROUND)
-		y = sin(PI * f) * (0.42 if chase else 0.2) * _hop_w
+		y = sin(PI * f) * HOP_HEIGHT[1 if chase else 0] * _hop_w
 		on_ground = 1.0 - smoothstep(0.0, 0.15, f) + smoothstep(0.75, 1.0, f)
 	_char.position.y = y - drop * clampf(on_ground, 0.0, 1.0)
 

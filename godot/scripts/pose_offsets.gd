@@ -8,6 +8,13 @@ class_name PoseOffsets
 extends SkeletonModifier3D
 
 var _rot := {}   # индекс кости → [ось в системе скелета, угол]
+var _local := {} # индекс кости → [ось в системе самой кости, угол] — сгиб как у шарнира
+
+## Поворот вокруг оси самой кости: ось поворачивается вместе с костью в анимации,
+## поэтому колено сгибается по своему шарниру, как бы ни была развёрнута нога
+func set_local(bone: int, axis: Vector3, angle: float) -> void:
+	if bone >= 0:
+		_local[bone] = [axis.normalized(), angle]
 
 func set_angle(bone: int, axis: Vector3, angle: float) -> void:
 	if bone >= 0:
@@ -15,7 +22,12 @@ func set_angle(bone: int, axis: Vector3, angle: float) -> void:
 
 func _process_modification() -> void:
 	var sk := get_skeleton()
-	if not sk or _rot.is_empty():
+	if not sk:
+		return
+	for b in _local:
+		if absf(_local[b][1]) > 0.0001:
+			sk.set_bone_pose_rotation(b, sk.get_bone_pose_rotation(b) * Quaternion(_local[b][0], _local[b][1]))
+	if _rot.is_empty():
 		return
 	# Глобальные позы читаем до изменений: общая ось у цепочки делает их достаточными
 	var g := {}
