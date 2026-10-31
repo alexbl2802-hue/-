@@ -47,7 +47,13 @@ var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
 var _anim: AnimationPlayer
 var _new_swing := false
-var _gear := {}            # детали брони и шлема на костях модели: имя → MeshInstance3D
+var _idle_pose := false
+var _gear := {}
+var _longsword: Node3D
+var _ls_mesh: MeshInstance3D
+var _ls_base: StandardMaterial3D
+var _ls_rust: StandardMaterial3D
+var _ls_tint: StandardMaterial3D            # детали брони и шлема на костях модели: имя → MeshInstance3D
 
 func _ready() -> void:
 	collision_layer = 2
@@ -134,12 +140,17 @@ func _build_model() -> void:
 	_slash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_model.add_child(_slash)
 
-## Модель персонажа (Meshy, скелет Mixamo, анимации бега, ходьбы и удара мечом).
+## Модель персонажа — следопыт (Meshy, скелет Mixamo; tools/prepare_models.py вырезал его
+## собственные клинки и собрал анимации удара, бега и быстрого бега в один файл).
 ## Блочная модель остаётся запасной: её прячем, а меч переносим в правую кисть.
 const CHAR_PATH := "res://models/hero.glb"
-const CHAR_SCALE := 1.1
-const A_WALK := "Walking"
-const A_RUN := "Running"
+const GRIP_PATH := "res://models/hero_grip.json"
+const SWORD_PATH := "res://models/longsword.glb"
+const RUST_TEX := "res://models/longsword_rust.jpg"
+const CHAR_SCALE := 1.05
+const SHOW_GEAR := false
+const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
+const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
 
 func _attach_character() -> void:
@@ -167,22 +178,38 @@ func _attach_character() -> void:
 	sk.add_child(att)
 	att.bone_name = sk.get_bone_name(hand)
 	att.bone_idx = hand
-	# Хват: рукоять поперёк ладони, клинок выходит над большим и указательным пальцами.
-	# В системе кости кисти пальцы смотрят по +Y, линия костяшек — от мизинца к указательному.
-	var idx := _bone_local(sk, hand, "RightHandIndex1")
-	var pinky := _bone_local(sk, hand, "RightHandPinky1")
-	var fingers := ((idx + pinky) / 2.0).normalized()
-	var blade := (idx - pinky)
-	blade = (blade - fingers * blade.dot(fingers)).normalized()
-	var flat := fingers.cross(blade).normalized()
-	var grip := fingers * ((idx + pinky) / 2.0).length() * 0.7 - flat * 0.02
+	# Хват взят у собственного клинка модели: рукоять там, где он лежал в кулаке,
+	# клинок — в ту же сторону (данные в системе кости кисти, см. tools/prepare_models.py)
+	var g: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(GRIP_PATH))
+	var blade := Vector3(g["blade"][0], g["blade"][1], g["blade"][2]).normalized()
+	var width := Vector3(g["width"][0], g["width"][1], g["width"][2]).normalized()
+	var flat := width.cross(blade).normalized()
 	_sword.get_parent().remove_child(_sword)
 	att.add_child(_sword)
-	_sword.transform = Transform3D(Basis(fingers, blade, flat), grip + blade * 0.02)
+	_sword.transform = Transform3D(Basis(width, blade, flat), Vector3(g["grip"][0], g["grip"][1], g["grip"][2]))
 	_sword.scale = Vector3.ONE / CHAR_SCALE
-	_build_gear(sk)
-	_anim.play(A_WALK)
+	_attach_longsword()
+	_anim.play(A_SLASH)
+	_anim.seek(0.0, true)
 	update_look()
+
+## Модель меча: клинок по −Y, середина рукояти на y ≈ 0,65, ширина клинка по X.
+## Переворачиваем клинком вверх и ставим серединой рукояти в начало координат хвата.
+func _attach_longsword() -> void:
+	if not ResourceLoader.exists(SWORD_PATH):
+		return
+	for c in _sword.get_children():
+		c.visible = false
+	_longsword = (load(SWORD_PATH) as PackedScene).instantiate()
+	_sword.add_child(_longsword)
+	var mi: MeshInstance3D = _longsword.find_children("*", "MeshInstance3D", true, false)[0]
+	_ls_mesh = mi
+	_ls_base = mi.mesh.surface_get_material(0)
+	_ls_rust = _ls_base.duplicate()
+	_ls_rust.albedo_texture = load(RUST_TEX)
+	_ls_rust.metallic = 0.15
+	_ls_rust.roughness = 0.9
+	_ls_tint = _ls_base.duplicate()
 
 ## Броня и шлем — детали на костях модели, двигаются вместе с телом.
 ## Размеры подобраны по модели: торс ~0,4 м в ширину, голова ~0,2 м.
@@ -251,6 +278,7 @@ func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 func _animate_char(on_floor: bool, moving: bool) -> void:
 	var want := A_WALK
 	var speed := 1.0
+	var idle := false
 	if attack_t >= 0.0 or _spin_t >= 0.0:
 		want = A_SLASH
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
@@ -260,16 +288,18 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		speed = 1.6 if _dash_t >= 0.0 else 0.0
 	elif moving:
 		want = A_RUN if _speed_now > 7.0 else A_WALK
-		speed = _speed_now / (9.0 if want == A_RUN else 3.2)
+		speed = _speed_now / (11.0 if want == A_RUN else 6.0)
 	else:
-		speed = 0.0   # стойка: первый кадр ходьбы
-	if _anim.current_animation != want or (want == A_SLASH and _new_swing):
-		_anim.play(want, 0.1 if want == A_SLASH else -1.0)
-		if want == A_SLASH:
-			_anim.seek(0.08, true)
-		elif speed == 0.0:
-			_anim.seek(0.0, true)
+		# Стойка: первый кадр удара — боевая поза с мечом
+		want = A_SLASH
+		speed = 0.0
+		idle = true
+	var swing := want == A_SLASH and not idle
+	if _anim.current_animation != want or (swing and _new_swing) or (idle and not _idle_pose):
+		_anim.play(want, 0.1 if swing else -1.0)
+		_anim.seek(0.08 if swing else 0.0, true)
 		_new_swing = false
+	_idle_pose = idle
 	_anim.speed_scale = speed
 
 ## Полукольцо в вертикальной плоскости: от спины через верх вперёд
@@ -309,13 +339,29 @@ func update_look() -> void:
 			_blade_mat.set_shader_parameter("emission_energy", 1.0 if w.has("glow") else 0.0)
 		_blade.scale.y = w["len"]
 		_blade.position.y = 0.12 + 0.5 * w["len"]
+		if _longsword:
+			# Ржавый — ржавая текстура, железный — как есть, остальные — та же модель в цвете оружия
+			var id: String = Game.equip["weapon"]["id"]
+			var s := 0.55 * float(w["len"])
+			_longsword.transform = Transform3D(Basis(Vector3(0, 0, 1), PI).scaled(Vector3.ONE * s), Vector3(0, 0.65 * s, 0))
+			if id == "sword_rusty":
+				_ls_mesh.material_override = _ls_rust
+			elif id == "sword_iron":
+				_ls_mesh.material_override = _ls_base
+			else:
+				_ls_tint.albedo_color = WorldGen.hex(w["color"])
+				_ls_tint.emission_enabled = r >= 3 or w.has("glow")
+				_ls_tint.emission = Items.RANKS[r]["color"] if r >= 3 else WorldGen.hex(w.get("glow", 0))
+				_ls_tint.emission_energy_multiplier = 0.8
+				_ls_mesh.material_override = _ls_tint
 	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)))
 	_tunic_mat.set_shader_parameter("metallic", 0.55 if a.get("metal", false) else 0.0)
 	_tunic_mat.set_shader_parameter("roughness", 0.45 if a.get("metal", false) else 0.8)
 	_helmet.visible = not h.is_empty()
 	if not h.is_empty():
 		_helmet_mat.set_shader_parameter("albedo", WorldGen.hex(h["color"]))
-	if not _gear.is_empty():
+	# У следопыта своя броня и капюшон — накладки брони и шлема на нём не показываем
+	if not _gear.is_empty() and SHOW_GEAR:
 		var am: bool = a.get("metal", false)
 		_set_gear(["cuirass", "chest_top", "belt"], not a.is_empty(), WorldGen.hex(a.get("color", 0)), am)
 		_set_gear(["belt"], not a.is_empty(), WorldGen.hex(0x4a3220), false)

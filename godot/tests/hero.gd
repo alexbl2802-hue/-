@@ -75,6 +75,15 @@ func _ready() -> void:
 	await _shot("hm_gear_run.png", -1.2, 0.15, 3.6, 20)
 	h.touch.move = Vector2.ZERO
 	h.touch.run = false
+	# Хват крупно: ржавый и железный
+	for wid in ["sword_rusty", "sword_iron"]:
+		Game.equip["weapon"] = Items.make(wid)
+		Game.equip["armor"] = null
+		Game.equip["helm"] = null
+		Game.refresh()
+		_place(p + Vector3(-6, 0, 0))
+		h.facing = 0.0
+		await _shot("hm_grip_%s.png" % wid, 0.9, 0.05, 1.6, 25)
 	get_tree().quit()
 
 func _place(p: Vector3) -> void:
