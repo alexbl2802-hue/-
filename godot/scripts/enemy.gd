@@ -256,53 +256,91 @@ func _build_rabbit() -> void:
 			ap.add_child(c)
 		_arms.append(ap)
 
+## Кобольд-оборотень: собачья голова, шерсть, ноги коленями назад, чешуйчатый нагрудник, меч и щит
 func _build_kobold() -> void:
 	var inner := Node3D.new()
-	inner.scale = Vector3.ONE * 0.9
+	inner.scale = Vector3.ONE * 0.95
 	_model.add_child(inner)
-	var scale_c := _mat(0x9a4a2a)
-	var dark := _mat(0x5a2a18)
+	var fur_c: int = [0x6a5038, 0x5a5a5e, 0x7a5a3a][randi() % 3]
+	var fur := _mat(fur_c)
+	var fur_dark := _mat(Color(WorldGen.hex(fur_c)).darkened(0.35).to_rgba32() >> 8)
+	var fur_light := _mat(Color(WorldGen.hex(fur_c)).lightened(0.25).to_rgba32() >> 8)
 	var steel := _mat(0x9aa2ac, 0.35)
 	steel.set_shader_parameter("metallic", 0.6)
+	var steel_dark := _mat(0x6e767e, 0.4)
+	steel_dark.set_shader_parameter("metallic", 0.6)
 	var leather := _mat(0x4a3220)
-	# Тело в стальном нагруднике
-	_box(inner, Vector3(0.58, 0.72, 0.34), leather, Vector3(0, 1.2, 0))
-	_box(inner, Vector3(0.64, 0.5, 0.4), steel, Vector3(0, 1.32, 0))
-	for sx in [-1.0, 1.0]:
-		_box(inner, Vector3(0.24, 0.14, 0.42), steel, Vector3(sx * 0.36, 1.58, 0))  # наплечники
-	_box(inner, Vector3(0.62, 0.1, 0.38), dark, Vector3(0, 0.9, 0))
-	# Голова-ящерица с мордой, рожками и шлемом
+	# Сутулый торс: широкая грудь, наклон вперёд
+	var torso := Node3D.new()
+	torso.position.y = 0.95
+	torso.rotation.x = 0.22
+	inner.add_child(torso)
+	_box(torso, Vector3(0.66, 0.8, 0.42), fur, Vector3(0, 0.38, 0))
+	_box(torso, Vector3(0.5, 0.3, 0.36), fur_dark, Vector3(0, -0.05, 0))
+	# Чешуйчатый нагрудник: ряды накладывающихся пластинок
+	for row in 5:
+		for col in 5:
+			var off := 0.055 if row % 2 == 1 else 0.0
+			var x := -0.24 + col * 0.12 + off
+			if absf(x) > 0.3:
+				continue
+			var sc := _box(torso, Vector3(0.12, 0.11, 0.03), steel if (row + col) % 2 == 0 else steel_dark, Vector3(x, 0.66 - row * 0.1, 0.225))
+			sc.rotation.x = -0.35
+	_box(torso, Vector3(0.62, 0.5, 0.04), steel_dark, Vector3(0, 0.45, -0.22))  # спина
+	_box(torso, Vector3(0.68, 0.08, 0.46), leather, Vector3(0, 0.1, 0))       # пояс
+	# Грива шерсти на загривке и плечах
+	for k in 7:
+		var a := -0.9 + k * 0.3
+		var tuft := MeshInstance3D.new()
+		var tm := CylinderMesh.new()
+		tm.top_radius = 0.0; tm.bottom_radius = 0.09; tm.height = 0.3; tm.radial_segments = 4
+		tuft.mesh = tm
+		tuft.material_override = fur_light if k % 2 == 0 else fur
+		tuft.position = Vector3(sin(a) * 0.3, 0.82, -0.06 - cos(a) * 0.12)
+		tuft.rotation = Vector3(-0.6, 0, -sin(a) * 0.7)
+		torso.add_child(tuft)
+	# Собачья голова: череп, вытянутая морда, нос, острые уши, светящиеся глаза
 	var head := Node3D.new()
-	head.position.y = 1.86
-	inner.add_child(head)
-	_box(head, Vector3(0.38, 0.34, 0.38), scale_c, Vector3.ZERO)
-	_box(head, Vector3(0.24, 0.16, 0.26), scale_c, Vector3(0, -0.06, 0.28))
-	_box(head, Vector3(0.44, 0.18, 0.44), steel, Vector3(0, 0.18, -0.01))
+	head.position = Vector3(0, 0.98, 0.12)
+	torso.add_child(head)
+	_box(head, Vector3(0.36, 0.34, 0.36), fur, Vector3.ZERO)
+	_box(head, Vector3(0.22, 0.18, 0.3), fur_light, Vector3(0, -0.06, 0.3))   # морда
+	_box(head, Vector3(0.18, 0.06, 0.26), fur_dark, Vector3(0, -0.17, 0.27))  # нижняя челюсть
+	_box(head, Vector3(0.09, 0.07, 0.06), _mat(0x141414, 0.3), Vector3(0, -0.01, 0.46))  # нос
 	for sx in [-1.0, 1.0]:
-		var horn := MeshInstance3D.new()
-		var hm := CylinderMesh.new()
-		hm.top_radius = 0.0; hm.bottom_radius = 0.06; hm.height = 0.26; hm.radial_segments = 5
-		horn.mesh = hm
-		horn.material_override = _mat(0xe8dcc0)
-		horn.position = Vector3(sx * 0.17, 0.32, -0.08)
-		horn.rotation = Vector3(-0.5, 0, -sx * 0.4)
-		head.add_child(horn)
-	var eye := _mat(0xffc020, 0.4, 0xffa000, 1.2)
+		_box(head, Vector3(0.025, 0.06, 0.025), _mat(0xf2ead8), Vector3(sx * 0.06, -0.15, 0.4))  # клыки
+		var ear := MeshInstance3D.new()
+		var em := CylinderMesh.new()
+		em.top_radius = 0.0; em.bottom_radius = 0.09; em.height = 0.3; em.radial_segments = 4
+		ear.mesh = em
+		ear.material_override = fur_dark
+		ear.position = Vector3(sx * 0.12, 0.28, -0.06)
+		ear.rotation = Vector3(-0.2, 0, -sx * 0.25)
+		head.add_child(ear)
+	var eye := _mat(0xffc020, 0.4, 0xffa000, 1.4)
 	for sx in [-1.0, 1.0]:
-		_box(head, Vector3(0.07, 0.05, 0.02), eye, Vector3(sx * 0.1, 0.04, 0.19))
-	# Ноги в поножах и руки
+		_box(head, Vector3(0.07, 0.04, 0.02), eye, Vector3(sx * 0.1, 0.05, 0.185))
+	# Хвост
+	var tail := _box(inner, Vector3(0.12, 0.12, 0.55), fur_dark, Vector3(0, 0.85, -0.42))
+	tail.rotation.x = 0.7
+	# Ноги оборотня: бедро вперёд, голень назад, лапа на пальцах
 	for sx in [-1.0, 1.0]:
 		var lp := Node3D.new()
-		lp.position = Vector3(0.15 * sx, 0.88, 0)
+		lp.position = Vector3(0.17 * sx, 0.95, 0)
 		inner.add_child(lp)
-		_box(lp, Vector3(0.2, 0.62, 0.22), scale_c, Vector3(0, -0.32, 0))
-		_box(lp, Vector3(0.23, 0.32, 0.25), steel, Vector3(0, -0.48, 0))
+		var thigh := _box(lp, Vector3(0.2, 0.42, 0.24), fur, Vector3(0, -0.17, 0.08))
+		thigh.rotation.x = -0.45
+		var shin := _box(lp, Vector3(0.14, 0.42, 0.14), fur_dark, Vector3(0, -0.55, 0.1))
+		shin.rotation.x = 0.55
+		_box(lp, Vector3(0.16, 0.09, 0.26), fur_dark, Vector3(0, -0.88, 0.12))  # лапа
 		_legs.append(lp)
+		# Руки с когтистыми ладонями, на предплечьях — поручи
 		var ap := Node3D.new()
-		ap.position = Vector3(0.4 * sx, 1.52, 0)
+		ap.position = Vector3(0.42 * sx, 1.62, 0.18)
 		inner.add_child(ap)
-		_box(ap, Vector3(0.17, 0.62, 0.17), scale_c, Vector3(0, -0.28, 0))
-		_box(ap, Vector3(0.2, 0.22, 0.2), steel, Vector3(0, -0.5, 0))
+		_box(ap, Vector3(0.17, 0.62, 0.17), fur, Vector3(0, -0.28, 0))
+		_box(ap, Vector3(0.2, 0.22, 0.2), steel, Vector3(0, -0.45, 0))
+		_box(ap, Vector3(0.16, 0.14, 0.18), fur_dark, Vector3(0, -0.64, 0))
 		_arms.append(ap)
 	# Меч
 	var w := Node3D.new()
@@ -310,7 +348,7 @@ func _build_kobold() -> void:
 	w.rotation.x = PI / 2
 	_arms[0].add_child(w)
 	_box(w, Vector3(0.08, 1.0, 0.03), steel, Vector3(0, 0.58, 0))
-	_box(w, Vector3(0.3, 0.07, 0.08), dark, Vector3(0, 0.08, 0))
+	_box(w, Vector3(0.3, 0.07, 0.08), leather, Vector3(0, 0.08, 0))
 	# Небольшой щит на левой руке
 	var shield := _box(_arms[1], Vector3(0.06, 0.5, 0.42), _mat(0x6a4a2a), Vector3(-0.1, -0.45, 0.1))
 	_box(shield, Vector3(0.08, 0.2, 0.2), steel, Vector3(0, 0, 0))
