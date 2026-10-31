@@ -1,0 +1,91 @@
+name: Godot APK (preview)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'godot/**'
+      - 'tools/bake_world.mjs'
+      - '.github/workflows/godot-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Godot and export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-cache
+          key: godot-${{ env.GODOT_VERSION }}-stable-android
+
+      - name: Install Godot and Android export templates
+        run: |
+          V=${GODOT_VERSION}-stable
+          mkdir -p ~/godot-cache && cd ~/godot-cache
+          if [ ! -f godot ]; then
+            curl -sSL -o g.zip "https://github.com/godotengine/godot/releases/download/$V/Godot_v${V}_linux.x86_64.zip"
+            unzip -q g.zip && mv "Godot_v${V}_linux.x86_64" godot && rm g.zip
+          fi
+          if [ ! -d templates ]; then
+            curl -sSL -o t.tpz "https://github.com/godotengine/godot/releases/download/$V/Godot_v${V}_export_templates.tpz"
+            unzip -q t.tpz 'templates/android*' 'templates/version.txt' && rm t.tpz
+          fi
+          T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$T" && cp templates/* "$T/"
+          ls "$T"
+
+      - name: Configure Android SDK and signing for Godot
+        run: |
+          # Первый запуск редактора создаёт файл настроек, затем прописываем SDK и общий отладочный ключ
+          ~/godot-cache/godot --headless --editor --path godot --quit || true
+          S=~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          KS="${{ github.workspace }}/android/app/debug.keystore"
+          sed -i "s|^export/android/android_sdk_path = .*|export/android/android_sdk_path = \"$ANDROID_HOME\"|" "$S"
+          sed -i "s|^export/android/debug_keystore = .*|export/android/debug_keystore = \"$KS\"|" "$S"
+          sed -i "s|^export/android/debug_keystore_pass = .*|export/android/debug_keystore_pass = \"android\"|" "$S"
+          grep -q '^export/android/debug_keystore_user' "$S" \
+            && sed -i 's|^export/android/debug_keystore_user = .*|export/android/debug_keystore_user = "androiddebugkey"|' "$S" \
+            || echo 'export/android/debug_keystore_user = "androiddebugkey"' >> "$S"
+          grep '^export/android' "$S"
+
+      - name: Import project
+        run: ~/godot-cache/godot --headless --path godot --import || true
+
+      - name: Export APK
+        run: |
+          sed -i "s|^version/code=.*|version/code=${{ github.run_number }}|; s|^version/name=.*|version/name=\"0.1.${{ github.run_number }}\"|" godot/export_presets.cfg
+          mkdir -p build
+          ~/godot-cache/godot --headless --path godot --export-debug "Android" ../build/ZemliPriklyucheniy-Godot.apk
+          ls -la build
+          test -s build/ZemliPriklyucheniy-Godot.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZemliPriklyucheniy-Godot-apk
+          path: build/ZemliPriklyucheniy-Godot.apk
+
+      - name: Publish preview release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: godot-v0.1.${{ github.run_number }}
+          name: Godot-версия 0.1.${{ github.run_number }} (предварительная)
+          body: |
+            Предварительная сборка игры на движке **Godot 4.7**: мир, город Камнеград, герой и сенсорное управление.
+            Ставится отдельным приложением рядом с основной версией.
+          files: build/ZemliPriklyucheniy-Godot.apk
+          prerelease: true
+          make_latest: false
