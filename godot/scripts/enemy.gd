@@ -3,7 +3,6 @@
 extends CharacterBody3D
 
 const TYPES := {
-	"slime": {"hp": 45, "dmg": 7, "speed": 3.4, "r": 0.6, "aggro": 11.0, "reach": 1.5, "cd": 1.3, "windup": 0.45, "bar": 1.5, "lunge": true},
 	"goblin": {"hp": 70, "dmg": 10, "speed": 4.6, "walk": 0.8, "r": 0.45, "aggro": 15.0, "reach": 1.7, "cd": 1.1, "windup": 0.4, "bar": 2.0},
 	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
 	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
@@ -14,7 +13,7 @@ const TYPES := {
 }
 const GRAVITY := 25.0
 
-var type := "slime"
+var type := "goblin"
 var level := 1               # уровень монстра (пока у всех 1) — показывается над ним
 var in_dungeon := false
 var T: Dictionary
@@ -89,7 +88,6 @@ func _ready() -> void:
 	_model = Node3D.new()
 	add_child(_model)
 	match type:
-		"slime": _build_slime()
 		"goblin": _build_humanoid(0.82, 0x6aa84f, 0x6b4a2b, 0x3d2a18, 0xffd400, 0.6, 0.56, 0.2, true, false, "club")
 		"skeleton": _build_humanoid(1.0, 0xe6dfc8, 0xd8d0b8, 0x3a3228, 0x6fd0ff, 1.5, 0.46, 0.13, false, true, "sword")
 		"spider": _build_spider()
@@ -291,16 +289,6 @@ func _blob(parent: Node3D, r: float, m: Material, pos: Vector3, segs := 8, rings
 	mi.position = pos
 	parent.add_child(mi)
 	return mi
-
-func _build_slime() -> void:
-	_body = Node3D.new()
-	_model.add_child(_body)
-	var c := Color.from_hsv(randf_range(0.26, 0.38), 0.6, 0.75)
-	var blob := _blob(_body, 0.62, _mat(c.to_rgba32() >> 8, 0.3), Vector3(0, 0.5, 0))
-	blob.scale = Vector3(1, 0.8, 1)
-	var eye := _mat(0x111111)
-	_box(_body, Vector3(0.1, 0.16, 0.05), eye, Vector3(-0.18, 0.62, 0.52))
-	_box(_body, Vector3(0.1, 0.16, 0.05), eye, Vector3(0.18, 0.62, 0.52))
 
 func _build_humanoid(sc: float, skin_c: int, cloth_c: int, dark_c: int, eye_c: int, glow: float, bw: float, limb: float, ears: bool, ribs: bool, weapon: String) -> void:
 	var inner := Node3D.new()
@@ -752,16 +740,6 @@ func _animate(dt: float) -> void:
 		_animate_char()
 		return
 	match type:
-		"slime":
-			_hop += dt * (7.0 if _moving else 2.5)
-			var k := absf(sin(_hop))
-			if st == "windup":
-				var w := minf(1.0, _t / T["windup"])
-				_body.scale = Vector3(1 + 0.3 * w, 1 - 0.35 * w, 1 + 0.3 * w)
-				_body.position.y = 0.0
-			else:
-				_body.position.y = k * 0.45 if _moving else 0.0
-				_body.scale = Vector3(1 + (1 - k) * 0.1, 0.9 + k * 0.18, 1 + (1 - k) * 0.1)
 		"rabbit":
 			_hop += dt * (9.0 if _moving else 2.0)
 			var k := absf(sin(_hop))

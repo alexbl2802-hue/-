@@ -51,7 +51,6 @@ static func combine_cost(r: int) -> Array:
 ## Что выпадает: [шанс, мин, макс] золота, шанс зелья, шанс предмета, список предметов
 ## и [шанс, мин, макс] тёмных осколков (только в подземельях)
 const LOOT := {
-	"slime": {"gold": [0.6, 2, 6], "potion": 0.2, "item": 0.07, "pool": ["sword_rusty", "helm_leather", "armor_leather"]},
 	"goblin": {"gold": [0.75, 4, 10], "potion": 0.25, "item": 0.15, "pool": ["sword_rusty", "sword_iron", "armor_leather", "helm_leather", "helm_iron"]},
 	"rabbit": {"gold": [0.65, 5, 12], "potion": 0.25, "item": 0.16, "pool": ["sword_iron", "armor_leather", "helm_leather", "helm_iron", "armor_chain"]},
 	"skeleton": {"gold": [0.6, 6, 14], "potion": 0.3, "item": 0.25, "pool": ["sword_iron", "sword_bone", "armor_chain", "helm_iron", "amulet_life", "sword_steel"], "shard": [0.45, 1, 2]},

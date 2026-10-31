@@ -190,9 +190,9 @@ const enemies = [];
       && !SITES.some(s => Math.hypot(x - s.x, z - s.z) < 10)
       && obstacles.every(o => Math.hypot(o.x - x, o.z - z) > o.r + 1);
   };
-  // Больше монстров, чем в веб-версии: 30 слизней, 14 гоблинов и 12 кроликов-бродяг
-  const want = { slime: 30, goblin: 14, rabbit: 12 };
-  const have = { slime: 0, goblin: 0, rabbit: 0 };
+  // Слизней больше нет; гоблинов и кроликов-оборотней вдвое больше прежнего: 28 и 24
+  const want = { goblin: 28, rabbit: 24 };
+  const have = { goblin: 0, rabbit: 0 };
   for (let n = 0; n < 16000 && Object.keys(want).some(k => have[k] < want[k]); n++) {
     const x = (er() * 2 - 1) * (HALF - 40), z = (er() * 2 - 1) * (HALF - 40);
     if (!ok(x, z)) continue;

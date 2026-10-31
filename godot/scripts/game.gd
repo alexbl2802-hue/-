@@ -7,7 +7,7 @@ signal leveled_up(level: int)
 signal message(text: String, color: Color, pos: Vector3)  # всплывающая надпись над точкой
 
 const SAVE_PATH := "user://save.json"
-const ENEMY_XP := {"slime": 12, "goblin": 20, "rabbit": 26, "skeleton": 30, "spider": 28, "kobold": 45}
+const ENEMY_XP := {"goblin": 20, "rabbit": 26, "skeleton": 30, "spider": 28, "kobold": 45}
 
 var player_name := ""
 var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»

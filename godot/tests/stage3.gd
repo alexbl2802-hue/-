@@ -72,8 +72,10 @@ func _ready() -> void:
 	# 5. Новые монстры: кролик и кобольды
 	var rabbits: Array = main.enemies.list.filter(func(e): return e.type == "rabbit")
 	var kobolds: Array = main.enemies.list.filter(func(e): return e.type == "kobold")
-	_check("rabbits roam the world", rabbits.size() == 12 and not rabbits[0].in_dungeon, "%d кроликов" % rabbits.size())
-	_check("kobolds in dungeons", kobolds.size() == 5 and kobolds.all(func(e): return e.in_dungeon), "%d кобольдов" % kobolds.size())
+	_check("rabbits roam the world", rabbits.size() == 24 and not rabbits[0].in_dungeon, "%d кроликов" % rabbits.size())
+	_check("no slimes", not main.enemies.list.any(func(e): return e.type == "slime"), "")
+	_check("goblins doubled", main.enemies.list.filter(func(e): return e.type == "goblin").size() == 32, "")
+	_check("kobolds in dungeons", kobolds.size() == 10 and kobolds.all(func(e): return e.in_dungeon), "%d кобольдов" % kobolds.size())
 	var rb: Node3D = rabbits[0]
 	var spot := Vector3(-60, 0, -120)
 	_place(spot, 2.6)

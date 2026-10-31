@@ -35,7 +35,6 @@ func _ready() -> void:
 	_enemy_bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_enemy_bars.draw.connect(_draw_enemy_bars)
 	_enemy_bars.draw.connect(_draw_floaters)
-	_enemy_bars.draw.connect(_draw_name_tag)
 	_enemy_bars.draw.connect(_draw_enemy_tags)
 	root.add_child(_enemy_bars)
 	# Красная вспышка по краям экрана при уроне
@@ -55,7 +54,7 @@ func _ready() -> void:
 	_hurt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hurt.modulate.a = 0.0
 	root.add_child(_hurt)
-	# Название места вверху по центру
+	# Ник и уровень героя вверху по центру
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", _box(Color(0.08, 0.06, 0.04, 0.55), 8, 14, 5))
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -63,8 +62,8 @@ func _ready() -> void:
 	panel.position.y = 10
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status = Label.new()
-	_status.add_theme_font_size_override("font_size", 13)
-	_status.add_theme_color_override("font_color", Color("#f4ecd8"))
+	_status.add_theme_font_size_override("font_size", 15)
+	_status.add_theme_color_override("font_color", Color("#ffe7b0"))
 	panel.add_child(_status)
 	root.add_child(panel)
 	# Уровень, здоровье, опыт
@@ -243,18 +242,6 @@ func _draw_floaters() -> void:
 		var w := 400.0
 		_enemy_bars.draw_string_outline(font, s + Vector2(-w / 2, 0), f["text"], HORIZONTAL_ALIGNMENT_CENTER, w, fs, 5, Color(0, 0, 0, c.a * 0.9))
 		_enemy_bars.draw_string(font, s + Vector2(-w / 2, 0), f["text"], HORIZONTAL_ALIGNMENT_CENTER, w, fs, c)
-
-# ---------- Имя над героем
-func _draw_name_tag() -> void:
-	if not camera or not hero or hero.dead or menu.visible:
-		return
-	var p: Vector3 = hero.global_position + Vector3(0, 2.55, 0)
-	if camera.is_position_behind(p):
-		return
-	var s := camera.unproject_position(p)
-	var font := _enemy_bars.get_theme_default_font()
-	var t := Game.player_name if Game.player_name != "" else "Странник"
-	_tag(s, t, Game.level, UiKit.CREAM)
 
 ## Надпись над персонажем: «Имя · Ур. N» (имя может быть пустым — тогда только уровень)
 func _tag(s: Vector2, title: String, level: int, color: Color) -> void:

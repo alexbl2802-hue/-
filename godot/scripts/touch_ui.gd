@@ -54,7 +54,7 @@ func _buttons() -> Array:
 		{"id": "inventory", "rect": Rect2(12, 12, 52, 52), "label": "🎒", "fs": 27},
 		{"id": "menu", "rect": Rect2(192, 12, 52, 52), "label": "☰", "fs": 27},
 		{"id": "potion", "rect": Rect2(72, 12, 52, 52), "label": "🧪", "fs": 27, "badge": str(potions), "dim": potions == 0},
-		{"id": "skills", "rect": Rect2(132, 12, 52, 52), "label": "⭐", "fs": 27, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
+		{"id": "skills", "rect": Rect2(132, 12, 52, 52), "label": "👤", "fs": 27, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
 	]
 	if skill_ranks["whirl"] > 0:
 		list.append({"id": "whirl", "c": Vector2(s.x - 128 - 32, s.y - 98 - 32), "r": 32.0, "label": "🌀", "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})

@@ -56,37 +56,42 @@ func _ready() -> void:
 	await _frames(30)
 	_check("level up", Game.level >= 6, "level %d, points %d" % [Game.level, Game.points_free()])
 	await _shot("c_levelup.png")
-	# 5. Окно навыков кнопкой ⭐ и изучение кликом по кнопке
+	# 5. Профиль кнопкой 👤: выбор навыка в списке слева и кнопка «Улучшить» справа
 	_tap(Vector2(158, 38))
 	await _frames(10)
 	var panel: Control = main.hud.skills
 	_check("skills panel opens", panel.visible and get_tree().paused, "")
 	await _shot("c_skills.png")
 	for id in ["whirl", "whirl", "dash", "strength"]:
-		Game.learn(id)
+		var row: Button = panel._list.get_children().filter(func(b): return (b as Button).text.contains(SkillDefs.find(id)["name"]))[0]
+		row.pressed.emit()
+		await _frames(1)
+		panel._up.pressed.emit()
+		await _frames(1)
+	panel._sel = "whirl"
 	panel._render()
 	await _frames(5)
 	await _shot("c_skills2.png")
 	panel.close()
 	await _frames(5)
 	_check("skills learned", Game.rank("whirl") == 2 and Game.rank("dash") == 1, str(Game.skills))
-	# 6. Вихрь: три слизня вокруг
+	# 6. Вихрь: три гоблина вокруг
 	_place(spot, 2.6)
-	var slimes := []
+	var ring := []
 	for k in 3:
-		var s: Node3D = _enemy("slime", k)
+		var s: Node3D = _enemy("goblin", k + 2)
 		var a := k * 2.1
 		_move_enemy(s, hero.global_position + Vector3(sin(a) * 2.0, 0, cos(a) * 2.0))
 		s.hp = 25
 		s.T = s.T.duplicate()
 		s.T["aggro"] = 0.0
-		slimes.append(s)
+		ring.append(s)
 	await _frames(10)
 	_tap(Vector2(vp.x - 160, vp.y - 130))
 	await _frames(8)
 	await _shot("c_whirl.png")
 	await _frames(30)
-	_check("whirl kills 3 slimes", slimes.all(func(s): return s.dead), str(slimes.map(func(s): return s.hp)))
+	_check("whirl kills 3 goblins", ring.all(func(s): return s.dead), str(ring.map(func(s): return s.hp)))
 	_check("whirl cooldown", main.hero.cd["whirl"] > 0.0, str(main.hero.cd))
 	# 7. Рывок сквозь гоблина
 	var gob2: Node3D = _enemy("goblin", 1)

@@ -241,18 +241,14 @@ func _process(_dt: float) -> void:
 	if not hero:
 		return
 	var p := hero.global_position
-	# Название места и счётчики
-	var place: String
-	if mode >= 0:
-		place = dungeons[mode].def["name"]
-	else:
+	# Вход в город — надпись по центру; вверху — ник и уровень героя
+	if mode < 0:
 		var zone := "town" if WorldGen.town_dist(p.x, p.z) < WorldGen.TOWN_WALL else "valley"
 		if zone != _zone:
 			if _zone != "" and zone == "town":
 				hud.banner(WorldGen.TOWN_NAME, "Под защитой крепостных стен")
 			_zone = zone
-		place = WorldGen.TOWN_NAME if zone == "town" else "Долина"
-	hud.set_status("%s  ·  Сокровища: %d/%d  ·  ⚔ %d" % [place, Game.chests.size(), dungeons.size(), Game.kills])
+	hud.set_status("%s  ·  Ур. %d" % [Game.player_name if Game.player_name != "" else "Странник", Game.level])
 	# Кнопки: зелья, очки навыков, умения и их перезарядка
 	var t: Control = hud.touch
 	t.potions = Game.potions()

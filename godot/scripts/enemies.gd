@@ -19,15 +19,17 @@ func spawn_all() -> void:
 		list.append(en)
 	_update_active()
 
-## Монстры подземелья: скелеты/пауки и кобольды
+## Монстры подземелья: скелеты/пауки и кобольды — по двое на каждом месте появления
 func spawn_dungeon(d: Node3D) -> void:
 	var script := preload("res://scripts/enemy.gd")
 	for sp in d.spawns:
-		var en: CharacterBody3D = script.new()
-		en.in_dungeon = true
-		en.setup(sp[0], sp[1] + Vector3(0, 0.3, 0), hero)
-		add_child(en)
-		list.append(en)
+		for k in 2:
+			var en: CharacterBody3D = script.new()
+			en.in_dungeon = true
+			var off := Vector3(-0.9, 0, 0.5) if k == 0 else Vector3(0.9, 0, -0.5)
+			en.setup(sp[0], sp[1] + off + Vector3(0, 0.3, 0), hero)
+			add_child(en)
+			list.append(en)
 
 func _process(dt: float) -> void:
 	_check_t -= dt
