@@ -78,6 +78,30 @@ jobs:
           ls -la build
           test -s build/ZemliPriklyucheniy-$VER.apk
 
+      - name: Sign with release key (key rotation)
+        env:
+          KS_B64: ${{ secrets.ZEMLI_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ZEMLI_KEYSTORE_PASS }}
+        run: |
+          # Своя подпись вместо отладочной. Ключ хранится только в секретах репозитория.
+          # Смена ключа по правилам Android (APK Signature Scheme v3, Android 9+): старый
+          # отладочный ключ подтверждает новый, поэтому обновление встаёт поверх уже
+          # установленной игры и прогресс сохраняется.
+          APK=build/ZemliPriklyucheniy-$VER.apk
+          if [ -z "$KS_B64" ] || [ -z "$KS_PASS" ]; then
+            echo "::warning::Нет секретов ZEMLI_KEYSTORE_B64 / ZEMLI_KEYSTORE_PASS — APK остаётся с отладочной подписью"
+            exit 0
+          fi
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          OLD="--ks android/app/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android"
+          NEW="--ks $RUNNER_TEMP/release.jks --ks-key-alias zemli --ks-pass env:KS_PASS --key-pass env:KS_PASS"
+          "$BT/apksigner" rotate --out "$RUNNER_TEMP/lineage" --old-signer $OLD --new-signer $NEW
+          "$BT/apksigner" sign $OLD --next-signer $NEW --lineage "$RUNNER_TEMP/lineage" --out "$RUNNER_TEMP/signed.apk" "$APK"
+          "$BT/apksigner" verify -v --print-certs "$RUNNER_TEMP/signed.apk"
+          mv "$RUNNER_TEMP/signed.apk" "$APK"
+          rm -f "$RUNNER_TEMP/release.jks"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ZemliPriklyucheniy-${{ env.VER }}-apk
