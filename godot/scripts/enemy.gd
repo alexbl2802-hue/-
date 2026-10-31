@@ -40,6 +40,13 @@ var _legs: Array = []
 var _arms: Array = []
 var _mats: Array = []
 var _shape: CollisionShape3D
+var _char: Node3D            # модель с анимациями (сейчас — гоблин из models/goblin.glb)
+var _ap: AnimationPlayer
+var _flash_mat: StandardMaterial3D
+var _anim_on := true
+var _swing := false
+
+const GOBLIN_MODEL := "res://models/goblin.glb"
 
 func setup(kind: String, pos: Vector3, h: Node3D) -> void:
 	type = kind
@@ -70,7 +77,111 @@ func _ready() -> void:
 		"spider": _build_spider()
 		"rabbit": _build_rabbit()
 		"kobold": _build_kobold()
+	if type == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
+		_attach_goblin()
 	global_position = home
+
+# ---------- Модель гоблина (Meshy): блочное тело прячем, в правую руку — дубина
+func _attach_goblin() -> void:
+	for c in _model.get_children():
+		c.visible = false
+	_char = (load(GOBLIN_MODEL) as PackedScene).instantiate()
+	_char.scale = Vector3.ONE * 0.92
+	_model.add_child(_char)
+	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
+	_ap.playback_default_blend_time = 0.15
+	for n in ["Combat_Stance", "Slow_Orc_Walk", "Running"]:
+		_ap.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+	_ap.get_animation("Charged_Slash").loop_mode = Animation.LOOP_NONE
+	_ap.play("Combat_Stance")
+	_ap.seek(randf() * 1.5, true)
+	# Белая вспышка при попадании — полупрозрачный слой поверх модели
+	_flash_mat = StandardMaterial3D.new()
+	_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_flash_mat.albedo_color = Color(1, 1, 1, 0)
+	for m in _char.find_children("*", "MeshInstance3D", true, false):
+		m.material_overlay = _flash_mat
+		m.visibility_range_end = 130.0
+	# Дубина: рукоять поперёк ладони, толстый конец выходит над большим пальцем
+	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
+	var hand := -1
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("RightHand"):
+			hand = i
+	if hand < 0:
+		return
+	var att := BoneAttachment3D.new()
+	sk.add_child(att)
+	att.bone_name = sk.get_bone_name(hand)
+	att.bone_idx = hand
+	var idx := _finger(sk, hand, "RightHandIndex1")
+	var pinky := _finger(sk, hand, "RightHandPinky1")
+	var fingers := ((idx + pinky) / 2.0).normalized()
+	var dir := idx - pinky
+	dir = (dir - fingers * dir.dot(fingers)).normalized()
+	var flat := fingers.cross(dir).normalized()
+	var grip := fingers * ((idx + pinky) / 2.0).length() * 0.7 - flat * 0.02
+	var club := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.12
+	cm.bottom_radius = 0.045
+	cm.height = 0.85
+	cm.radial_segments = 7
+	club.mesh = cm
+	club.material_override = Mats.lp(0x5a3a1c, 0.95, 0.0, -1, 0.0, 0.45, 3.0)
+	att.add_child(club)
+	club.transform = Transform3D(Basis(fingers, dir, flat), grip + dir * 0.32)
+	for k in 3:   # сучки-шипы на толстом конце
+		var spike := MeshInstance3D.new()
+		var sm := CylinderMesh.new()
+		sm.top_radius = 0.0
+		sm.bottom_radius = 0.03
+		sm.height = 0.1
+		sm.radial_segments = 4
+		spike.mesh = sm
+		spike.material_override = Mats.lp(0x3a2412)
+		club.add_child(spike)
+		var a := k * TAU / 3.0
+		spike.position = Vector3(cos(a) * 0.11, 0.3, sin(a) * 0.11)
+		spike.rotation = Vector3(sin(a) * 1.2, 0, -cos(a) * 1.2)
+
+func _finger(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with(suffix):
+			return sk.get_bone_global_rest(parent).affine_inverse() * sk.get_bone_global_rest(i).origin
+	return Vector3.UP * 0.1
+
+## Монстры вдали «спят» — вместе с ними замирает и анимация
+func set_active(on: bool) -> void:
+	set_physics_process(on)
+	if _ap and on != _anim_on:
+		_anim_on = on
+		_ap.active = on
+
+func _animate_char() -> void:
+	var want := "Combat_Stance"
+	var speed := 1.0
+	if st == "windup" or (st == "recover" and _t < 0.45):
+		want = "Charged_Slash"
+		# Удар в анимации приходится примерно на середину (1,1 с) — совмещаем с концом замаха
+		speed = 0.8 / maxf(0.15, T["windup"])
+	elif _moving and st == "chase":
+		want = "Running"
+		speed = clampf(_speed_now / 4.6, 0.6, 1.4)
+	elif _moving:
+		want = "Slow_Orc_Walk"
+		speed = clampf(_speed_now / 1.2, 0.8, 2.5)
+	if st == "windup" and not _swing:
+		# Каждый новый удар — анимация с начала замаха
+		_swing = true
+		_ap.play(want, 0.1)
+		_ap.seek(0.3, true)
+	elif _ap.current_animation != want:
+		_ap.play(want)
+	if st != "windup" and st != "recover":
+		_swing = false
+	_ap.speed_scale = speed
 
 # ---------- Модели
 func _mat(color: int, rough := 0.8, emit := -1, energy := 0.0) -> ShaderMaterial:
@@ -495,11 +606,16 @@ func _physics_process(dt: float) -> void:
 	# Вспышка при попадании
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - dt * 5.0)
+		if _flash_mat:
+			_flash_mat.albedo_color.a = _flash * 0.6
 		for m in _mats:
 			m.set_shader_parameter("emission", (m.get_meta("emit") as Color).lerp(Color.WHITE, _flash))
 			m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, _flash))
 
 func _animate(dt: float) -> void:
+	if _char:
+		_animate_char()
+		return
 	match type:
 		"slime":
 			_hop += dt * (7.0 if _moving else 2.5)

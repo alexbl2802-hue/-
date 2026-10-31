@@ -42,7 +42,7 @@ func _update_active() -> void:
 		var on: bool = e.global_position.distance_to(hero.global_position) < ACTIVE_RANGE or (e.dead and e.visible)
 		if e.dead and not e.visible:
 			on = true  # мёртвые ждут своего часа, чтобы вернуться
-		e.set_physics_process(on)
+		e.set_active(on)
 
 func on_enemy_killed(e: Node3D) -> void:
 	if loot:
