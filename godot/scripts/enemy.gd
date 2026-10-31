@@ -1,0 +1,359 @@
+## Монстр: модель, поведение (бродит → гонится → замах → удар → отдых → домой),
+## вспышка при попадании, падение при смерти и возвращение в долину через время.
+extends CharacterBody3D
+
+const TYPES := {
+	"slime": {"hp": 45, "dmg": 7, "speed": 3.4, "r": 0.6, "aggro": 11.0, "reach": 1.5, "cd": 1.3, "windup": 0.45, "bar": 1.5, "lunge": true},
+	"goblin": {"hp": 70, "dmg": 10, "speed": 4.6, "r": 0.45, "aggro": 15.0, "reach": 1.7, "cd": 1.1, "windup": 0.4, "bar": 2.0},
+	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
+	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
+}
+const GRAVITY := 25.0
+
+var type := "slime"
+var T: Dictionary
+var hero: Node3D
+var home := Vector3.ZERO
+var hp := 1.0
+var st := "idle"
+var dead := false
+var facing := 0.0
+
+var _t := 0.0
+var _kb := Vector3.ZERO
+var _flash := 0.0
+var _walk := 0.0
+var _hop := randf() * 6.0
+var _speed_now := 0.0
+var _moving := false
+var _wander = null
+var _wander_t := randf() * 3.0
+var _dead_t := 0.0
+var _model: Node3D
+var _body: Node3D
+var _legs: Array = []
+var _arms: Array = []
+var _mats: Array = []
+var _shape: CollisionShape3D
+
+func setup(kind: String, pos: Vector3, h: Node3D) -> void:
+	type = kind
+	T = TYPES[kind]
+	hero = h
+	home = pos
+	hp = T["hp"]
+	facing = randf() * TAU
+
+func _ready() -> void:
+	collision_layer = 4
+	collision_mask = 1 | 2 | 4
+	floor_max_angle = deg_to_rad(50)
+	floor_snap_length = 0.5
+	var shape := CapsuleShape3D.new()
+	shape.radius = T["r"]
+	shape.height = maxf(1.2, T["r"] * 2.0 + 0.2)
+	_shape = CollisionShape3D.new()
+	_shape.shape = shape
+	_shape.position.y = shape.height / 2.0
+	add_child(_shape)
+	_model = Node3D.new()
+	add_child(_model)
+	match type:
+		"slime": _build_slime()
+		"goblin": _build_humanoid(0.82, 0x6aa84f, 0x6b4a2b, 0x3d2a18, 0xffd400, 0.6, 0.56, 0.2, true, false, "club")
+		"skeleton": _build_humanoid(1.0, 0xe6dfc8, 0xd8d0b8, 0x3a3228, 0x6fd0ff, 1.5, 0.46, 0.13, false, true, "sword")
+		"spider": _build_spider()
+	global_position = home
+
+# ---------- Модели
+func _mat(color: int, rough := 0.8, emit := -1, energy := 0.0) -> ShaderMaterial:
+	var m: ShaderMaterial = Mats.lp(color, rough, 0.0, emit, energy).duplicate()
+	m.set_meta("emit", m.get_shader_parameter("emission"))
+	m.set_meta("energy", m.get_shader_parameter("emission_energy"))
+	_mats.append(m)
+	return m
+
+func _box(parent: Node3D, size: Vector3, m: Material, pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = size
+	mi.mesh = b
+	mi.material_override = m
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+func _blob(parent: Node3D, r: float, m: Material, pos: Vector3, segs := 8, rings := 4) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	s.radial_segments = segs
+	s.rings = rings
+	mi.mesh = s
+	mi.material_override = m
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+func _build_slime() -> void:
+	_body = Node3D.new()
+	_model.add_child(_body)
+	var c := Color.from_hsv(randf_range(0.26, 0.38), 0.6, 0.75)
+	var blob := _blob(_body, 0.62, _mat(c.to_rgba32() >> 8, 0.3), Vector3(0, 0.5, 0))
+	blob.scale = Vector3(1, 0.8, 1)
+	var eye := _mat(0x111111)
+	_box(_body, Vector3(0.1, 0.16, 0.05), eye, Vector3(-0.18, 0.62, 0.52))
+	_box(_body, Vector3(0.1, 0.16, 0.05), eye, Vector3(0.18, 0.62, 0.52))
+
+func _build_humanoid(sc: float, skin_c: int, cloth_c: int, dark_c: int, eye_c: int, glow: float, bw: float, limb: float, ears: bool, ribs: bool, weapon: String) -> void:
+	var inner := Node3D.new()
+	inner.scale = Vector3.ONE * sc
+	_model.add_child(inner)
+	var skin := _mat(skin_c)
+	var cloth := _mat(cloth_c)
+	var dark := _mat(dark_c)
+	_box(inner, Vector3(bw, 0.7, 0.3), cloth, Vector3(0, 1.22, 0))
+	if ribs:
+		for k in 3:
+			_box(inner, Vector3(bw + 0.02, 0.05, 0.31), dark, Vector3(0, 1.08 + k * 0.17, 0))
+	var head := Node3D.new()
+	head.position.y = 1.82
+	inner.add_child(head)
+	_box(head, Vector3(0.42, 0.4, 0.4), skin, Vector3.ZERO)
+	var eye := _mat(eye_c, 0.5, eye_c, glow)
+	_box(head, Vector3(0.09, 0.07, 0.02), eye, Vector3(-0.1, 0.03, 0.205))
+	_box(head, Vector3(0.09, 0.07, 0.02), eye, Vector3(0.1, 0.03, 0.205))
+	if ears:
+		for sx in [-1.0, 1.0]:
+			var ear := _box(head, Vector3(0.2, 0.1, 0.06), skin, Vector3(sx * 0.28, 0.08, 0))
+			ear.rotation.z = sx * 0.5
+	if ribs:
+		_box(head, Vector3(0.3, 0.06, 0.02), dark, Vector3(0, -0.12, 0.205))
+	for sx in [-1.0, 1.0]:
+		var lp := Node3D.new()
+		lp.position = Vector3(0.15 * sx, 0.88, 0)
+		inner.add_child(lp)
+		_box(lp, Vector3(limb, 0.62, limb), dark, Vector3(0, -0.32, 0))
+		_legs.append(lp)
+		var ap := Node3D.new()
+		ap.position = Vector3((bw / 2.0 + 0.1) * sx, 1.52, 0)
+		inner.add_child(ap)
+		_box(ap, Vector3(limb * 0.9, 0.62, limb * 0.9), skin if ribs else cloth, Vector3(0, -0.28, 0))
+		_box(ap, Vector3(limb * 0.9, 0.16, limb * 0.9), skin, Vector3(0, -0.65, 0))
+		_arms.append(ap)
+	var w := Node3D.new()
+	w.position = Vector3(0, -0.66, 0.04)
+	w.rotation.x = PI / 2
+	_arms[0].add_child(w)
+	if weapon == "club":
+		var club := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.11; cm.bottom_radius = 0.05; cm.height = 0.9; cm.radial_segments = 6
+		club.mesh = cm
+		club.material_override = _mat(0x5a3a1c)
+		club.position.y = 0.4
+		w.add_child(club)
+	else:
+		_box(w, Vector3(0.07, 0.85, 0.03), _mat(0x8a7a68, 0.5), Vector3(0, 0.5, 0))
+		_box(w, Vector3(0.26, 0.06, 0.07), dark, Vector3(0, 0.08, 0))
+
+func _build_spider() -> void:
+	_body = Node3D.new()
+	_model.add_child(_body)
+	var shell := _mat(0x3a2a4a)
+	var leg_m := _mat(0x2a1f36)
+	var abd := _blob(_body, 0.5, shell, Vector3(0, 0.7, -0.45), 6, 3)
+	abd.scale = Vector3(1, 0.75, 1.2)
+	_blob(_body, 0.32, shell, Vector3(0, 0.6, 0.15), 6, 3)
+	var eye := _mat(0xff3020, 0.5, 0xff2010, 1.5)
+	for p in [[-0.1, 0.7], [0.1, 0.7], [-0.17, 0.63], [0.17, 0.63]]:
+		_box(_body, Vector3(0.06, 0.06, 0.04), eye, Vector3(p[0], p[1], 0.44))
+	for sx in [-1.0, 1.0]:
+		for k in 4:
+			var pv := Node3D.new()
+			pv.position = Vector3(sx * 0.2, 0.62, 0.25 - k * 0.17)
+			_body.add_child(pv)
+			var holder := Node3D.new()
+			holder.rotation.y = sx * (k - 1.5) * 0.4
+			pv.add_child(holder)
+			var up := _box(holder, Vector3(0.6, 0.07, 0.07), leg_m, Vector3(sx * 0.28, 0.14, 0))
+			up.rotation.z = sx * 0.5
+			var low := _box(holder, Vector3(0.07, 0.75, 0.07), leg_m, Vector3(sx * 0.62, -0.12, 0))
+			low.rotation.z = sx * -0.3
+			_legs.append([pv, k * 1.6 + (PI if sx > 0 else 0.0)])
+
+# ---------- Бой
+func hit(dmg: int, dir: Vector3, crit := false) -> void:
+	if dead:
+		return
+	hp -= dmg
+	_flash = 1.0
+	_kb = dir * 9.0
+	Fx.text(str(dmg) + ("!" if crit else ""), global_position + Vector3(0, T["bar"] - 2.0, 0), Color("#ff9a3a") if crit else Color("#fff2b0"), crit)
+	if hp <= 0.0:
+		_die()
+		return
+	if st == "windup":
+		st = "recover"
+		_t = T["cd"] - 0.45
+	elif st == "idle" or st == "return":
+		st = "chase"
+
+func knock(mult: float) -> void:
+	_kb *= mult
+
+func _die() -> void:
+	dead = true
+	_dead_t = 0.0
+	collision_layer = 0
+	collision_mask = 1
+	Game.kills += 1
+	Game.give_xp(Game.ENEMY_XP[type], global_position)
+	get_parent().on_enemy_killed(self)
+
+func revive() -> void:
+	dead = false
+	hp = T["hp"]
+	st = "idle"
+	_kb = Vector3.ZERO
+	global_position = home + Vector3(0, 0.5, 0)
+	velocity = Vector3.ZERO
+	collision_layer = 4
+	collision_mask = 1 | 2 | 4
+	visible = true
+	_model.scale = Vector3.ONE
+	_model.rotation = Vector3(0, facing, 0)
+
+func reset_home() -> void:
+	if dead:
+		return
+	hp = T["hp"]
+	st = "idle"
+	_kb = Vector3.ZERO
+	global_position = home + Vector3(0, 0.5, 0)
+	velocity = Vector3.ZERO
+
+# ---------- Поведение
+func _physics_process(dt: float) -> void:
+	if dead:
+		_dead_t += dt
+		var k := minf(1.0, _dead_t / 0.4)
+		_model.rotation.z = k * 1.4
+		_model.scale = Vector3.ONE * maxf(0.001, 1.0 - maxf(0.0, _dead_t - 0.6) / 0.5)
+		if _dead_t > 1.1:
+			visible = false
+		if _dead_t > 45.0 and hero.global_position.distance_to(home) > 40.0:
+			revive()
+		return
+	var to_hero: Vector3 = hero.global_position - global_position
+	to_hero.y = 0
+	var dist := maxf(0.01, to_hero.length())
+	var can_see: bool = not hero.dead and not hero.busy and absf(hero.global_position.y - global_position.y) < 4.0
+	var to_home := home - global_position
+	to_home.y = 0
+	var home_d := to_home.length()
+	var mv := Vector3.ZERO
+	var sp := 0.0
+	_t += dt
+	match st:
+		"idle":
+			_wander_t -= dt
+			if _wander_t <= 0.0:
+				_wander_t = randf_range(2.0, 6.0)
+				_wander = home + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)) if randf() < 0.6 else null
+			if _wander != null:
+				var w: Vector3 = _wander - global_position
+				w.y = 0
+				if w.length() > 0.6:
+					mv = w.normalized()
+					sp = T["speed"] * 0.35
+				else:
+					_wander = null
+			if can_see and dist < T["aggro"]:
+				st = "chase"
+		"chase":
+			if not can_see or dist > T["aggro"] * 1.8 or home_d > 40.0:
+				st = "return"
+			elif dist < T["reach"]:
+				st = "windup"
+				_t = 0.0
+			else:
+				mv = to_hero / dist
+				sp = T["speed"]
+		"windup":
+			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 10.0)
+			if _t >= T["windup"]:
+				st = "recover"
+				_t = 0.0
+				if T.get("lunge", false):
+					_kb += Vector3(sin(facing), 0, cos(facing)) * 7.0
+				if can_see and dist < T["reach"] + 0.6 and absf(angle_difference(facing, atan2(to_hero.x, to_hero.z))) < 1.2:
+					hero.take_damage(T["dmg"], global_position)
+		"recover":
+			if _t >= T["cd"]:
+				st = "chase" if can_see and dist < T["aggro"] * 1.8 else "return"
+		"return":
+			if home_d < 1.5:
+				st = "idle"
+			else:
+				mv = to_home / home_d
+				sp = T["speed"] * 0.7
+				hp = minf(T["hp"], hp + 10.0 * dt)
+				if can_see and dist < T["aggro"] * 0.6:
+					st = "chase"
+	if sp > 0.0:
+		facing += angle_difference(facing, atan2(mv.x, mv.z)) * minf(1.0, dt * 8.0)
+	_moving = sp > 0.1
+	_speed_now = lerpf(_speed_now, sp, minf(1.0, dt * 8.0))
+	var hv := mv * sp
+	# Не заходим в воду
+	var ahead := global_position + hv.normalized() * 1.0 if sp > 0.0 else global_position
+	if sp > 0.0 and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
+		hv = Vector3.ZERO
+	hv += _kb
+	_kb *= exp(-dt * 6.0)
+	velocity.x = hv.x
+	velocity.z = hv.z
+	velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * dt
+	move_and_slide()
+	_model.rotation.y = facing
+	_animate(dt)
+	# Вспышка при попадании
+	if _flash > 0.0:
+		_flash = maxf(0.0, _flash - dt * 5.0)
+		for m in _mats:
+			m.set_shader_parameter("emission", (m.get_meta("emit") as Color).lerp(Color.WHITE, _flash))
+			m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, _flash))
+
+func _animate(dt: float) -> void:
+	match type:
+		"slime":
+			_hop += dt * (7.0 if _moving else 2.5)
+			var k := absf(sin(_hop))
+			if st == "windup":
+				var w := minf(1.0, _t / T["windup"])
+				_body.scale = Vector3(1 + 0.3 * w, 1 - 0.35 * w, 1 + 0.3 * w)
+				_body.position.y = 0.0
+			else:
+				_body.position.y = k * 0.45 if _moving else 0.0
+				_body.scale = Vector3(1 + (1 - k) * 0.1, 0.9 + k * 0.18, 1 + (1 - k) * 0.1)
+		"spider":
+			_walk += dt * (14.0 if _moving else 2.0)
+			var amp := 0.35 if _moving else 0.05
+			for l in _legs:
+				l[0].rotation.x = sin(_walk + l[1]) * amp
+			_body.rotation.x = -0.45 * minf(1.0, _t / T["windup"]) if st == "windup" else 0.0
+		_:
+			_walk += dt * _speed_now * 1.8
+			var amp := minf(1.0, _speed_now / 4.0) * 0.8 if _moving else 0.0
+			var sw := sin(_walk)
+			_legs[0].rotation.x = sw * amp
+			_legs[1].rotation.x = -sw * amp
+			_arms[1].rotation.x = sw * amp * 0.7
+			var ax := -sw * amp * 0.7
+			if st == "windup":
+				ax = -2.6 * minf(1.0, _t / (T["windup"] * 0.8))
+			elif st == "recover" and _t < 0.25:
+				ax = lerpf(-2.6, 0.4, smoothstep(0.0, 1.0, _t / 0.15))
+			_arms[0].rotation.x = ax

@@ -1,12 +1,7 @@
 name: Godot APK (preview)
 
+# Сборка только по команде (вкладка Actions → Run workflow)
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'godot/**'
-      - 'tools/bake_world.mjs'
-      - '.github/workflows/godot-android.yml'
   workflow_dispatch:
 
 permissions:

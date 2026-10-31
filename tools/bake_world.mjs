@@ -170,6 +170,38 @@ for (let n = 0; n < 40000 && tufts.length < Q.tufts; n++) {
 }
 for (const t of tufts) t.c = toHex(hsl(0.24 + rand() * 0.07, 0.55, 0.3 + rand() * 0.12));
 
+// ---------- Места появления монстров (как в веб-версии: зерно 555)
+const obstacles = [];
+for (const t of [...pines, ...oaks]) obstacles.push({ x: t.x, z: t.z, r: 0.45 * t.s });
+for (const r of rocks) if (r.s > 0.9) obstacles.push({ x: r.x, z: r.z, r: r.s * 0.95 });
+obstacles.push({ x: 4, z: 3, r: 1.0 });
+const entrances = SITES.map(s => {
+  const angle = Math.atan2(-s.x, -s.z), dir = [Math.sin(angle), Math.cos(angle)];
+  for (const px of [-1.9, 1.9]) obstacles.push({ x: s.x + Math.cos(angle) * px, z: s.z - Math.sin(angle) * px, r: 0.7 });
+  obstacles.push({ x: s.x - dir[0] * 5.2, z: s.z - dir[1] * 5.2, r: 4.8 });
+  return { door: [s.x + dir[0], s.z + dir[1]], dir };
+});
+const enemies = [];
+{
+  const er = mulberry32(555);
+  const ok = (x, z) => {
+    const h = groundAt(x, z);
+    return h > 1.5 && h < 30 && normalYAt(x, z) > 0.85 && townDist(x, z) > 55
+      && !SITES.some(s => Math.hypot(x - s.x, z - s.z) < 10)
+      && obstacles.every(o => Math.hypot(o.x - x, o.z - z) > o.r + 1);
+  };
+  let slimes = 0, goblins = 0;
+  for (let n = 0; n < 8000 && (slimes < 22 || goblins < 10); n++) {
+    const x = (er() * 2 - 1) * (HALF - 40), z = (er() * 2 - 1) * (HALF - 40);
+    if (!ok(x, z)) continue;
+    if (slimes < 22) { enemies.push(['slime', r3(x), r3(z)]); slimes++; }
+    else { enemies.push(['goblin', r3(x), r3(z)]); goblins++; }
+  }
+  // Гоблины охраняют входы в подземелья
+  for (const en of entrances) for (const side of [-1, 1])
+    enemies.push(['goblin', r3(en.door[0] + en.dir[0] * 8 + en.dir[1] * side * 3.5), r3(en.door[1] + en.dir[1] * 8 - en.dir[0] * side * 3.5)]);
+}
+
 // ---------- Запись
 mkdirSync(OUT, { recursive: true });
 const head = new Int32Array([SEG]);
@@ -182,6 +214,7 @@ const props = {
   oaks: pack(oaks, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), ...t.c]),
   rocks: pack(rocks, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), t.c]),
   tufts: pack(tufts, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), t.c]),
+  enemies,
 };
 writeFileSync(join(OUT, 'props.json'), JSON.stringify(props));
-console.log(`world.bin: ${N}×${N}, pines ${pines.length}, oaks ${oaks.length}, rocks ${rocks.length}, tufts ${tufts.length}`);
+console.log(`world.bin: ${N}×${N}, pines ${pines.length}, oaks ${oaks.length}, rocks ${rocks.length}, tufts ${tufts.length}, enemies ${enemies.length}`);

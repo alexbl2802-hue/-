@@ -1,10 +1,12 @@
-## Точка входа: свет и небо, мир, герой, камера, интерфейс и взаимодействия.
+## Точка входа: свет и небо, мир, герой, монстры, добыча, камера, интерфейс и взаимодействия.
 extends Node3D
 
 var world: Node3D
 var hero: CharacterBody3D
 var rig: Node3D
 var hud: CanvasLayer
+var enemies: Node3D
+var loot: Node3D
 var _zone := ""
 var _act := Callable()
 
@@ -25,11 +27,25 @@ func _ready() -> void:
 	world.name = "World"
 	add_child(world)
 	world.build()
+	Fx.root = self
 
 	hero = preload("res://scripts/hero.gd").new()
 	hero.name = "Hero"
 	add_child(hero)
 	hero.global_position = Vector3(0, WorldGen.ground_at(0, 8) + 0.1, 8)
+	hero.campfire_pos = world.campfire.position
+
+	loot = preload("res://scripts/loot.gd").new()
+	loot.name = "Loot"
+	loot.hero = hero
+	add_child(loot)
+	enemies = preload("res://scripts/enemies.gd").new()
+	enemies.name = "Enemies"
+	enemies.hero = hero
+	enemies.loot = loot
+	add_child(enemies)
+	enemies.spawn_all()
+	hero.enemies = enemies
 
 	rig = preload("res://scripts/camera_rig.gd").new()
 	rig.name = "CameraRig"
@@ -39,14 +55,24 @@ func _ready() -> void:
 	hud = preload("res://scripts/hud.gd").new()
 	add_child(hud)
 	hud.touch.rig = rig
+	hud.camera = rig.camera
+	hud.enemies = enemies
 	hud.minimap.setup(world, hero)
+	hud.minimap.enemies = enemies
 	hero.touch = hud.touch
 	hero.rig = rig
 	hud.touch.attack_pressed.connect(hero.attack)
+	hud.touch.potion_pressed.connect(hero.drink_potion)
+	hud.touch.skills_pressed.connect(hud.open_skills)
+	hud.touch.skill_pressed.connect(hero.use_skill)
 	hud.touch.act_pressed.connect(func(): if _act.is_valid(): _act.call())
+	hero.hurt.connect(func(_d): hud.flash_hurt())
+	hero.died.connect(_on_hero_died)
+	Game.leveled_up.connect(_on_level_up)
+	Game.message.connect(func(t, c, p): Fx.text(t, p, c))
 
 	cl.queue_free()
-	hud.banner(WorldGen.TOWN_NAME, "Godot-версия · этап 1: мир, город и герой")
+	hud.banner(WorldGen.TOWN_NAME, "Godot-версия · этап 2: монстры, бой, умения, уровни, добыча")
 
 func _build_environment() -> void:
 	var env := Environment.new()
@@ -81,17 +107,45 @@ func _build_environment() -> void:
 	add_child(sun)
 	sun.look_at_from_position(Vector3(80, 140, 50), Vector3.ZERO)
 
+func _on_level_up(level: int) -> void:
+	var sub := "Здоровье +15 · Урон +4"
+	if level <= SkillDefs.MAX_SKILL_LEVEL:
+		sub += " · +1 очко навыка ⭐"
+	hud.banner("Уровень %d!" % level, sub)
+	Fx.text("Уровень %d!" % level, hero.global_position, Color("#ffd479"), true)
+	Fx.ring(hero.global_position + Vector3(0, 0.1, 0), Color("#ffd060"), 3.0, 1.2, true)
+
+## Гибель героя: через пару секунд он очнётся у костра, монстры вернутся на места
+func _on_hero_died() -> void:
+	hud.banner("Ты пал в бою", "Очнёшься у костра…")
+	await get_tree().create_timer(1.8).timeout
+	hud.fade(func():
+		var c: Vector3 = world.campfire.position
+		hero.respawn(Vector3(c.x - 2.5, WorldGen.ground_at(c.x - 2.5, c.z + 2.5) + 0.1, c.z + 2.5))
+		hero.facing = PI * 0.75
+		rig.yaw = hero.facing + PI
+		enemies.reset_all()
+		hud.banner(WorldGen.TOWN_NAME, "Отдохни у костра и попробуй снова"))
+
 func _process(_dt: float) -> void:
 	if not hero:
 		return
 	var p := hero.global_position
-	# Название места: город или долина
+	# Название места: город или долина; счётчик побед
 	var zone := "town" if WorldGen.town_dist(p.x, p.z) < WorldGen.TOWN_WALL else "valley"
 	if zone != _zone:
 		if _zone != "" and zone == "town":
 			hud.banner(WorldGen.TOWN_NAME, "Под защитой крепостных стен")
 		_zone = zone
-		hud.set_status(WorldGen.TOWN_NAME if zone == "town" else "Долина")
+	hud.set_status("%s  ·  ⚔ %d" % [WorldGen.TOWN_NAME if zone == "town" else "Долина", Game.kills])
+	# Кнопки: зелья, очки навыков, умения и их перезарядка
+	var t: Control = hud.touch
+	t.potions = Game.potions()
+	t.free_points = Game.points_free()
+	for id in ["whirl", "dash"]:
+		t.skill_ranks[id] = Game.rank(id)
+		t.cd_left[id] = hero.cd[id]
+		t.cd_total[id] = hero.cooldown_total(id)
 	# Что можно сделать рядом
 	var text := ""
 	_act = Callable()
@@ -103,4 +157,4 @@ func _process(_dt: float) -> void:
 		if Vector2(p.x - door.x, p.z - door.z).length() < 3.2:
 			text = "Войти: " + e["name"]
 			_act = func(): hud.banner(e["name"], "Подземелья появятся на следующем этапе переноса")
-	hud.touch.act_text = text
+	t.act_text = text if not hero.dead else ""

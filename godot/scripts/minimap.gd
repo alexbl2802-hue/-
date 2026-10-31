@@ -5,6 +5,7 @@ const RES := 180
 
 var hero: Node3D
 var world: Node3D
+var enemies: Node
 var _tex: ImageTexture
 
 func setup(w: Node3D, h: Node3D) -> void:
@@ -72,6 +73,10 @@ func _draw() -> void:
 		draw_circle(p, 5.0, Color.BLACK)
 		draw_circle(p, 4.0, Color("#e04a3a"))
 	draw_circle(_to_map(world.campfire.position.x, world.campfire.position.z), 2.0, Color("#ffb040"))
+	if enemies:
+		for en in enemies.list:
+			if not en.dead:
+				draw_circle(_to_map(en.global_position.x, en.global_position.z), 1.6, Color("#ff7a3a"))
 	if hero:
 		var p := _to_map(hero.global_position.x, hero.global_position.z)
 		var f: float = hero.facing
