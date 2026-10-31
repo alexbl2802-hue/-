@@ -289,7 +289,7 @@ static func _plaza(stone: Material) -> void:
 			_mesh(_blob(0.2), Mats.lp(goods[k]), Vector3(x - 1 + k * 0.65, G + 1.05, z + 0.6), false)
 		_solid(x - 1.6, x + 1.6, z - 1.2, z + 1.2)
 
-# ---------- Поместье: двор с оградой, дом с крыльями, крыльцо, башенка, фонтан, сад
+# ---------- Поместье: двор с оградой, дом с крыльями, крыльцо, башенка, сад
 static func _manor(stone: Material) -> void:
 	var mx0 := -31.0
 	var mx1 := -7.0
@@ -350,12 +350,6 @@ static func _manor(stone: Material) -> void:
 	for k in 3:
 		_box(0.12, 1.1, 0.7, glass, -10.45, G + 2.5 + k * 3, -27.2)
 	_round(-12.3, -27.2, 1.9)
-	# Фонтан
-	_mesh(_cyl(2.4, 2.6, 0.7, 20), stone, Vector3(-19, G + 0.35, -12.5))
-	_mesh(_cyl(2.15, 2.15, 0.02, 20), Mats.lp(0x3a8ac0, 0.1, 0.1), Vector3(-19, G + 0.62, -12.5), false)
-	_mesh(_cyl(0.3, 0.4, 1.8, 10), stone, Vector3(-19, G + 1.3, -12.5))
-	_mesh(_cyl(0.9, 0.4, 0.35, 14), stone, Vector3(-19, G + 2.2, -12.5))
-	_round(-19, -12.5, 2.6, 2.0)
 	# Сад: деревья и живая изгородь
 	var timber := Mats.lp(0x4a3220)
 	for p in [[-28, -10], [-28, -14.5], [-10, -10], [-10, -14.5]]:
