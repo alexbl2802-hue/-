@@ -34,12 +34,24 @@ func _ready() -> void:
 		if Game.hp < hp0: break
 	print("bunny hit hero: ", Game.hp < hp0, " ", hp0, " -> ", Game.hp)
 	get_viewport().get_texture().get_image().save_png(out + "bn_hit.png")
-	# Удар ногой (второй удар) и кувырок
-	for i in 200:
+	# Атаки по очереди (джеб, прямой, крюк, комбо) и прыжки к герою
+	var seen := {}
+	var leaps := 0
+	var was_leap := false
+	for i in 1500:
 		await get_tree().process_frame
-		if g._b_attack == g.B_KICK and g.st == "windup":
+		if g._moves.attack != "":
+			seen[g._moves.attack] = true
+		if g.st == "leap" and not was_leap:
+			leaps += 1
+		was_leap = g.st == "leap"
+		if Game.hp < 40:
+			Game.hp = Game.max_hp
+		if i % 200 == 100:   # отходим — чтобы кролик прыгал к герою
+			main.hero.global_position = g.global_position + Vector3(4.5, 0.3, 0)
+		if seen.size() >= 4 and leaps > 0:
 			break
-	for i in 6: await get_tree().process_frame
+	print("bunny attacks seen: ", seen.keys(), " leaps: ", leaps)
 	get_viewport().get_texture().get_image().save_png(out + "bn_kick.png")
 	g._dodge()
 	for i in 8: await get_tree().process_frame

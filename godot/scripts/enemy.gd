@@ -8,7 +8,7 @@ const TYPES := {
 	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
 	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
 	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
-	"rabbit": {"hp": 85, "dmg": 16, "speed": 7.8, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 1.6, "lunge": true, "roam": true},
+	"rabbit": {"hp": 85, "dmg": 16, "speed": 7.8, "walk": 0.9, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 1.6, "lunge": true, "roam": true},
 	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
 	"kobold": {"hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
@@ -51,13 +51,17 @@ const BUNNY_MODEL := "res://models/bunny.glb"
 # Боевой кролик (Meshy): стойка, удар рукой и удар ногой в прыжке, кувырок-уклонение.
 # Времена — секунды внутри анимаций: петля стойки и момент удара.
 const B_PUNCH := "Boxing_Guard_Prep_Straight_Punch"
-const B_KICK := "Flying_Fist_Kick"
 const B_DODGE := "Roll_Dodge_2"
 const B_GUARD := [0.1, 1.5]       # петля стойки в начале анимации удара рукой
-const B_HITS := {B_PUNCH: 2.0, B_KICK: 2.9}
+var _moves: BunnyMoves       # движения кролика по раскадровке
+var _wind_len := 0.0         # замах до первого удара (у кролика — свой у каждой атаки)
+var _rec_len := 0.0          # отдых после удара
+var _extra_hits := []        # следующие удары комбо: время от первого удара
+var _leap_dir := Vector3.ZERO
+var _leap_hit_done := false
+var _leap_cd := 2.0
 
 var _bunny := false
-var _b_attack := ""
 var _dodge_t := -1.0
 
 func setup(kind: String, pos: Vector3, h: Node3D) -> void:
@@ -110,141 +114,29 @@ func _attach_bunny() -> void:
 	_ap.seek(randf_range(B_GUARD[0], B_GUARD[1]), true)
 	_bunny = true
 	_setup_flash()
-	_setup_hop_legs()
+	_moves = BunnyMoves.new()
+	if not _moves.setup(_char):
+		_moves = null
 
 func _animate_bunny(dt: float) -> void:
-	var hopping := false
-	# Кувырок после пропущенного удара
+	# Кувырок после пропущенного удара — своя анимация; в остальное время — боксёрская стойка,
+	# а шаги, прыжки и удары поверх неё делает BunnyMoves
 	if _dodge_t >= 0.0:
 		_dodge_t += dt
 		if _dodge_t > 0.9:
 			_dodge_t = -1.0
-	elif st == "windup" and not _swing:
-		# Удары по очереди: рукой и ногой в прыжке, с момента незадолго до удара
-		_swing = true
-		_b_attack = B_KICK if _b_attack == B_PUNCH else B_PUNCH
-		_ap.play(_b_attack, 0.08)
-		_ap.seek(B_HITS[_b_attack] - 0.35, true)
-		_ap.speed_scale = 1.8
-	elif not (st == "windup" or (st == "recover" and _t < 0.4)):
-		_swing = false
-		# Стойка: петля начала анимации удара рукой; на ходу — прыжками
+	if _dodge_t < 0.0:
 		if _ap.current_animation != B_PUNCH or _ap.current_animation_position > B_GUARD[1] or _ap.current_animation_position < B_GUARD[0] - 0.05:
 			_ap.play(B_PUNCH, 0.15)
 			_ap.seek(B_GUARD[0], true)
 		_ap.speed_scale = 1.0
-		hopping = _moving
-	_hop_legs(dt, hopping)
-
-## Прыжки кролика: невысокие и частые — присел → оттолкнулся ногами → короткий прыжок
-## (ноги лишь слегка согнуты) → приземлился, спружинив. Обе ноги работают вместе.
-## Ключи цикла: [доля цикла, бедро вперёд, сгиб колена, носок вниз] — в градусах,
-## добавляются к стойке из анимации (в ней колени уже немного согнуты).
-const HOP_KEYS := [
-	[0.00, 8.0, 14.0, 0.0],      # касание земли
-	[0.20, 26.0, 46.0, -10.0],   # присел, пружиня
-	[0.45, -12.0, 2.0, 28.0],    # толчок: ноги выпрямлены, на носках
-	[0.72, 12.0, 20.0, 10.0],    # в воздухе ноги чуть согнуты
-	[1.00, 8.0, 14.0, 0.0],
-]
-const HOP_GROUND := 0.45         # доля цикла на земле, дальше — короткий прыжок
-const HOP_HEIGHT := [0.09, 0.16] # высота прыжка: бродит / гонится
-const HOP_RATE := [2.4, 3.2]     # прыжков в секунду
-## В боксёрской стойке корпус развёрнут примерно на 50° (голова — на 37°) от направления
-## модели; в прыжках доворачиваем кролика, чтобы он скакал грудью вперёд, а не боком
-const HOP_TURN := 0.9
-
-var _legs_mod: PoseOffsets
-var _leg_bones := []             # [бедро, колено, стопа] для левой и правой ноги
-var _leg_len := 0.8
-var _flex_axis := Vector3.RIGHT  # поперечная ось скелета: вокруг неё сгибаются ноги
-var _hop_p := 0.0
-var _hop_w := 0.0
-
-func _setup_hop_legs() -> void:
-	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
-	var find := func(suffix: String) -> int:
-		for i in sk.get_bone_count():
-			if sk.get_bone_name(i).ends_with(suffix):
-				return i
-		return -1
-	for side in ["Left", "Right"]:
-		var bones: Array = [find.call(side + "UpLeg"), find.call(side + "Leg"), find.call(side + "Foot")]
-		if bones.has(-1):
-			return
-		_leg_bones.append(bones)
-	var gr := func(i: int) -> Vector3: return sk.get_bone_global_rest(i).origin
-	var lb: Array = _leg_bones[0]
-	_leg_len = (gr.call(lb[1]).distance_to(gr.call(lb[0])) + gr.call(lb[2]).distance_to(gr.call(lb[1]))) * _char.scale.x
-	var toe: int = find.call("LeftToeBase")
-	var fwd := Vector3(0, 0, 1)
-	if toe >= 0:
-		fwd = gr.call(toe) - gr.call(lb[2])
-		fwd.y = 0.0
-		fwd = fwd.normalized()
-	# Поворот вокруг этой оси уводит направленную вниз кость вперёд
-	_flex_axis = Vector3.DOWN.cross(fwd).normalized()
-	# Ось сгиба каждого сустава — в системе самой кости (по позе покоя): в стойке нога
-	# развёрнута, и сгиб вокруг общей оси тела выворачивал бы колено вбок
-	for leg in _leg_bones:
-		var axes := []
-		for b in leg:
-			axes.append((sk.get_bone_global_rest(b).basis.orthonormalized().inverse() * _flex_axis).normalized())
-		leg.append(axes)
-	_legs_mod = PoseOffsets.new()
-	sk.add_child(_legs_mod)
-
-## Кролик продвигается в основном в полёте: пока ноги на земле, он почти стоит на месте
-## (иначе лапы скользили бы по траве); средняя скорость за прыжок не меняется
-func _hop_speed() -> float:
-	if _legs_mod == null or _hop_w < 0.5 or not _moving:
-		return 1.0
-	const ON_GROUND := 0.45
-	return ON_GROUND if _hop_p <= HOP_GROUND else (1.0 - HOP_GROUND * ON_GROUND) / (1.0 - HOP_GROUND)
-
-func _hop_pose(p: float) -> Vector3:
-	for i in range(1, HOP_KEYS.size()):
-		var k1: Array = HOP_KEYS[i]
-		if p <= k1[0]:
-			var k0: Array = HOP_KEYS[i - 1]
-			var f := smoothstep(0.0, 1.0, (p - k0[0]) / (k1[0] - k0[0]))
-			return Vector3(lerpf(k0[1], k1[1], f), lerpf(k0[2], k1[2], f), lerpf(k0[3], k1[3], f))
-	return Vector3(HOP_KEYS[0][1], HOP_KEYS[0][2], HOP_KEYS[0][3])
-
-func _hop_legs(dt: float, hopping: bool) -> void:
-	_char.position.y = 0.0
-	_char.rotation.y = HOP_TURN * _hop_w
-	if _legs_mod == null:
-		if hopping:   # запасной вариант: просто подскоки
-			_hop += dt * (9.0 if st == "chase" else 6.0)
-			_char.position.y = absf(sin(_hop)) * (0.35 if st == "chase" else 0.18)
-		return
-	var chase := st == "chase"
-	# Прыжок доводим до приземления, даже если кролик остановился
-	if hopping or _hop_p > HOP_GROUND:
-		_hop_p += dt * HOP_RATE[1 if chase else 0]
-		if _hop_p >= 1.0:
-			_hop_p = fmod(_hop_p, 1.0) if hopping else 0.0
-	_hop_w = move_toward(_hop_w, 1.0 if hopping or _hop_p > 0.0 else 0.0, dt * 6.0)
-	if not hopping and _hop_p <= HOP_GROUND:
-		_hop_p = move_toward(_hop_p, 0.0, dt)
-	var a := _hop_pose(_hop_p) * deg_to_rad(1.0) * _hop_w
-	for lb in _leg_bones:
-		_legs_mod.set_local(lb[0], lb[3][0], a.x)
-		_legs_mod.set_local(lb[1], lb[3][1], -a.y)
-		_legs_mod.set_local(lb[2], lb[3][2], -a.z)
-	# Высота тела: на земле — насколько присел, в полёте — дуга прыжка
-	var drop := _leg_len * (1.0 - (cos(a.x) + cos(a.x - a.y)) / 2.0)
-	var y := 0.0
-	var on_ground := 1.0
-	if _hop_p > HOP_GROUND:
-		var f := (_hop_p - HOP_GROUND) / (1.0 - HOP_GROUND)
-		y = sin(PI * f) * HOP_HEIGHT[1 if chase else 0] * _hop_w
-		on_ground = 1.0 - smoothstep(0.0, 0.15, f) + smoothstep(0.75, 1.0, f)
-	_char.position.y = y - drop * clampf(on_ground, 0.0, 1.0)
+	if _moves:
+		_moves.update(dt, _moving and (st == "idle" or st == "chase" or st == "return"), _speed_now, _dodge_t >= 0.0)
 
 func _dodge() -> void:
 	_dodge_t = 0.0
+	if _moves:
+		_moves.reset()
 	_ap.play(B_DODGE, 0.05)
 	_ap.seek(0.35, true)
 	_ap.speed_scale = 1.6
@@ -657,11 +549,29 @@ func hit(dmg: int, dir: Vector3, crit := false) -> void:
 		return
 	if st == "windup":
 		st = "recover"
-		_t = T["cd"] - 0.45
+		_t = _rec_len - 0.45
+		_extra_hits = []
+		if _moves:
+			_moves.cancel_attack()
 	elif st == "idle" or st == "return":
 		st = "chase"
 	if _bunny and _dodge_t < 0.0 and randf() < 0.3:
 		_dodge()
+
+## Замах: у кролика — следующая атака по очереди (джеб, прямой, крюк, комбо)
+func _start_attack() -> void:
+	st = "windup"
+	_t = 0.0
+	_wind_len = T["windup"]
+	_rec_len = T["cd"]
+	_extra_hits = []
+	if _moves:
+		var kind := _moves.next_attack()
+		var hits: Array = _moves.start_attack(kind)
+		_wind_len = hits[0]
+		for i in range(1, hits.size()):
+			_extra_hits.append(hits[i] - hits[0])
+		_rec_len = maxf(T["cd"], _moves.attack_dur(kind) - hits[0] + 0.15)
 
 func knock(mult: float) -> void:
 	_kb *= mult
@@ -680,6 +590,8 @@ func revive() -> void:
 	hp = T["hp"]
 	st = "idle"
 	_kb = Vector3.ZERO
+	if _moves:
+		_moves.reset()
 	global_position = home + Vector3(0, 0.5, 0)
 	velocity = Vector3.ZERO
 	collision_layer = 4
@@ -694,6 +606,8 @@ func reset_home() -> void:
 	hp = T["hp"]
 	st = "idle"
 	_kb = Vector3.ZERO
+	if _moves:
+		_moves.reset()
 	global_position = home + Vector3(0, 0.5, 0)
 	velocity = Vector3.ZERO
 
@@ -742,22 +656,51 @@ func _physics_process(dt: float) -> void:
 			if not can_see or dist > T["aggro"] * 3.5 or home_d > 90.0:
 				st = "return"
 			elif dist < T["reach"]:
-				st = "windup"
+				_start_attack()
+			elif _moves and _leap_cd <= 0.0 and dist > 2.6 and dist < 6.5:
+				# Прыжок к герою: вблизи — удар в прыжке, подальше — просто сократить расстояние
+				st = "leap"
 				_t = 0.0
+				_leap_dir = to_hero / dist
+				_leap_hit_done = false
+				_leap_cd = randf_range(2.5, 4.5)
+				var atk := dist < 4.6
+				_moves.start_leap(clampf(dist - (1.0 if atk else 2.2), 1.2, 4.5), atk)
 			else:
 				mv = to_hero / dist
 				sp = T["speed"]
 		"windup":
 			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 10.0)
-			if _t >= T["windup"]:
+			if _t >= _wind_len:
 				st = "recover"
 				_t = 0.0
 				if T.get("lunge", false):
 					_kb += Vector3(sin(facing), 0, cos(facing)) * 7.0
 				if can_see and dist < T["reach"] + 0.6 and absf(angle_difference(facing, atan2(to_hero.x, to_hero.z))) < 1.2:
 					hero.take_damage(T["dmg"], global_position)
+		"leap":
+			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 6.0)
+			mv = _leap_dir
+			sp = _moves.leap_speed() if _moves else 0.0
+			if _moves and _moves.leap_attack and not _leap_hit_done and _moves.leap_t >= _moves.LEAP_HIT:
+				_leap_hit_done = true
+				if can_see and dist < T["reach"] + 0.8:
+					hero.take_damage(T["dmg"], global_position)
+			if not _moves or not _moves.leaping():
+				if _moves and _moves.leap_attack:
+					st = "recover"
+					_t = 0.0
+					_rec_len = T["cd"]
+					_extra_hits = []
+				else:
+					st = "chase"
 		"recover":
-			if _t >= T["cd"]:
+			# Следующие удары комбо
+			while not _extra_hits.is_empty() and _t >= _extra_hits[0]:
+				_extra_hits.pop_front()
+				if can_see and dist < T["reach"] + 0.6 and absf(angle_difference(facing, atan2(to_hero.x, to_hero.z))) < 1.2:
+					hero.take_damage(int(T["dmg"] * 0.6), global_position)
+			if _t >= _rec_len:
 				st = "chase" if can_see and dist < T["aggro"] * 3.5 else "return"
 		"return":
 			if home_d < 1.5:
@@ -771,8 +714,9 @@ func _physics_process(dt: float) -> void:
 	if sp > 0.0:
 		facing += angle_difference(facing, atan2(mv.x, mv.z)) * minf(1.0, dt * 8.0)
 	_moving = sp > 0.1
+	_leap_cd -= dt
 	_speed_now = lerpf(_speed_now, sp, minf(1.0, dt * 8.0))
-	var hv := mv * sp * _hop_speed()
+	var hv := mv * sp
 	# Не заходим в воду
 	var ahead := global_position + hv.normalized() * 1.0 if sp > 0.0 else global_position
 	if sp > 0.0 and not in_dungeon and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
