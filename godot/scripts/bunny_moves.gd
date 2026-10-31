@@ -114,6 +114,8 @@ var _pole := {}          # "L"/"R" → Node3D (куда смотрит локо�
 var _legs := {}          # "L"/"R" → [[бедро, колено, стопа], [оси сгиба в системе костей]]
 var _spine := -1
 var _hips := -1
+var _arms := {}           # "L"/"R" → кости руки для опущенной позы вне боя
+var _relax := 1.0         # 1 — руки опущены и качаются при ходьбе, 0 — боевая стойка
 var _spine_axis := Vector3.RIGHT
 var _twist_bones := []
 var _leg_len := 0.3
@@ -177,6 +179,14 @@ func setup(char_node: Node3D) -> bool:
 			_twist_bones.append(b)
 	_mod = PoseOffsets.new()
 	_sk.add_child(_mod)
+	for side in ["Left", "Right"]:
+		var arm := {
+			"shoulder": find.call(side + "Shoulder"), "arm": find.call(side + "Arm"),
+			"fore": find.call(side + "ForeArm"), "hand": find.call(side + "Hand"),
+			# опустить руку из T-позы: левая (+X) — вокруг −Z, правая (−X) — вокруг +Z
+			"down": Vector3(0, 0, -1) if side == "Left" else Vector3(0, 0, 1),
+		}
+		_arms[side[0]] = arm
 	# Ноги как у оборотня: бедро и голень длиннее, плюсна (кость стопы) длинная —
 	# кролик стоит на носках, и ниже колена нога сгибается назад
 	for k in ["L", "R"]:
@@ -245,7 +255,7 @@ func reset() -> void:
 	leap_t = -1.0
 
 # ---------- Каждый кадр
-func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
+func update(dt: float, moving: bool, speed: float, frozen: bool, fight := true) -> void:
 	var legs := {"L": Vector3.ZERO, "R": Vector3.ZERO}
 	var lean := 0.0
 	var twist := 0.0
@@ -274,6 +284,9 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 	var walking := moving and not leap_now and def.is_empty() and not frozen
 	_loco_w = move_toward(_loco_w, 1.0 if walking else 0.0, dt * 6.0)
 	_turn_w = move_toward(_turn_w, 1.0 if (walking or (leap_now and not leap_attack)) else 0.0, dt * 5.0)
+	# Кулаки у лица — только в бою (подбежал к герою, бьёт, прыгает в атаку); иначе руки внизу
+	var guard := fight or attack != "" or (leap_now and leap_attack) or frozen
+	_relax = move_toward(_relax, 0.0 if guard else 1.0, dt * 4.0)
 	var loco := {"L": Vector3.ZERO, "R": Vector3.ZERO}
 	var stance_drop := 0.0
 	if _loco_w > 0.0:
@@ -358,6 +371,7 @@ func update(dt: float, moving: bool, speed: float, frozen: bool) -> void:
 		_mod.set_local(_spine, _spine_axis, -deg_to_rad(lean))
 	for b in _twist_bones:
 		_mod.set_angle(b, Vector3.UP, deg_to_rad(twist) / _twist_bones.size())
+	_relaxed_arms(speed)
 	for k in ["L", "R"]:
 		var ik: TwoBoneIK3D = _ik[k]
 		ik.influence = clampf(arm_w[k], 0.0, 1.0)
@@ -397,6 +411,35 @@ func _leg_lift(rest: bool) -> float:
 			p += v.rotated(_flex, turns[i]) if turns[i] != 0.0 else v
 		lift = maxf(lift, ground - p.y)
 	return lift * _char.scale.y
+
+## Руки вне боя: опущены вдоль тела, локти чуть согнуты; на ходу качаются вперёд-назад
+## в противофазе с ногами (левая рука идёт вперёд вместе с правой ногой), на бегу — сильнее.
+const ARM_DOWN := 72.0        # насколько опустить руку из T-позы (°)
+const ARM_SWING := [16.0, 42.0]   # размах на шагу и на бегу (°)
+const ELBOW := [18.0, 75.0]       # сгиб локтя на шагу и на бегу (°)
+func _relaxed_arms(speed: float) -> void:
+	var run := clampf((speed - 1.0) / 4.0, 0.0, 1.0)
+	for k in ["L", "R"]:
+		var arm: Dictionary = _arms[k]
+		for key in ["shoulder", "arm", "fore", "hand"]:
+			_mod.set_rest_blend(arm[key], _relax)
+		if _relax <= 0.001:
+			_mod.set_local_quat(arm["arm"], Quaternion.IDENTITY)
+			_mod.set_local_quat(arm["fore"], Quaternion.IDENTITY)
+			continue
+		# Рука идёт вперёд вместе с противоположной ногой
+		var p := fmod(_phase + (0.5 if k == "L" else 0.0), 1.0)
+		var swing := sin(TAU * p) * lerpf(ARM_SWING[0], ARM_SWING[1], run) * _loco_w
+		var g_arm := _sk.get_bone_global_rest(arm["arm"]).basis.orthonormalized()
+		var q_down := Quaternion((g_arm.inverse() * (arm["down"] as Vector3)).normalized(), deg_to_rad(ARM_DOWN))
+		var g_low := g_arm * Basis(q_down)
+		var q_swing := Quaternion((g_low.inverse() * _flex).normalized(), deg_to_rad(swing))
+		_mod.set_local_quat(arm["arm"], Quaternion.IDENTITY.slerp(q_down * q_swing, _relax))
+		# Локоть: предплечье сгибается вперёд
+		var g_fore := g_low * Basis(q_swing) * _sk.get_bone_rest(arm["fore"]).basis.orthonormalized()
+		var bend := lerpf(ELBOW[0], ELBOW[1], run * _loco_w)
+		var q_bend := Quaternion((g_fore.inverse() * _flex).normalized(), deg_to_rad(bend))
+		_mod.set_local_quat(arm["fore"], Quaternion.IDENTITY.slerp(q_bend, _relax))
 
 ## Параметры шага при этой скорости: от спокойного шага к бегу
 func _gait(speed: float) -> Dictionary:

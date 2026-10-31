@@ -134,7 +134,10 @@ func _animate_bunny(dt: float) -> void:
 			_ap.seek(B_STANCE, true)
 		_ap.speed_scale = 0.0
 	if _moves:
-		_moves.update(dt, _moving and (st == "idle" or st == "chase" or st == "return"), _speed_now, _dodge_t >= 0.0)
+		# Стойка с поднятыми кулаками — только в бою: рядом с героем, в ударе и в прыжке-атаке
+		var near := st == "chase" and hero.global_position.distance_to(global_position) < 5.0
+		var fight := near or st == "windup" or st == "recover" or st == "leap"
+		_moves.update(dt, _moving and (st == "idle" or st == "chase" or st == "return"), _speed_now, _dodge_t >= 0.0, fight)
 
 func _dodge() -> void:
 	_dodge_t = 0.0

@@ -62,8 +62,10 @@ func _ready() -> void:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png(out + "view_%s.png" % v[0])
 	# Ходьба и бег
-	await _row("walk", 8, 1.0 / 1.4 / 8.0, func(dt): m.update(dt, true, 0.9, false))
-	await _row("run", 8, 1.0 / 3.5 / 8.0, func(dt): m.update(dt, true, 7.8, false))
+	m.update(1.0, false, 0.0, false, false)
+	await _row("idle", 2, 0.05, func(dt): m.update(dt, false, 0.0, false, false))
+	await _row("walk", 8, 1.0 / 1.4 / 8.0, func(dt): m.update(dt, true, 0.9, false, false))
+	await _row("run", 8, 1.0 / 3.5 / 8.0, func(dt): m.update(dt, true, 7.8, false, false))
 	m.update(1.0, false, 0.0, false)
 	# Прыжок и удар в прыжке
 	m.start_leap(3.0, false)
