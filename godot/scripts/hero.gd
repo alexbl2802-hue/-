@@ -151,6 +151,13 @@ const A_IDLE := "Idle"         # дыхание и осмотр (есть у Sha
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
+const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
+const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
+const ARMS_OUT_WALK := 0.3     # насколько отводить руки от тела на бегу, рад
+const ARMS_OUT_RUN := 0.38
+var _arms_mod: PoseOffsets
+var _arm_axes := []
+var _arms_w := 0.0
 
 func _attach_character() -> void:
 	if not ResourceLoader.exists(CHAR_PATH):
@@ -199,6 +206,7 @@ func _attach_character() -> void:
 			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), hg.grip_point)
 	_sword.scale = Vector3.ONE / CHAR_SCALE
 	_attach_blades()
+	_setup_arms(sk)
 	_anim.play(A_IDLE if _has_idle else A_SLASH)
 	_anim.seek(0.0, true)
 	update_look()
@@ -313,7 +321,8 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		speed = 1.6 if _dash_t >= 0.0 else 0.0
 	elif moving:
 		want = A_RUN if _speed_now > 7.0 else A_WALK
-		speed = _speed_now / (11.0 if want == A_RUN else 6.0)
+		# Скорость анимации — по длине шага модели, чтобы стопы не скользили по земле
+		speed = _speed_now / (STRIDE_RUN if want == A_RUN else STRIDE_WALK)
 	elif _has_idle:
 		want = A_IDLE   # дыхание и осмотр
 	else:
@@ -328,6 +337,34 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		_new_swing = false
 	_idle_pose = idle
 	_anim.speed_scale = speed
+	_spread_arms(want != A_SLASH and on_floor and moving)
+
+## На бегу руки модели почти прижаты к телу — отводим плечи наружу
+func _spread_arms(running: bool) -> void:
+	if _arms_mod == null:
+		return
+	var target := clampf(_speed_now / WALK, 0.0, 1.0) if running else 0.0
+	_arms_w = move_toward(_arms_w, target, get_physics_process_delta_time() * 5.0)
+	var a := lerpf(ARMS_OUT_WALK, ARMS_OUT_RUN, clampf((_speed_now - WALK) / (RUN - WALK), 0.0, 1.0)) * _arms_w
+	for arm in _arm_axes:
+		_arms_mod.set_angle(arm[0], arm[1], a)
+
+func _setup_arms(sk: Skeleton3D) -> void:
+	var hips := -1
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("Hips"):
+			hips = i
+	for side in ["Left", "Right"]:
+		for i in sk.get_bone_count():
+			if sk.get_bone_name(i).ends_with(side + "Arm"):
+				var out := sk.get_bone_global_rest(i).origin - (sk.get_bone_global_rest(hips).origin if hips >= 0 else Vector3.ZERO)
+				out.y = 0.0
+				out.z = 0.0
+				# Поворот вокруг этой оси уводит опущенную руку в сторону от тела
+				_arm_axes.append([i, Vector3.DOWN.cross(out.normalized())])
+	if _arm_axes.size() == 2:
+		_arms_mod = PoseOffsets.new()
+		sk.add_child(_arms_mod)
 
 ## Полукольцо в вертикальной плоскости: от спины через верх вперёд
 func _half_ring(r0: float, r1: float, segs: int) -> ArrayMesh:
