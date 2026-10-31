@@ -47,6 +47,18 @@ var _anim_on := true
 var _swing := false
 
 const GOBLIN_MODEL := "res://models/goblin.glb"
+const BUNNY_MODEL := "res://models/bunny.glb"
+# Боевой кролик (Meshy): стойка, удар рукой и удар ногой в прыжке, кувырок-уклонение.
+# Времена — секунды внутри анимаций: петля стойки и момент удара.
+const B_PUNCH := "Boxing_Guard_Prep_Straight_Punch"
+const B_KICK := "Flying_Fist_Kick"
+const B_DODGE := "Roll_Dodge_2"
+const B_GUARD := [0.1, 1.5]       # петля стойки в начале анимации удара рукой
+const B_HITS := {B_PUNCH: 2.0, B_KICK: 2.9}
+
+var _bunny := false
+var _b_attack := ""
+var _dodge_t := -1.0
 
 func setup(kind: String, pos: Vector3, h: Node3D) -> void:
 	type = kind
@@ -79,7 +91,60 @@ func _ready() -> void:
 		"kobold": _build_kobold()
 	if type == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
 		_attach_goblin()
+	elif type == "rabbit" and ResourceLoader.exists(BUNNY_MODEL):
+		_attach_bunny()
 	global_position = home
+
+# ---------- Боевой кролик: в лапах свои когти, оружие не нужно
+func _attach_bunny() -> void:
+	for c in _model.get_children():
+		c.visible = false
+	_char = (load(BUNNY_MODEL) as PackedScene).instantiate()
+	_char.scale = Vector3.ONE * 0.95
+	_model.add_child(_char)
+	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
+	_ap.playback_default_blend_time = 0.12
+	for n in _ap.get_animation_list():
+		_ap.get_animation(n).loop_mode = Animation.LOOP_NONE
+	_ap.play(B_PUNCH)
+	_ap.seek(randf_range(B_GUARD[0], B_GUARD[1]), true)
+	_bunny = true
+	_setup_flash()
+
+func _animate_bunny(dt: float) -> void:
+	_char.position.y = 0.0
+	# Кувырок после пропущенного удара
+	if _dodge_t >= 0.0:
+		_dodge_t += dt
+		if _dodge_t > 0.9:
+			_dodge_t = -1.0
+		else:
+			return
+	if st == "windup" and not _swing:
+		# Удары по очереди: рукой и ногой в прыжке, с момента незадолго до удара
+		_swing = true
+		_b_attack = B_KICK if _b_attack == B_PUNCH else B_PUNCH
+		_ap.play(_b_attack, 0.08)
+		_ap.seek(B_HITS[_b_attack] - 0.35, true)
+		_ap.speed_scale = 1.8
+		return
+	if st == "windup" or (st == "recover" and _t < 0.4):
+		return
+	_swing = false
+	# Стойка: петля начала анимации удара рукой; на ходу — с подскоками
+	if _ap.current_animation != B_PUNCH or _ap.current_animation_position > B_GUARD[1] or _ap.current_animation_position < B_GUARD[0] - 0.05:
+		_ap.play(B_PUNCH, 0.15)
+		_ap.seek(B_GUARD[0], true)
+	_ap.speed_scale = 1.0
+	if _moving:
+		_hop += dt * (9.0 if st == "chase" else 6.0)
+		_char.position.y = absf(sin(_hop)) * (0.35 if st == "chase" else 0.18)
+
+func _dodge() -> void:
+	_dodge_t = 0.0
+	_ap.play(B_DODGE, 0.05)
+	_ap.seek(0.35, true)
+	_ap.speed_scale = 1.6
 
 # ---------- Модель гоблина (Meshy): блочное тело прячем, в правую руку — дубина
 func _attach_goblin() -> void:
@@ -95,7 +160,11 @@ func _attach_goblin() -> void:
 	_ap.get_animation("Charged_Slash").loop_mode = Animation.LOOP_NONE
 	_ap.play("Combat_Stance")
 	_ap.seek(randf() * 1.5, true)
-	# Белая вспышка при попадании — полупрозрачный слой поверх модели
+	_setup_flash()
+	_attach_club()
+
+## Белая вспышка при попадании — полупрозрачный слой поверх модели
+func _setup_flash() -> void:
 	_flash_mat = StandardMaterial3D.new()
 	_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -103,7 +172,9 @@ func _attach_goblin() -> void:
 	for m in _char.find_children("*", "MeshInstance3D", true, false):
 		m.material_overlay = _flash_mat
 		m.visibility_range_end = 130.0
-	# Дубина: рукоять поперёк ладони, толстый конец выходит над большим пальцем
+
+## Дубина гоблина: рукоять поперёк ладони, толстый конец выходит над большим пальцем
+func _attach_club() -> void:
 	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
 	var hand := -1
 	for i in sk.get_bone_count():
@@ -480,6 +551,8 @@ func hit(dmg: int, dir: Vector3, crit := false) -> void:
 		_t = T["cd"] - 0.45
 	elif st == "idle" or st == "return":
 		st = "chase"
+	if _bunny and _dodge_t < 0.0 and randf() < 0.3:
+		_dodge()
 
 func knock(mult: float) -> void:
 	_kb *= mult
@@ -613,6 +686,9 @@ func _physics_process(dt: float) -> void:
 			m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, _flash))
 
 func _animate(dt: float) -> void:
+	if _bunny:
+		_animate_bunny(dt)
+		return
 	if _char:
 		_animate_char()
 		return

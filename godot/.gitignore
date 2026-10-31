@@ -5,3 +5,8 @@
 /models/*_Image_*.png.import
 /models/hero_texture_*
 /models/longsword_[0-9]*
+/models/bunny_*
+/models/bone_blade_[0-9]*
+/models/crystal_blade_[0-9]*
+/models/hero_texture*
+/models/hero_normal*

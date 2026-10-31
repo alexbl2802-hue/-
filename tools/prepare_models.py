@@ -12,8 +12,17 @@ ranger — следопыт (Shadow Ranger):
   * анимации бега и быстрого бега переносятся в один файл к анимации удара;
   * текстуры 4096 уменьшаются: цвет 2048, нормали и металл/шероховатость 1024.
 
+warden — герой Shadowwarden без меча (его единственная анимация — дыхание и осмотр):
+  python3 tools/prepare_models.py warden WARDEN.glb SLASH.glb RUNNING.glb RUNFAST.glb
+  анимации удара и бега следопыта переносятся на скелет Shadowwarden (ретаргетинг: позы покоя
+  у моделей разные, поэтому вращения пересчитываются через мировые повороты костей).
+
+bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD_PUNCH.glb KICK.glb DODGE.glb
+  (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
+
 sword — длинный меч: сетка упрощается (gltfpack, ~2,5 тыс. треугольников), текстуры 1024,
 рядом пишется ржавая версия цветовой текстуры (longsword_rust.jpg).
+  python3 tools/prepare_models.py blade NAME BLADE.glb — другие клинки (bone_blade, crystal_blade).
 """
 import io
 import json
@@ -215,6 +224,17 @@ def ranger(slash_path, run_path, runfast_path):
 
 
 # ---------- Длинный меч
+def simplify_blade(path, name, ratio=0.015):
+    tmp = OUT / f"_{name}_tmp.glb"
+    cmd = ["npx", "--yes", "gltfpack@0.22.0", "-i", str(path), "-o", str(tmp), "-si", str(ratio), "-noq", "-kn"]
+    subprocess.run(cmd, check=True)
+    j, b = read_glb(tmp)
+    imgs = shrink_textures(j, b, {"color": 1024, "normal": 1024, "attrib": 512})
+    bld = rebuild(j, b, replace_image=imgs)
+    write_glb(OUT / f"{name}.glb", j, bld.blob)
+    tmp.unlink()
+
+
 def sword(path):
     tmp = OUT / "_longsword_tmp.glb"
     cmd = ["npx", "--yes", "gltfpack@0.22.0", "-i", str(path), "-o", str(tmp), "-si", "0.015", "-noq", "-kn"]
@@ -243,8 +263,165 @@ def sword(path):
     print("→ godot/models/longsword_rust.jpg")
 
 
+# ---------- Кватернионы (x, y, z, w)
+def qmul(a, b):
+    ax, ay, az, aw = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    bx, by, bz, bw = b[..., 0], b[..., 1], b[..., 2], b[..., 3]
+    return np.stack([aw * bx + ax * bw + ay * bz - az * by,
+                     aw * by - ax * bz + ay * bw + az * bx,
+                     aw * bz + ax * by - ay * bx + az * bw,
+                     aw * bw - ax * bx - ay * by - az * bz], -1)
+
+
+def qinv(a):
+    return a * np.array([-1, -1, -1, 1], np.float64)
+
+
+def bone_tree(j):
+    names, parent = {}, {}
+    for i, n in enumerate(j["nodes"]):
+        if "name" in n:
+            names[n["name"].split(":")[-1]] = i
+        for c in n.get("children", []):
+            parent[c] = i
+    return names, parent
+
+
+def rest_rot(n):
+    return np.array(n.get("rotation", [0, 0, 0, 1]), np.float64)
+
+
+def global_rest(j, i, parent):
+    q = rest_rot(j["nodes"][i])
+    while i in parent:
+        i = parent[i]
+        q = qmul(rest_rot(j["nodes"][i]), q)
+    return q
+
+
+def add_animation(j, bld, name, times, tracks):
+    """tracks: [(node, path, values float32 array)]"""
+    ta = {"bufferView": bld.add(times.astype(np.float32).tobytes()), "componentType": 5126, "count": len(times),
+          "type": "SCALAR", "min": [float(times.min())], "max": [float(times.max())]}
+    j["accessors"].append(ta)
+    t_idx = len(j["accessors"]) - 1
+    samplers, channels = [], []
+    for node, path, vals in tracks:
+        j["accessors"].append({"bufferView": bld.add(vals.astype(np.float32).tobytes()), "componentType": 5126,
+                               "count": len(vals), "type": "VEC4" if path == "rotation" else "VEC3"})
+        samplers.append({"input": t_idx, "output": len(j["accessors"]) - 1, "interpolation": "LINEAR"})
+        channels.append({"sampler": len(samplers) - 1, "target": {"node": node, "path": path}})
+    j.setdefault("animations", []).append({"name": name, "samplers": samplers, "channels": channels})
+
+
+def retarget(tj, src_path):
+    """Анимации из src переносятся на скелет tj (одинаковые имена костей Mixamo).
+    Мировой поворот кости цели = мировой поворот источника · (мировой покой источника)⁻¹ · мировой покой цели."""
+    sj, sb = read_glb(src_path)
+    s_names, s_parent = bone_tree(sj)
+    t_names, t_parent = bone_tree(tj)
+    common = [n for n in t_names if n in s_names]
+    out = []
+    for anim in sj["animations"]:
+        rot, tr = {}, {}
+        times = None
+        for ch in anim["channels"]:
+            smp = anim["samplers"][ch["sampler"]]
+            node = ch["target"]["node"]
+            nm = sj["nodes"][node].get("name", "").split(":")[-1]
+            times = accessor(sj, sb, smp["input"]).astype(np.float64)
+            vals = accessor(sj, sb, smp["output"]).astype(np.float64)
+            (rot if ch["target"]["path"] == "rotation" else tr)[nm] = vals
+        F = len(times)
+        # Мировые повороты источника по кадрам
+        s_order = sorted(s_names, key=lambda n: _depth(s_names[n], s_parent))
+        s_glob = {}
+        for nm in s_order:
+            i = s_names[nm]
+            local = rot.get(nm, np.repeat(rest_rot(sj["nodes"][i])[None], F, 0))
+            p = s_parent.get(i)
+            pn = sj["nodes"][p].get("name", "").split(":")[-1] if p is not None else None
+            s_glob[nm] = qmul(s_glob[pn], local) if pn in s_glob else qmul(np.repeat(global_rest(sj, p, s_parent)[None], F, 0) if p is not None else np.repeat(np.array([[0, 0, 0, 1.0]]), F, 0), local)
+        t_order = sorted(common, key=lambda n: _depth(t_names[n], t_parent))
+        t_glob, tracks = {}, []
+        for nm in t_order:
+            i = t_names[nm]
+            g = qmul(qmul(s_glob[nm], qinv(global_rest(sj, s_names[nm], s_parent))[None]), global_rest(tj, i, t_parent)[None])
+            p = t_parent.get(i)
+            pn = tj["nodes"][p].get("name", "").split(":")[-1] if p is not None else None
+            pg = t_glob[pn] if pn in t_glob else np.repeat(global_rest(tj, p, t_parent)[None], F, 0)
+            local = qmul(qinv(pg), g)
+            local /= np.linalg.norm(local, axis=1, keepdims=True)
+            t_glob[nm] = g
+            tracks.append((i, "rotation", local))
+        # Перемещение бёдер — с поправкой на рост
+        if "Hips" in tr:
+            sh = np.array(sj["nodes"][s_names["Hips"]].get("translation", [0, 1, 0]))
+            th = np.array(tj["nodes"][t_names["Hips"]].get("translation", [0, 1, 0]))
+            k = th[1] / sh[1]
+            tracks.append((t_names["Hips"], "translation", tr["Hips"] * k + (th - sh * k)))
+        out.append((anim["name"], times, tracks))
+    return out
+
+
+def _depth(i, parent):
+    d = 0
+    while i in parent:
+        i = parent[i]
+        d += 1
+    return d
+
+
+def warden(path, slash, run, runfast):
+    j, b = read_glb(path)
+    anims = []
+    for src in (slash, run, runfast):
+        anims += retarget(j, src)
+    imgs = shrink_textures(j, b, {"color": 2048, "normal": 1024, "attrib": 1024})
+    bld = rebuild(j, b, replace_image=imgs)
+    j["animations"][0]["name"] = "Idle"
+    for name, times, tracks in anims:
+        add_animation(j, bld, name, times, tracks)
+    j["bufferViews"] = bld.views
+    print("анимации:", [a["name"] for a in j["animations"]])
+    write_glb(OUT / "hero.glb", j, bld.blob)
+    grip = OUT / "hero_grip.json"
+    if grip.exists():
+        grip.unlink()   # у Shadowwarden есть кости пальцев — хват считается по ним
+
+
+def bunny(guard, kick, dodge):
+    j, b = read_glb(guard)
+    imgs = shrink_textures(j, b, {"color": 1024, "normal": 1024, "attrib": 512})
+    bld = rebuild(j, b, replace_image=imgs)
+    for path in (kick, dodge):
+        oj, ob = read_glb(path)
+        for anim in oj["animations"]:
+            new_samplers = []
+            for smp in anim["samplers"]:
+                ns = dict(smp)
+                for key in ("input", "output"):
+                    a = dict(oj["accessors"][smp[key]])
+                    a.pop("bufferView")
+                    a["byteOffset"] = 0
+                    a["bufferView"] = bld.add(accessor(oj, ob, smp[key]).tobytes())
+                    j["accessors"].append(a)
+                    ns[key] = len(j["accessors"]) - 1
+                new_samplers.append(ns)
+            j["animations"].append({"name": anim["name"], "channels": anim["channels"], "samplers": new_samplers})
+    j["bufferViews"] = bld.views
+    print("анимации:", [a["name"] for a in j["animations"]])
+    write_glb(OUT / "bunny.glb", j, bld.blob)
+
+
 if __name__ == "__main__":
     if sys.argv[1] == "ranger":
         ranger(*sys.argv[2:5])
     elif sys.argv[1] == "sword":
         sword(sys.argv[2])
+    elif sys.argv[1] == "blade":
+        simplify_blade(sys.argv[3], sys.argv[2])
+    elif sys.argv[1] == "warden":
+        warden(*sys.argv[2:6])
+    elif sys.argv[1] == "bunny":
+        bunny(*sys.argv[2:5])

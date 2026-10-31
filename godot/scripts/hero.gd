@@ -50,10 +50,8 @@ var _new_swing := false
 var _idle_pose := false
 var _gear := {}
 var _longsword: Node3D
-var _ls_mesh: MeshInstance3D
-var _ls_base: StandardMaterial3D
-var _ls_rust: StandardMaterial3D
-var _ls_tint: StandardMaterial3D            # детали брони и шлема на костях модели: имя → MeshInstance3D
+var _blades := {}           # модели клинков: ключ → {node, mesh, base, glow, rust}
+var _has_idle := false            # детали брони и шлема на костях модели: имя → MeshInstance3D
 
 func _ready() -> void:
 	collision_layer = 2
@@ -149,6 +147,7 @@ const SWORD_PATH := "res://models/longsword.glb"
 const RUST_TEX := "res://models/longsword_rust.jpg"
 const CHAR_SCALE := 1.05
 const SHOW_GEAR := false
+const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
@@ -167,6 +166,9 @@ func _attach_character() -> void:
 	for n in [A_WALK, A_RUN]:
 		_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	_anim.get_animation(A_SLASH).loop_mode = Animation.LOOP_NONE
+	_has_idle = _anim.has_animation(A_IDLE)
+	if _has_idle:
+		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
 	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
 	for m in _char.find_children("*", "MeshInstance3D", true, false):
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -178,38 +180,61 @@ func _attach_character() -> void:
 	sk.add_child(att)
 	att.bone_name = sk.get_bone_name(hand)
 	att.bone_idx = hand
-	# Хват взят у собственного клинка модели: рукоять там, где он лежал в кулаке,
-	# клинок — в ту же сторону (данные в системе кости кисти, см. tools/prepare_models.py)
-	var g: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(GRIP_PATH))
-	var blade := Vector3(g["blade"][0], g["blade"][1], g["blade"][2]).normalized()
-	var width := Vector3(g["width"][0], g["width"][1], g["width"][2]).normalized()
-	var flat := width.cross(blade).normalized()
 	_sword.get_parent().remove_child(_sword)
 	att.add_child(_sword)
-	_sword.transform = Transform3D(Basis(width, blade, flat), Vector3(g["grip"][0], g["grip"][1], g["grip"][2]))
+	if FileAccess.file_exists(GRIP_PATH):
+		# Хват взят у собственного клинка модели (см. tools/prepare_models.py)
+		var g: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(GRIP_PATH))
+		var blade := Vector3(g["blade"][0], g["blade"][1], g["blade"][2]).normalized()
+		var width := Vector3(g["width"][0], g["width"][1], g["width"][2]).normalized()
+		_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), Vector3(g["grip"][0], g["grip"][1], g["grip"][2]))
+	else:
+		# Хват по костям пальцев: пальцы сжимаются в кулак, рукоять проходит через его середину,
+		# клинок выходит над большим и указательным пальцами
+		var hg := HandGrip.new()
+		sk.add_child(hg)
+		if hg.setup(sk, "Right"):
+			var blade := hg.grip_axis
+			var width := (hg.fingers_dir - blade * hg.fingers_dir.dot(blade)).normalized()
+			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), hg.grip_point)
 	_sword.scale = Vector3.ONE / CHAR_SCALE
-	_attach_longsword()
-	_anim.play(A_SLASH)
+	_attach_blades()
+	_anim.play(A_IDLE if _has_idle else A_SLASH)
 	_anim.seek(0.0, true)
 	update_look()
 
-## Модель меча: клинок по −Y, середина рукояти на y ≈ 0,65, ширина клинка по X.
-## Переворачиваем клинком вверх и ставим серединой рукояти в начало координат хвата.
-func _attach_longsword() -> void:
-	if not ResourceLoader.exists(SWORD_PATH):
+## Модели клинков: у всех клинок по −Y, середина рукояти на y ≈ 0,65, ширина по X.
+## Переворачиваем клинком вверх и ставим серединой рукояти в начало хвата.
+## Длинный меч — ржавый (ржавая текстура), железный и стальной; костяной и кристальный — свои модели.
+const BLADES := {
+	"longsword": "res://models/longsword.glb",
+	"bone_blade": "res://models/bone_blade.glb",
+	"crystal_blade": "res://models/crystal_blade.glb",
+}
+const BLADE_OF := {"sword_bone": "bone_blade", "sword_crystal": "crystal_blade"}
+
+func _attach_blades() -> void:
+	for key in BLADES:
+		if not ResourceLoader.exists(BLADES[key]):
+			continue
+		var node: Node3D = (load(BLADES[key]) as PackedScene).instantiate()
+		node.visible = false
+		_sword.add_child(node)
+		var mi: MeshInstance3D = node.find_children("*", "MeshInstance3D", true, false)[0]
+		var base: StandardMaterial3D = mi.mesh.surface_get_material(0)
+		_blades[key] = {"node": node, "mesh": mi, "base": base, "glow": base.duplicate()}
+	if _blades.is_empty():
 		return
 	for c in _sword.get_children():
-		c.visible = false
-	_longsword = (load(SWORD_PATH) as PackedScene).instantiate()
-	_sword.add_child(_longsword)
-	var mi: MeshInstance3D = _longsword.find_children("*", "MeshInstance3D", true, false)[0]
-	_ls_mesh = mi
-	_ls_base = mi.mesh.surface_get_material(0)
-	_ls_rust = _ls_base.duplicate()
-	_ls_rust.albedo_texture = load(RUST_TEX)
-	_ls_rust.metallic = 0.15
-	_ls_rust.roughness = 0.9
-	_ls_tint = _ls_base.duplicate()
+		if not c in _blades.values().map(func(x): return x["node"]):
+			c.visible = false
+	if _blades.has("longsword"):
+		var ls: Dictionary = _blades["longsword"]
+		ls["rust"] = (ls["base"] as StandardMaterial3D).duplicate()
+		ls["rust"].albedo_texture = load(RUST_TEX)
+		ls["rust"].metallic = 0.15
+		ls["rust"].roughness = 0.9
+	_longsword = _blades.get("longsword", {}).get("node")
 
 ## Броня и шлем — детали на костях модели, двигаются вместе с телом.
 ## Размеры подобраны по модели: торс ~0,4 м в ширину, голова ~0,2 м.
@@ -289,6 +314,8 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 	elif moving:
 		want = A_RUN if _speed_now > 7.0 else A_WALK
 		speed = _speed_now / (11.0 if want == A_RUN else 6.0)
+	elif _has_idle:
+		want = A_IDLE   # дыхание и осмотр
 	else:
 		# Стойка: первый кадр удара — боевая поза с мечом
 		want = A_SLASH
@@ -339,21 +366,34 @@ func update_look() -> void:
 			_blade_mat.set_shader_parameter("emission_energy", 1.0 if w.has("glow") else 0.0)
 		_blade.scale.y = w["len"]
 		_blade.position.y = 0.12 + 0.5 * w["len"]
-		if _longsword:
-			# Ржавый — ржавая текстура, железный — как есть, остальные — та же модель в цвете оружия
+		if not _blades.is_empty():
 			var id: String = Game.equip["weapon"]["id"]
+			var key: String = BLADE_OF.get(id, "longsword")
+			if not _blades.has(key):
+				key = "longsword"
 			var s := 0.55 * float(w["len"])
-			_longsword.transform = Transform3D(Basis(Vector3(0, 0, 1), PI).scaled(Vector3.ONE * s), Vector3(0, 0.65 * s, 0))
-			if id == "sword_rusty":
-				_ls_mesh.material_override = _ls_rust
-			elif id == "sword_iron":
-				_ls_mesh.material_override = _ls_base
+			for k in _blades:
+				_blades[k]["node"].visible = k == key
+			var bl: Dictionary = _blades[key]
+			(bl["node"] as Node3D).transform = Transform3D(Basis(Vector3(0, 0, 1), PI).scaled(Vector3.ONE * s), Vector3(0, 0.65 * s, 0))
+			var mat: StandardMaterial3D = bl["base"]
+			if id == "sword_rusty" and bl.has("rust"):
+				mat = bl["rust"]
+			elif id == "sword_steel":
+				mat = bl["glow"]
+				mat.albedo_color = WorldGen.hex(w["color"])
+			if r >= 3:
+				# Великий и легендарный ранг — клинок светится цветом ранга
+				var g: StandardMaterial3D = bl["glow"]
+				if mat != g:
+					g.albedo_color = Color.WHITE
+				g.emission_enabled = true
+				g.emission = Items.RANKS[r]["color"]
+				g.emission_energy_multiplier = 0.8
+				mat = g
 			else:
-				_ls_tint.albedo_color = WorldGen.hex(w["color"])
-				_ls_tint.emission_enabled = r >= 3 or w.has("glow")
-				_ls_tint.emission = Items.RANKS[r]["color"] if r >= 3 else WorldGen.hex(w.get("glow", 0))
-				_ls_tint.emission_energy_multiplier = 0.8
-				_ls_mesh.material_override = _ls_tint
+				(bl["glow"] as StandardMaterial3D).emission_enabled = false
+			(bl["mesh"] as MeshInstance3D).material_override = mat
 	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)))
 	_tunic_mat.set_shader_parameter("metallic", 0.55 if a.get("metal", false) else 0.0)
 	_tunic_mat.set_shader_parameter("roughness", 0.45 if a.get("metal", false) else 0.8)
