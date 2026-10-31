@@ -3,3 +3,5 @@
 # Текстуры, которые Godot сам достаёт из .glb при импорте
 /models/*_Image_*.png
 /models/*_Image_*.png.import
+/models/hero_texture_*
+/models/longsword_[0-9]*
