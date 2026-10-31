@@ -3,6 +3,7 @@ class_name SkillDefs
 extends RefCounted
 
 const MAX_SKILL_LEVEL := 10
+const EVOLUTION_ENABLED := false  # эволюция навыков на максимальном ранге — откроем позже
 
 const LIST := [
 	{"id": "strength", "icon": "💪", "name": "Сила", "max": 7, "lvl": 1},

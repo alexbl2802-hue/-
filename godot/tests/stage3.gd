@@ -54,7 +54,9 @@ func _ready() -> void:
 	inv._render()
 	await _frames(3)
 	await _shot("s3_inventory.png")
-	_check("equipment applied", Game.dmg == dmg0 - 4 + 16 and Game.armor == 20, "dmg %d, armor %d" % [Game.dmg, Game.armor])
+	var want_dmg: int = dmg0 - 4 + Items.stat(Game.equip["weapon"], "dmg")
+	var want_arm: int = Items.stat(Game.equip["armor"], "armor") + Items.stat(Game.equip["helm"], "armor")
+	_check("equipment applied", Game.dmg == want_dmg and Game.armor == want_arm, "dmg %d, armor %d" % [Game.dmg, Game.armor])
 	inv.close()
 	await _frames(3)
 	# 4. Кузница через кнопку действия
@@ -146,7 +148,7 @@ func _ready() -> void:
 	_check("cave entered", main.mode == 1, "")
 	# 10. Сохранение: имя, сундук, снаряжение
 	var saved = JSON.parse_string(FileAccess.get_file_as_string(Game.SAVE_PATH))
-	_check("saved", saved["name"] == "Алекс" and saved["chests"].has(0.0) and saved["equip"]["weapon"] == "sword_steel", str(saved["chests"]))
+	_check("saved", saved["name"] == "Алекс" and saved["chests"].has(0.0) and saved["equip"]["weapon"]["id"] == "sword_steel", str(saved["chests"]))
 	print("RESULT: ", "ALL OK" if ok else "FAILED")
 	get_tree().quit()
 

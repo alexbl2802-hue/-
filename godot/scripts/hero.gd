@@ -150,14 +150,20 @@ func _half_ring(r0: float, r1: float, segs: int) -> ArrayMesh:
 
 ## Надетое снаряжение видно на герое: цвет и длина меча, доспех, шлем
 func update_look() -> void:
-	var w := Items.get_item(str(Game.equip["weapon"])) if Game.equip["weapon"] != null else {}
-	var a := Items.get_item(str(Game.equip["armor"])) if Game.equip["armor"] != null else {}
-	var h := Items.get_item(str(Game.equip["helm"])) if Game.equip["helm"] != null else {}
+	var w := Items.get_item(Game.equip["weapon"]["id"]) if Game.equip["weapon"] != null else {}
+	var a := Items.get_item(Game.equip["armor"]["id"]) if Game.equip["armor"] != null else {}
+	var h := Items.get_item(Game.equip["helm"]["id"]) if Game.equip["helm"] != null else {}
 	_sword.visible = not w.is_empty()
 	if not w.is_empty():
 		_blade_mat.set_shader_parameter("albedo", WorldGen.hex(w["color"]))
-		_blade_mat.set_shader_parameter("emission", WorldGen.hex(w.get("glow", 0)))
-		_blade_mat.set_shader_parameter("emission_energy", 1.0 if w.has("glow") else 0.0)
+		# Клинок высокого ранга светится цветом ранга
+		var r: int = Game.equip["weapon"]["r"]
+		if r >= 3:
+			_blade_mat.set_shader_parameter("emission", Items.RANKS[r]["color"])
+			_blade_mat.set_shader_parameter("emission_energy", 0.9)
+		else:
+			_blade_mat.set_shader_parameter("emission", WorldGen.hex(w.get("glow", 0)))
+			_blade_mat.set_shader_parameter("emission_energy", 1.0 if w.has("glow") else 0.0)
 		_blade.scale.y = w["len"]
 		_blade.position.y = 0.12 + 0.5 * w["len"]
 	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)))

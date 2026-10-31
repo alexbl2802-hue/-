@@ -2,7 +2,7 @@
 extends Node3D
 
 var hero: Node3D
-var _items: Array = []   # [{id, n, node, pos, vy, base, t}]
+var _items: Array = []   # [{id, n, r, node, pos, vy, base, t}]
 var _full_warn := 0.0
 var _mesh := {}
 var _mat := {}
@@ -25,8 +25,9 @@ func _ready() -> void:
 		"potion": Mats.lp(0xff4040, 0.2, 0.0, 0x801010, 1.0),
 		"cork": Mats.lp(0x8a6a40),
 	}
-	for r in Items.RARITY.size():
-		var c: Color = Items.RARITY[r]["color"]
+	_mat["shard"] = Mats.lp(0x9a5cff, 0.2, 0.0, 0x6a2aff, 1.4)
+	for r in Items.RANKS.size():
+		var c: Color = Items.RANKS[r]["color"]
 		_mat["gem%d" % r] = Mats.lp(c.to_rgba32() >> 8, 0.2, 0.0, c.to_rgba32() >> 8, 0.45)
 		var bm := StandardMaterial3D.new()
 		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -43,7 +44,9 @@ func _part(parent: Node3D, mesh_key: String, mat: Material, pos: Vector3) -> voi
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 
-func drop(id: String, n: int, at: Vector3) -> void:
+func drop(id: String, n: int, at: Vector3, r := -1) -> void:
+	if r < 0:
+		r = Items.get_item(id)["rank"]
 	var node := Node3D.new()
 	if id == "gold":
 		for k in 3:
@@ -51,8 +54,10 @@ func drop(id: String, n: int, at: Vector3) -> void:
 	elif id == "potion":
 		_part(node, "bottle", _mat["potion"], Vector3.ZERO)
 		_part(node, "neck", _mat["cork"], Vector3(0, 0.19, 0))
+	elif id == "shard":
+		for k in 2:
+			_part(node, "gem", _mat["shard"], Vector3((k - 0.5) * 0.2, k * 0.08, 0))
 	else:
-		var r: int = Items.get_item(id)["rarity"]
 		_part(node, "gem", _mat["gem%d" % r], Vector3.ZERO)
 		_part(node, "beam", _mat["beam%d" % r], Vector3(0, 1.2, 0))
 	var a := randf() * TAU
@@ -61,7 +66,7 @@ func drop(id: String, n: int, at: Vector3) -> void:
 	var base := WorldGen.ground_at(pos.x, pos.z)
 	add_child(node)
 	node.global_position = pos
-	_items.append({"id": id, "n": n, "node": node, "pos": pos, "vy": 5.0, "base": base, "t": 0.0})
+	_items.append({"id": id, "n": n, "r": r, "node": node, "pos": pos, "vy": 5.0, "base": base, "t": 0.0})
 
 ## Бросаем кости: что выпало из монстра
 func roll(type: String, at: Vector3) -> void:
@@ -77,7 +82,7 @@ func roll(type: String, at: Vector3) -> void:
 		var w := []
 		var total := 0.0
 		for id in pool:
-			var wt: float = [1.0, 0.6, 0.25][Items.get_item(id)["rarity"]]
+			var wt: float = [1.0, 0.6, 0.25, 0.15, 0.1][Items.get_item(id)["rank"]]
 			w.append(wt)
 			total += wt
 		var r := randf() * total
@@ -88,6 +93,9 @@ func roll(type: String, at: Vector3) -> void:
 				break
 			k += 1
 		drop(pool[k], 1, at)
+	# Тёмные осколки — только с монстров подземелий
+	if t.has("shard") and randf() < t["shard"][0]:
+		drop("shard", randi_range(t["shard"][1], t["shard"][2]), at)
 
 func _process(dt: float) -> void:
 	_full_warn -= dt
@@ -121,7 +129,7 @@ func _process(dt: float) -> void:
 func _pickup(L: Dictionary) -> bool:
 	var id: String = L["id"]
 	var n: int = L["n"]
-	if not Game.add_item(id, n):
+	if not Game.add_item(id, n, L["r"]):
 		if _full_warn <= 0.0:
 			Fx.text("Инвентарь полон", hero.global_position, Color("#ff8a6a"))
 			_full_warn = 3.0
@@ -130,7 +138,7 @@ func _pickup(L: Dictionary) -> bool:
 	if id == "gold":
 		Fx.text("+%d 🪙" % n, L["pos"], Color("#ffd34d"))
 	else:
-		Fx.text("%s %s%s" % [it["icon"], it["name"], " ×%d" % n if n > 1 else ""], L["pos"], Items.RARITY[it["rarity"]]["color"])
+		Fx.text("%s %s%s" % [it["icon"], it["name"], " ×%d" % n if n > 1 else ""], L["pos"], Items.RANKS[L["r"]]["color"])
 	Game.save_game()
 	Game.changed.emit()
 	return true

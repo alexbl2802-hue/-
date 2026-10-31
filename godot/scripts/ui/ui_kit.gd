@@ -59,10 +59,17 @@ static func slot(icon: String, border: Color, count := "", caption := "", size :
 		var n := label(count, 11, Color.WHITE)
 		n.add_theme_color_override("font_outline_color", Color.BLACK)
 		n.add_theme_constant_override("outline_size", 4)
-		n.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-		n.offset_left = -18
-		n.offset_top = -16
-		n.offset_right = -3
+		# С подписью внизу число переезжает в правый верхний угол
+		if caption != "":
+			n.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+			n.offset_left = -26
+			n.offset_top = 1
+			n.offset_right = -4
+		else:
+			n.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+			n.offset_left = -26
+			n.offset_top = -16
+			n.offset_right = -3
 		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		b.add_child(n)
 	if caption != "":

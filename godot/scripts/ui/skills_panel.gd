@@ -152,7 +152,11 @@ func _render() -> void:
 		if locked:
 			vb.add_child(_lbl("Нужен уровень %d" % s["lvl"], 11, Color("#ff9a7a")))
 		elif r >= s["max"]:
-			vb.add_child(_lbl("Максимум", 11, Color("#7dff8a")))
+			# Максимальный ранг открывает эволюцию навыка (пока недоступна)
+			var evo := _btn("✨ Эволюция  🔒" if not SkillDefs.EVOLUTION_ENABLED else "✨ Эволюция", true)
+			evo.disabled = not SkillDefs.EVOLUTION_ENABLED
+			vb.add_child(evo)
+			vb.add_child(_lbl("Максимум · эволюция скоро", 10, Color("#7dff8a")))
 		else:
 			var b := _btn("Улучшить" if r > 0 else "Изучить", true)
 			b.disabled = free <= 0

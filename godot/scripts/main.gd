@@ -208,6 +208,7 @@ func open_chest(i: int) -> void:
 	var c: Vector3 = d.chest["pos"]
 	loot.drop("gold", randi_range(40, 64), c)
 	loot.drop("potion", 2, c)
+	loot.drop("shard", randi_range(3, 5), c)
 	for id in d.def["chest_loot"]:
 		loot.drop(id, 1, c)
 	Game.save_game()

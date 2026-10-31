@@ -71,7 +71,7 @@ func _clear(n: Node) -> void:
 		c.queue_free()
 
 func _render() -> void:
-	_gold.text = "🪙 %d" % Game.gold
+	_gold.text = "🪙 %d    🔮 %d" % [Game.gold, Game.count_of("shard")]
 	_clear(_stats)
 	var need := Game.xp_next(Game.level)
 	_stats.add_child(UiKit.label("Уровень %d" % Game.level, 14, UiKit.GOLD))
@@ -89,14 +89,14 @@ func _render() -> void:
 		_stats.add_child(UiKit.label(t, 12))
 	_clear(_equip)
 	for slot in Items.SLOTS:
-		var id = Game.equip[slot]
+		var e = Game.equip[slot]
 		var b: Button
-		if id == null:
+		if e == null:
 			b = UiKit.slot(SLOT_NAMES[slot][1], Color(1, 1, 1, 0.15), "", SLOT_NAMES[slot][0], 58.0)
 			b.modulate.a = 0.45
 		else:
-			var it := Items.get_item(id)
-			b = UiKit.slot(it["icon"], Items.RARITY[it["rarity"]]["color"], "", SLOT_NAMES[slot][0], 58.0, _sel.get("eq", "") == slot)
+			var it := Items.get_item(e["id"])
+			b = UiKit.slot(it["icon"], Items.color(e), "+%d" % e["u"] if e["u"] > 0 else "", SLOT_NAMES[slot][0], 58.0, _sel.get("eq", "") == slot)
 			b.pressed.connect(func(): _sel = {"eq": slot}; _render())
 		_equip.add_child(b)
 	_clear(_grid)
@@ -105,7 +105,8 @@ func _render() -> void:
 		if i < Game.inv.size():
 			var st: Dictionary = Game.inv[i]
 			var it := Items.get_item(st["id"])
-			b = UiKit.slot(it["icon"], Items.RARITY[it["rarity"]]["color"], str(st["n"]) if st["n"] > 1 else "", "", 40.0, _sel.get("i", -1) == i)
+			var badge := str(st["n"]) if st["n"] > 1 else ("+%d" % st["u"] if st["u"] > 0 else "")
+			b = UiKit.slot(it["icon"], Items.color(st), badge, "", 40.0, _sel.get("i", -1) == i)
 			var idx := i
 			b.pressed.connect(func(): _sel = {"i": idx}; _render())
 		else:
@@ -115,25 +116,26 @@ func _render() -> void:
 
 func _render_info() -> void:
 	_clear(_info)
-	var it := {}
+	var inst := {}
 	var from_inv: bool = _sel.has("i") and _sel["i"] < Game.inv.size()
 	var from_eq: bool = _sel.has("eq") and Game.equip[_sel["eq"]] != null
 	if from_inv:
-		it = Items.get_item(Game.inv[_sel["i"]]["id"])
+		inst = Game.inv[_sel["i"]]
 	elif from_eq:
-		it = Items.get_item(Game.equip[_sel["eq"]])
-	if it.is_empty():
-		var l := UiKit.label("Нажми на предмет, чтобы посмотреть его. Предметы выпадают из монстров и сундуков.", 12, Color(1, 1, 1, 0.6))
+		inst = Game.equip[_sel["eq"]]
+	if inst.is_empty():
+		var l := UiKit.label("Нажми на предмет, чтобы посмотреть его. Предметы выпадают из монстров и сундуков, а в кузнице их можно улучшать и соединять.", 12, Color(1, 1, 1, 0.6))
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(440, 0)
 		_info.add_child(l)
 		return
-	var rar: Dictionary = Items.RARITY[it["rarity"]]
-	_info.add_child(UiKit.label("%s %s" % [it["icon"], it["name"]], 15, rar["color"]))
-	_info.add_child(UiKit.label("%s · %s" % [rar["name"], Items.lines(it)], 12))
+	var it := Items.get_item(inst["id"])
+	_info.add_child(UiKit.label(Items.title(inst), 15, Items.color(inst)))
+	var rank_txt: String = "" if it["kind"] in ["potion", "material"] else Items.rank_of(inst)["name"] + " · "
+	_info.add_child(UiKit.label(rank_txt + Items.lines(inst), 12))
 	if from_inv and Items.SLOTS.has(it["kind"]) and Game.equip[it["kind"]] != null:
-		var cur := Items.get_item(Game.equip[it["kind"]])
-		_info.add_child(UiKit.label("Сейчас надето: %s (%s)" % [cur["name"], Items.lines(cur)], 11, Color(1, 1, 1, 0.6)))
+		var cur: Dictionary = Game.equip[it["kind"]]
+		_info.add_child(UiKit.label("Сейчас надето: %s, %s (%s)" % [Items.title(cur), Items.rank_of(cur)["name"].to_lower(), Items.lines(cur)], 11, Color(1, 1, 1, 0.6)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	_info.add_child(row)

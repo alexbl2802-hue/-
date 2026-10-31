@@ -8,9 +8,9 @@ const TYPES := {
 	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
 	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
 	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
-	"rabbit": {"hp": 85, "dmg": 12, "speed": 7.8, "r": 0.45, "aggro": 14.0, "reach": 1.6, "cd": 1.0, "windup": 0.3, "bar": 1.6, "lunge": true, "roam": true},
+	"rabbit": {"hp": 85, "dmg": 16, "speed": 7.8, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 1.6, "lunge": true, "roam": true},
 	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
-	"kobold": {"hp": 130, "dmg": 17, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 1.9, "cd": 1.1, "windup": 0.45, "bar": 2.1},
+	"kobold": {"hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
 

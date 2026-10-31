@@ -1,88 +1,72 @@
-## Кузница: «Улучшение оружия» и «Объединение» — окна уже есть, но пока закрыты.
+## Кузница: улучшение надетого оружия за золото и соединение трёх одинаковых вещей
+## одного ранга в одну вещь следующего ранга (нужны тёмные осколки из подземелий).
 extends Control
 
 signal closed
 
-const ENABLED := false  # включим, когда доделаем систему улучшения
-
-var _upgrade_info: Label
-var _weapon: HBoxContainer
+var _money: Label
+var _up_box: VBoxContainer
+var _list: VBoxContainer
+var _note: Label
 
 func _ready() -> void:
 	var vb := UiKit.modal(self, close)
 	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 14)
 	vb.add_child(head)
-	var title := UiKit.label("⚒ Кузница", 18, UiKit.GOLD)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	head.add_child(UiKit.label("⚒ Кузница", 18, UiKit.GOLD))
+	_money = UiKit.label("", 15, Color("#ffd34d"))
+	_money.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_money)
 	var x := UiKit.button("✕")
 	x.pressed.connect(close)
 	head.add_child(x)
+	# Ранги: от простого к легендарному
+	var ranks := HBoxContainer.new()
+	ranks.add_theme_constant_override("separation", 6)
+	ranks.add_child(UiKit.label("Ранги:", 11, Color(1, 1, 1, 0.6)))
+	for i in Items.RANKS.size():
+		ranks.add_child(UiKit.label(Items.RANKS[i]["name"] + (" →" if i < Items.MAX_RANK else ""), 11, Items.RANKS[i]["color"]))
+	vb.add_child(ranks)
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 12)
 	vb.add_child(body)
-	_weapon = HBoxContainer.new()
-	_upgrade_info = UiKit.label("", 12)
-	body.add_child(_card("Улучшение оружия", "Закаляй надетое оружие: каждая ступень добавляет урон. Нужны золото и материалы.", _weapon, _upgrade_info, "Улучшить"))
-	var combine := HBoxContainer.new()
-	combine.alignment = BoxContainer.ALIGNMENT_CENTER
-	combine.add_theme_constant_override("separation", 8)
-	combine.add_child(UiKit.slot("", Color(1, 1, 1, 0.2), "", "", 48.0))
-	combine.add_child(UiKit.label("+", 20))
-	combine.add_child(UiKit.slot("", Color(1, 1, 1, 0.2), "", "", 48.0))
-	combine.add_child(UiKit.label("=", 20))
-	combine.add_child(UiKit.slot("❔", Color(1, 1, 1, 0.2), "", "", 48.0))
-	body.add_child(_card("Объединение", "Объедини два предмета, чтобы получить новый — более редкий и сильный.", combine, UiKit.label("Результат зависит от редкости вещей.", 12), "Объединить"))
-	var note := UiKit.label("Кузнец ещё разжигает горн — улучшение и объединение появятся в следующих версиях.", 11, Color(1, 1, 1, 0.6))
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(note)
+	_up_box = VBoxContainer.new()
+	_up_box.add_theme_constant_override("separation", 6)
+	body.add_child(_card("Улучшение оружия", _up_box, 300))
+	var combine := VBoxContainer.new()
+	combine.add_theme_constant_override("separation", 6)
+	var hint := UiKit.label("%d одинаковые вещи одного ранга → 1 вещь следующего ранга. Нужны 🔮 тёмные осколки из подземелий." % Items.COMBINE_COUNT, 11, Color(1, 1, 1, 0.75))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(400, 0)
+	combine.add_child(hint)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(420, 168)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	combine.add_child(scroll)
+	_list = VBoxContainer.new()
+	_list.add_theme_constant_override("separation", 4)
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_list)
+	body.add_child(_card("Соединение", combine, 430))
+	_note = UiKit.label("", 12, UiKit.CREAM)
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(_note)
 
-func _card(title: String, text: String, row: Control, info: Label, btn: String) -> Control:
+func _card(title: String, content: Control, w: float) -> Control:
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiKit.box(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.12), 10, 10))
-	panel.custom_minimum_size = Vector2(340, 0)
+	panel.add_theme_stylebox_override("panel", UiKit.box(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.12), 10, 9))
+	panel.custom_minimum_size = Vector2(w, 0)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 6)
 	panel.add_child(vb)
 	vb.add_child(UiKit.label(title, 15, UiKit.CREAM))
-	var t := UiKit.label(text, 12, Color(1, 1, 1, 0.8))
-	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	t.custom_minimum_size = Vector2(320, 0)
-	vb.add_child(t)
-	if row is HBoxContainer:
-		(row as HBoxContainer).alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_child(row)
-	vb.add_child(info)
-	var b := UiKit.button(btn, true)
-	b.disabled = not ENABLED
-	vb.add_child(b)
-	# Замок поверх карточки
-	var lock := ColorRect.new()
-	lock.color = Color(0.04, 0.03, 0.02, 0.62)
-	lock.mouse_filter = Control.MOUSE_FILTER_STOP
-	var cc := CenterContainer.new()
-	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	lock.add_child(cc)
-	var l := UiKit.label("🔒\nСкоро будет доступно", 15, UiKit.GOLD)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cc.add_child(l)
-	lock.visible = not ENABLED
-	panel.add_child(lock)
+	vb.add_child(content)
 	return panel
 
 func open() -> void:
-	for c in _weapon.get_children():
-		c.queue_free()
-	var id = Game.equip["weapon"]
-	if id != null:
-		var it := Items.get_item(id)
-		var col: Color = Items.RARITY[it["rarity"]]["color"]
-		_weapon.add_child(UiKit.slot(it["icon"], col, "", "", 48.0))
-		_weapon.add_child(UiKit.label("→", 20))
-		_weapon.add_child(UiKit.slot(it["icon"], col, "+1", "", 48.0))
-		_upgrade_info.text = "%s: урон +%d → +%d" % [it["name"], it["dmg"], it["dmg"] + 3]
-	else:
-		_upgrade_info.text = "Надень оружие, чтобы улучшить его"
+	_note.text = ""
+	_render()
 	visible = true
 	get_tree().paused = true
 
@@ -90,3 +74,81 @@ func close() -> void:
 	visible = false
 	get_tree().paused = false
 	closed.emit()
+
+func _clear(n: Node) -> void:
+	for c in n.get_children():
+		n.remove_child(c)
+		c.queue_free()
+
+func _render() -> void:
+	_money.text = "🪙 %d    🔮 %d" % [Game.gold, Game.count_of("shard")]
+	_render_upgrade()
+	_render_combine()
+
+func _render_upgrade() -> void:
+	_clear(_up_box)
+	var w = Game.equip["weapon"]
+	if w == null:
+		_up_box.add_child(UiKit.label("Надень оружие, чтобы улучшить его", 12))
+		return
+	var it := Items.get_item(w["id"])
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % w["u"] if w["u"] > 0 else "", "", 52.0))
+	if w["u"] < Items.MAX_UPGRADE:
+		row.add_child(UiKit.label("→", 20))
+		row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % (w["u"] + 1), "", 52.0))
+	_up_box.add_child(row)
+	_up_box.add_child(UiKit.label(Items.title(w), 14, Items.color(w)))
+	_up_box.add_child(UiKit.label("%s · ступень %d / %d" % [Items.rank_of(w)["name"], w["u"], Items.MAX_UPGRADE], 11, Color(1, 1, 1, 0.7)))
+	if w["u"] >= Items.MAX_UPGRADE:
+		_up_box.add_child(UiKit.label("Урон +%d — улучшено до предела" % Items.stat(w, "dmg"), 12, Color("#7dff8a")))
+		return
+	var dmg := Items.stat(w, "dmg")
+	_up_box.add_child(UiKit.label("Урон оружия: +%d → +%d" % [dmg, dmg + Items.UPGRADE_DMG], 12))
+	var cost := Items.upgrade_cost(w["u"])
+	var b := UiKit.button("Улучшить за 🪙 %d" % cost, true, 14)
+	b.disabled = Game.gold < cost
+	b.pressed.connect(func():
+		if Game.upgrade_weapon():
+			_note.text = "⚒ %s — урон +%d" % [Items.title(Game.equip["weapon"]), Items.stat(Game.equip["weapon"], "dmg")]
+		_render())
+	_up_box.add_child(b)
+	if Game.gold < cost:
+		_up_box.add_child(UiKit.label("Не хватает золота", 11, Color("#ff9a7a")))
+
+func _render_combine() -> void:
+	_clear(_list)
+	var groups := Game.combine_groups()
+	if groups.is_empty():
+		_list.add_child(UiKit.label("Нет оружия и снаряжения для соединения", 12, Color(1, 1, 1, 0.6)))
+		return
+	for g in groups:
+		var inst := {"id": g["id"], "r": g["r"], "u": 0, "n": 1}
+		var it := Items.get_item(g["id"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.add_child(UiKit.slot(it["icon"], Items.color(inst), "", "", 36.0))
+		var info := VBoxContainer.new()
+		info.add_theme_constant_override("separation", 0)
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_child(UiKit.label(it["name"], 12, Items.color(inst)))
+		var r: int = g["r"]
+		if r < Items.MAX_RANK:
+			var cost := Items.combine_cost(r)
+			info.add_child(UiKit.label("%s → %s · есть %d / %d · 🔮 %d  🪙 %d" % [Items.RANKS[r]["name"], Items.RANKS[r + 1]["name"], g["count"], Items.COMBINE_COUNT, cost[0], cost[1]], 10, Color(1, 1, 1, 0.75)))
+		else:
+			info.add_child(UiKit.label("Легендарный — высший ранг", 10, Items.RANKS[r]["color"]))
+		row.add_child(info)
+		var why := Game.can_combine(g["id"], r)
+		var b := UiKit.button("Соединить" if why == "" else why, why == "", 12)
+		b.disabled = why != ""
+		b.custom_minimum_size = Vector2(120, 0)
+		b.pressed.connect(func():
+			var res := Game.combine(g["id"], r)
+			if not res.is_empty():
+				_note.text = "✨ Получено: %s — %s" % [Items.title(res), Items.rank_of(res)["name"]]
+			_render())
+		row.add_child(b)
+		_list.add_child(row)
