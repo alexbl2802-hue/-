@@ -251,13 +251,9 @@ func _build_pillar(c: Vector3) -> void:
 		_box(Vector3(1.7, 0.4, 1.7), Mats.lp(0x8a8276), Vector3(c.x, Y + yy, c.z))
 	_col_cyl(Vector3(c.x, Y, c.z), 0.8, WALL_H)
 
-func _build_torch(t: Vector2i) -> void:
+## Факел пещеры — как был
+func _build_cave_torch(t: Vector2i, d: Vector2i) -> void:
 	var c := cell_center(t.x, t.y)
-	var d := Vector2i.ZERO
-	for dv in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		if solid(t.x + dv.x, t.y + dv.y):
-			d = dv
-			break
 	var off := CELL / 2.0 - 0.25 + pad * 0.6
 	var wx := c.x + d.x * off
 	var wz := c.z + d.y * off
@@ -271,9 +267,73 @@ func _build_torch(t: Vector2i) -> void:
 	light.omni_attenuation = 1.3
 	light.position = Vector3(wx - d.x * 0.8, Y + 3.0, wz - d.y * 0.8)
 	add_child(light)
+	torch_spots.append([Vector3(wx, Y + 3.0, wz), -Vector3(d.x, 0, d.y)])
 	_flickers.append({"light": light, "flame": fl, "base": 2.2, "seed": _rng.randf() * 100.0, "slow": false})
 
+## Факел склепа на стене: железный держатель на стене, факел наклонён от стены.
+## Если в клетке рядом нет стены, в склепе факел переносится на ближайшую стену,
+## а в пещере такой факел не ставится (там светят кристаллы).
+var torch_spots := []            # [пламя, направление от стены] — для проверок
+const TORCH_LIGHT := 2.31        # +5% к прежним 2,2
+const TORCH_FLAME := 1.05        # яркость пламени +5%
+
+func _build_torch(t: Vector2i) -> void:
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var d := Vector2i.ZERO
+	for dv in dirs:
+		if solid(t.x + dv.x, t.y + dv.y):
+			d = dv
+			break
+	if cave:
+		if d != Vector2i.ZERO:
+			_build_cave_torch(t, d)
+		return   # факел без стены рядом висел бы в пустоте — в пещере его нет
+	if d == Vector2i.ZERO:
+		var best := 99
+		for dv in dirs:
+			for k in range(2, 6):
+				if solid(t.x + dv.x * k, t.y + dv.y * k):
+					if k < best:
+						best = k
+						d = dv
+					break
+		if best == 99:
+			return
+		t += d * (best - 1)
+	var c := cell_center(t.x, t.y)
+	var into := Vector3(d.x, 0, d.y)    # в стену
+	var n := -into                       # от стены в зал
+	var wall := c + into * CELL / 2.0
+	var h := Y + 2.3
+	var iron := Mats.lp(0x2e2a26, 0.6, 0.7)
+	# Держатель: пластина на стене и короткий кронштейн
+	var flat := Vector3(0.05, 0.32, 0.2) if d.x != 0 else Vector3(0.2, 0.32, 0.05)
+	_box(flat, iron, Vector3(wall.x, h, wall.z) + n * 0.025)
+	var arm := Vector3(0.16, 0.05, 0.06) if d.x != 0 else Vector3(0.06, 0.05, 0.16)
+	_box(arm, iron, Vector3(wall.x, h - 0.08, wall.z) + n * 0.1)
+	# Факел под углом от стены
+	var tilt := 0.45
+	var up := (Vector3.UP * cos(tilt) + n * sin(tilt)).normalized()
+	var base := Vector3(wall.x, h - 0.2, wall.z) + n * 0.16
+	var stick := _mesh(_cyl(0.06, 0.08, 0.7, 5), Mats.lp(0x4a3220), base + up * 0.35)
+	stick.basis = _basis_up_to(up)
+	var flame_mat := StandardMaterial3D.new()
+	flame_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flame_mat.albedo_color = WorldGen.hex(0xffb040) * TORCH_FLAME
+	var top := base + up * 0.72
+	var fl := _mesh(_cyl(0.0, 0.15, 0.4, 5), flame_mat, top + Vector3(0, 0.18, 0))
+	var light := OmniLight3D.new()
+	light.light_color = WorldGen.hex(0xff8a30)
+	light.light_energy = TORCH_LIGHT
+	light.omni_range = 15.0
+	light.omni_attenuation = 1.3
+	light.position = top + n * 0.6 + Vector3(0, 0.2, 0)
+	add_child(light)
+	torch_spots.append([top, n])
+	_flickers.append({"light": light, "flame": fl, "base": TORCH_LIGHT, "seed": _rng.randf() * 100.0, "slow": false})
+
 # ---------- Кристаллы: растут на стенах и потолке пещеры и мягко светятся
+const CRYSTAL_BOOST := 1.02      # свет и свечение кристаллов +2%
 func _build_crystals(floors: Array, k_cells: Array) -> void:
 	var faces := []
 	for f in floors:
@@ -345,7 +405,7 @@ func _build_crystals(floors: Array, k_cells: Array) -> void:
 			lights += 1
 			var light := OmniLight3D.new()
 			light.light_color = Color.from_hsv(hues[hi], 0.5, 1.0)
-			var e := 1.1 if cl.get("big", false) else 0.7
+			var e := (1.1 if cl.get("big", false) else 0.7) * CRYSTAL_BOOST
 			light.light_energy = e
 			light.omni_range = 11.0
 			light.omni_attenuation = 1.5
@@ -353,7 +413,7 @@ func _build_crystals(floors: Array, k_cells: Array) -> void:
 			add_child(light)
 			_flickers.append({"light": light, "base": e, "seed": _rng.randf() * 100.0, "slow": true})
 	for hi in 2:
-		var m := Mats.lp(Color.from_hsv(hues[hi], 0.55, 0.95).to_rgba32() >> 8, 0.25, 0.0, Color.from_hsv(hues[hi], 0.85, 0.7).to_rgba32() >> 8, 1.1)
+		var m := Mats.lp(Color.from_hsv(hues[hi], 0.55, 0.95).to_rgba32() >> 8, 0.25, 0.0, Color.from_hsv(hues[hi], 0.85, 0.7).to_rgba32() >> 8, 1.1 * CRYSTAL_BOOST)
 		var mm := _mm(cone, parts[hi].size(), false)
 		for k in parts[hi].size():
 			mm.set_instance_transform(k, parts[hi][k])
