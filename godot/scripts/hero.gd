@@ -43,6 +43,8 @@ var _spin_hit := false
 var _dash_t := -1.0
 var _dash_dir := Vector3.FORWARD
 var _dash_hit: Array = []
+var _dash_speed := 1.0       # во сколько раз быстрее базовой (растёт с уровнем и эволюцией)
+const DASH_SPEED := 28.0     # базовая скорость рывка, м/с
 var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
 var _anim: AnimationPlayer
@@ -512,11 +514,15 @@ func use_skill(id: String) -> void:
 		facing = atan2(dir.x, dir.z)
 		_dash_t = 0.0
 		_dash_hit = []
-		cd["dash"] = SkillDefs.dash_cd(r)
+		_dash_speed = SkillDefs.dash_stats(Game.skills)["speed"]
+		cd["dash"] = SkillDefs.dash_stats(Game.skills)["cd"]
+		if SkillDefs.dash_form(Game.skills) == "blink":
+			# Мерцание: вспышка там, где герой исчез
+			Fx.ring(global_position + Vector3(0, 0.1, 0), Color("#b9a8ff"), 2.0, 0.4, true)
 
 func cooldown_total(id: String) -> float:
 	var r := maxi(1, Game.rank(id))
-	return SkillDefs.whirl_cd(r) if id == "whirl" else SkillDefs.dash_cd(r)
+	return SkillDefs.whirl_cd(r) if id == "whirl" else SkillDefs.dash_stats(Game.skills)["cd"]
 
 func _whirl_hit() -> void:
 	var mult := 1.2 + 0.3 * (Game.rank("whirl") - 1)
@@ -530,7 +536,7 @@ func _whirl_hit() -> void:
 		e.knock(1.5)
 
 func _dash_hits() -> void:
-	var mult := 0.8 + 0.3 * (Game.rank("dash") - 1)
+	var mult := SkillDefs.DASH_DMG   # сквозь врагов — 20% урона
 	for e in enemies.alive_near(global_position, 3.0):
 		if _dash_hit.has(e):
 			continue
@@ -609,10 +615,16 @@ func _physics_process(dt: float) -> void:
 	# Рывок: быстрое движение вперёд сквозь врагов, герой неуязвим
 	if _dash_t >= 0.0:
 		_dash_t += dt
-		hv = _dash_dir * 28.0
+		hv = _dash_dir * DASH_SPEED * _dash_speed
 		_invuln = maxf(_invuln, 0.1)
+		# Мерцание: герой исчезает на время рывка и появляется со вспышкой
+		var blink := SkillDefs.dash_form(Game.skills) == "blink"
+		_model.visible = not (blink and _dash_t > 0.03)
 		if _dash_t >= 0.26:
 			_dash_t = -1.0
+			_model.visible = true
+			if blink:
+				Fx.ring(global_position + Vector3(0, 0.1, 0), Color("#b9a8ff"), 2.5, 0.45, true)
 	hv += _push
 	_push *= exp(-dt * 7.0)
 	velocity.x = hv.x

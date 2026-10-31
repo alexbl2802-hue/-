@@ -25,6 +25,7 @@ var free_points := 0
 var skill_ranks := {"whirl": 0, "dash": 0}
 var cd_left := {"whirl": 0.0, "dash": 0.0}
 var cd_total := {"whirl": 1.0, "dash": 1.0}
+var dash_icon := "💨"   # меняется с эволюцией: 🌬️ Скользящий шаг, ✨ Мерцание
 
 var _pts := {}          # индекс касания → позиция
 var _btn_touch := {}    # индекс касания → кнопка
@@ -59,7 +60,7 @@ func _buttons() -> Array:
 	if skill_ranks["whirl"] > 0:
 		list.append({"id": "whirl", "c": Vector2(s.x - 128 - 32, s.y - 98 - 32), "r": 32.0, "label": "🌀", "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
-		list.append({"id": "dash", "c": Vector2(s.x - 204 - 32, s.y - 28 - 32), "r": 32.0, "label": "💨", "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "dash", "c": Vector2(s.x - 204 - 32, s.y - 28 - 32), "r": 32.0, "label": dash_icon, "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
 	return list
 
 func _act_rect() -> Rect2:

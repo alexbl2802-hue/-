@@ -188,6 +188,8 @@ func points_free() -> int:
 	var spent := 0
 	for s in SkillDefs.LIST:
 		spent += rank(s["id"])
+	# Эволюция в Скользящий шаг даёт его 1-й уровень бесплатно, дальше — по очку за уровень
+	spent += maxi(0, rank("dash_slide") - 1)
 	return mini(level, SkillDefs.MAX_SKILL_LEVEL) - 1 - spent
 
 func refresh() -> void:
@@ -259,6 +261,13 @@ func use_potion() -> float:
 	return 0.0
 
 func learn(id: String) -> bool:
+	# После эволюции очки идут в Скользящий шаг
+	if id == "dash" and SkillDefs.dash_form(skills) != "dash":
+		if SkillDefs.dash_form(skills) != "slide" or points_free() <= 0 or rank("dash_slide") >= SkillDefs.SLIDE_MAX:
+			return false
+		skills["dash_slide"] = rank("dash_slide") + 1
+		save_game()
+		return true
 	var s := SkillDefs.find(id)
 	if s.is_empty() or points_free() <= 0 or level < s["lvl"] or rank(id) >= s["max"]:
 		return false
@@ -267,6 +276,25 @@ func learn(id: String) -> bool:
 	refresh()
 	if id == "vitality":
 		hp += max_hp - before
+	save_game()
+	return true
+
+## Эволюция навыка: Рывок (10 ур.) → Скользящий шаг, затем прорыв Скользящий шаг (5 ур.) → Мерцание
+func can_evolve(id: String) -> bool:
+	if id != "dash":
+		return false
+	match SkillDefs.dash_form(skills):
+		"dash": return rank("dash") >= SkillDefs.find("dash")["max"]
+		"slide": return rank("dash_slide") >= SkillDefs.SLIDE_MAX
+	return false
+
+func evolve(id: String) -> bool:
+	if not can_evolve(id):
+		return false
+	if SkillDefs.dash_form(skills) == "dash":
+		skills["dash_slide"] = 1
+	else:
+		skills["dash_blink"] = 1
 	save_game()
 	return true
 
@@ -308,4 +336,10 @@ func load_game() -> bool:
 		var r := int(d.get("skills", {}).get(s["id"], 0))
 		if r > 0:
 			skills[s["id"]] = mini(r, s["max"])
+	# Эволюция рывка
+	var sl := int(d.get("skills", {}).get("dash_slide", 0))
+	if sl > 0 and rank("dash") >= SkillDefs.find("dash")["max"]:
+		skills["dash_slide"] = mini(sl, SkillDefs.SLIDE_MAX)
+		if int(d.get("skills", {}).get("dash_blink", 0)) > 0 and skills["dash_slide"] >= SkillDefs.SLIDE_MAX:
+			skills["dash_blink"] = 1
 	return true

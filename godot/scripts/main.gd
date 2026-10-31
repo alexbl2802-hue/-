@@ -253,6 +253,7 @@ func _process(_dt: float) -> void:
 	var t: Control = hud.touch
 	t.potions = Game.potions()
 	t.free_points = Game.points_free()
+	t.dash_icon = SkillDefs.DASH_FORMS[SkillDefs.dash_form(Game.skills)]["icon"]
 	for id in ["whirl", "dash"]:
 		t.skill_ranks[id] = Game.rank(id)
 		t.cd_left[id] = hero.cd[id]

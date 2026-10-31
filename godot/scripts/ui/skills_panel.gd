@@ -120,6 +120,9 @@ func _ready() -> void:
 	_evo = _btn("✨ Эволюция", false)
 	_evo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_evo.custom_minimum_size = Vector2(0, 40)
+	_evo.pressed.connect(func():
+		if Game.evolve(_sel):
+			_render())
 	buttons.add_child(_evo)
 
 func _wrap(l: Label) -> Label:
@@ -197,6 +200,10 @@ func _render() -> void:
 		var row := Button.new()
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.text = "%s  %s      %d / %d" % [s["icon"], s["name"], r, s["max"]]
+		if id == "dash":   # у рывка — текущая форма эволюции
+			match SkillDefs.dash_form(Game.skills):
+				"slide": row.text = "🌬️  Скользящий шаг      %d / %d" % [Game.rank("dash_slide"), SkillDefs.SLIDE_MAX]
+				"blink": row.text = "✨  Мерцание      прорыв"
 		row.add_theme_font_size_override("font_size", 14)
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:
@@ -218,6 +225,9 @@ func _render() -> void:
 
 ## Правая половина: что даёт навык сейчас и на следующем ранге, кнопки
 func _render_info(free: int) -> void:
+	if _sel == "dash" and SkillDefs.dash_form(Game.skills) != "dash":
+		_render_dash_evo(free)
+		return
 	var s: Dictionary = SkillDefs.find(_sel)
 	var r := Game.rank(_sel)
 	var mx: int = s["max"]
@@ -233,7 +243,43 @@ func _render_info(free: int) -> void:
 	_d_need.text = "Нужен уровень %d" % s["lvl"] if locked else ""
 	_up.text = "Изучить" if r == 0 else "Улучшить"
 	_up.disabled = locked or r >= mx or free <= 0
-	# Эволюция — только на максимальном ранге (сама эволюция пока закрыта)
+	# Эволюция — на максимальном ранге (у рывка — в Скользящий шаг, у остальных пока закрыта)
+	if _sel == "dash":
+		_d_next.text += "\nНа %d уровне — эволюция в Скользящий шаг" % mx if r < mx else ""
+		_evo.text = "✨ Эволюция: Скользящий шаг" if Game.can_evolve("dash") else "✨ Эволюция  🔒"
+		_evo.disabled = not Game.can_evolve("dash")
+		return
 	var evo_ready: bool = r >= mx and SkillDefs.EVOLUTION_ENABLED
 	_evo.text = "✨ Эволюция" if evo_ready else "✨ Эволюция  🔒"
 	_evo.disabled = not evo_ready
+
+## Рывок после эволюции: Скользящий шаг (5 уровней) и прорыв в Мерцание
+func _render_dash_evo(free: int) -> void:
+	var form := SkillDefs.dash_form(Game.skills)
+	var st := SkillDefs.dash_stats(Game.skills)
+	_d_kind.text = "Умение — своя кнопка на экране · эволюция Рывка"
+	_d_need.text = ""
+	_d_now.text = "Сейчас: " + SkillDefs.dash_desc(st["speed"], st["cd"])
+	if form == "blink":
+		_d_name.text = "✨ Мерцание"
+		_d_rank.text = "Прорыв · высшая форма"
+		_d_next.text = "Герой исчезает и появляется впереди"
+		_up.text = "Максимум"
+		_up.disabled = true
+		_evo.text = "⚡ Прорыв пройден"
+		_evo.disabled = true
+		return
+	var sl := Game.rank("dash_slide")
+	_d_name.text = "🌬️ Скользящий шаг"
+	_d_rank.text = "Уровень %d / %d" % [sl, SkillDefs.SLIDE_MAX]
+	if sl < SkillDefs.SLIDE_MAX:
+		var nx := Game.skills.duplicate()
+		nx["dash_slide"] = sl + 1
+		var ns := SkillDefs.dash_stats(nx)
+		_d_next.text = "Следующий уровень: " + SkillDefs.dash_desc(ns["speed"], ns["cd"]) + "\nНа %d уровне — прорыв в Мерцание" % SkillDefs.SLIDE_MAX
+	else:
+		_d_next.text = "Прорыв в Мерцание: скорость +200%, откат 3 с"
+	_up.text = "Улучшить"
+	_up.disabled = sl >= SkillDefs.SLIDE_MAX or free <= 0
+	_evo.text = "⚡ Прорыв: Мерцание" if Game.can_evolve("dash") else "⚡ Прорыв  🔒"
+	_evo.disabled = not Game.can_evolve("dash")
