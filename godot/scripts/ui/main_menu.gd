@@ -54,6 +54,13 @@ func _ready() -> void:
 	_info = UiKit.label("", 12, Color(1, 1, 1, 0.7))
 	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(_info)
+	# Номер версии в углу — чтобы видеть, какая сборка установлена (его прописывает сборка APK)
+	var ver := UiKit.label("Версия " + str(ProjectSettings.get_setting("application/config/version", "dev")), 12, Color(1, 1, 1, 0.55))
+	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	ver.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	ver.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	ver.position -= Vector2(14, 10)
+	add_child(ver)
 
 func open() -> void:
 	_new_armed = false

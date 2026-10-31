@@ -57,6 +57,13 @@ jobs:
             || echo 'export/android/debug_keystore_user = "androiddebugkey"' >> "$S"
           grep '^export/android' "$S"
 
+      - name: Set version
+        run: |
+          # Номер версии — в игре (главное меню) и в имени файла, чтобы сборки нельзя было перепутать
+          echo "VER=2.0.${{ github.run_number }}" >> "$GITHUB_ENV"
+          sed -i "s|^config/version=.*|config/version=\"2.0.${{ github.run_number }}\"|" godot/project.godot
+          grep '^config/version' godot/project.godot
+
       - name: Import project
         run: ~/godot-cache/godot --headless --path godot --import || true
 
@@ -65,16 +72,16 @@ jobs:
           # Тот же идентификатор и ключ, что у старого приложения, а номер версии выше —
           # поэтому APK ставится поверх старой версии, а не отдельным приложением
           CODE=$((1000 + ${{ github.run_number }}))
-          sed -i "s|^version/code=.*|version/code=$CODE|; s|^version/name=.*|version/name=\"2.0.${{ github.run_number }}\"|" godot/export_presets.cfg
+          sed -i "s|^version/code=.*|version/code=$CODE|; s|^version/name=.*|version/name=\"$VER\"|" godot/export_presets.cfg
           mkdir -p build
-          ~/godot-cache/godot --headless --path godot --export-debug "Android" ../build/ZemliPriklyucheniy-Godot.apk
+          ~/godot-cache/godot --headless --path godot --export-debug "Android" ../build/ZemliPriklyucheniy-$VER.apk
           ls -la build
-          test -s build/ZemliPriklyucheniy-Godot.apk
+          test -s build/ZemliPriklyucheniy-$VER.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ZemliPriklyucheniy-Godot-apk
-          path: build/ZemliPriklyucheniy-Godot.apk
+          name: ZemliPriklyucheniy-${{ env.VER }}-apk
+          path: build/ZemliPriklyucheniy-${{ env.VER }}.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -82,8 +89,8 @@ jobs:
           tag_name: v2.0.${{ github.run_number }}
           name: Земли Приключений 2.0.${{ github.run_number }} (Godot)
           body: |
-            Игра на движке **Godot 4.7**. Скачай **ZemliPriklyucheniy-Godot.apk** и установи —
-            обновление встанет поверх уже установленной игры.
-          files: build/ZemliPriklyucheniy-Godot.apk
+            Игра на движке **Godot 4.7**. Скачай **ZemliPriklyucheniy-${{ env.VER }}.apk** и установи —
+            обновление встанет поверх уже установленной игры. Номер версии виден в главном меню.
+          files: build/ZemliPriklyucheniy-${{ env.VER }}.apk
           prerelease: false
           make_latest: true
