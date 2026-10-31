@@ -28,15 +28,34 @@
   #xpwrap { width: 220px; height: 6px; border-radius: 3px; background: rgba(0,0,0,0.55); border: 1px solid rgba(160,220,255,0.3); overflow: hidden; }
   #xpbar { height: 100%; width: 0; background: linear-gradient(#9fe4ff, #2a7fb0); transition: width 0.3s; }
   #hudBtns { position: fixed; left: calc(12px + env(safe-area-inset-left)); top: calc(12px + env(safe-area-inset-top)); display: flex; gap: 8px; z-index: 5; }
-  .hbtn { position: relative; width: 50px; height: 50px; border-radius: 12px; background: rgba(20,16,10,0.65); border: 2px solid rgba(255,220,160,0.45);
-    display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; }
+  .hbtn { position: relative; width: 52px; height: 52px; border-radius: 12px; background: rgba(20,16,10,0.65); border: 2px solid rgba(255,220,160,0.45);
+    display: flex; align-items: center; justify-content: center; font-size: 27px; cursor: pointer; }
+  .hbtn.glow { border-color: #ffd479; animation: glow 1.4s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: 0 0 16px rgba(255,212,121,0.9); } }
   .hbtn:active { transform: scale(0.93); }
   .hbtn .n { position: absolute; right: 4px; bottom: 1px; font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
   #floaters { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
   .floater { position: absolute; left: 0; top: 0; font-weight: 800; font-size: 17px; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 2px #000; }
   .floater.big { font-size: 24px; }
   #inv { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 15; touch-action: manipulation; }
-  #inv.hidden { display: none; }
+  #inv.hidden, #skills.hidden { display: none; }
+  #skills { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 15; touch-action: manipulation; }
+  #skPoints { color: #ffe7b0; font-size: 14px; flex: 1; }
+  #skPoints b { color: #ffd479; font-size: 17px; }
+  #skGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .sk { border-radius: 10px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); padding: 6px 8px;
+    display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; }
+  .sk.act { border-color: rgba(127,216,255,0.45); }
+  .sk.locked { opacity: 0.45; }
+  .sk .t { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: #ffe7b0; }
+  .sk .t span { font-size: 20px; }
+  .sk .tag { font-size: 10px; color: #8fd8ff; }
+  .sk .pips { letter-spacing: 1px; color: #ffd479; font-size: 11px; margin-right: 4px; }
+  .sk .d { opacity: 0.88; line-height: 1.25; flex: 1; }
+  .sk .d i { opacity: 0.6; font-style: normal; }
+  .sk .ibtn { padding: 4px 10px; font-size: 12.5px; align-self: stretch; margin-top: 2px; }
+  .sk .ibtn.off { opacity: 0.35; }
+  .sk .note { font-size: 11.5px; text-align: center; padding: 4px 0; }
   .inv-box { width: min(800px, 96vw); max-height: 96vh; overflow-y: auto; background: rgba(28,22,16,0.97); border: 2px solid rgba(255,220,160,0.4); border-radius: 12px;
     padding: 10px 14px; box-sizing: border-box; }
   .inv-head { display: flex; align-items: center; gap: 14px; font-size: 18px; color: #ffd479; margin-bottom: 8px; }
@@ -85,13 +104,18 @@
   #joyKnob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(255,212,121,0.55); border: 2px solid rgba(255,240,200,0.8); }
   #joyHint { position: fixed; left: calc(60px + env(safe-area-inset-left)); bottom: calc(50px + env(safe-area-inset-bottom)); width: 110px; height: 110px; border-radius: 50%; border: 2px dashed rgba(255,230,180,0.25); pointer-events: none; }
   .tbtn { position: fixed; border-radius: 50%; background: rgba(20,16,10,0.55); border: 2px solid rgba(255,220,160,0.45); color: #ffe7b0; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; text-align: center; font-size: 26px; touch-action: none; }
+    display: flex; align-items: center; justify-content: center; text-align: center; font-size: 27px; touch-action: none; }
   .tbtn.on { background: rgba(255,212,121,0.5); color: #2a1d08; }
   .tbtn:active, .tbtn.pressed { transform: scale(0.93); background: rgba(255,212,121,0.35); }
-  #btnAttack { width: 88px; height: 88px; right: calc(24px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); font-size: 38px; border-color: rgba(255,140,110,0.7); }
-  #btnJump { width: 64px; height: 64px; right: calc(124px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); }
-  #btnRun { width: 54px; height: 54px; right: calc(40px + env(safe-area-inset-right)); bottom: calc(128px + env(safe-area-inset-bottom)); font-size: 22px; }
-  #btnAct { right: calc(110px + env(safe-area-inset-right)); bottom: calc(100px + env(safe-area-inset-bottom)); height: 54px; padding: 0 20px; border-radius: 27px; font-size: 17px; display: none;
+  #btnAttack { width: 91px; height: 91px; right: calc(24px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); font-size: 39px; border-color: rgba(255,140,110,0.7); }
+  #btnJump { width: 66px; height: 66px; right: calc(126px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); }
+  #btnRun { width: 56px; height: 56px; right: calc(40px + env(safe-area-inset-right)); bottom: calc(130px + env(safe-area-inset-bottom)); font-size: 23px; }
+  .sk-btn { width: 64px; height: 64px; display: none; font-size: 29px; border-color: rgba(127,216,255,0.75); overflow: hidden; }
+  .sk-btn .cdv { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+  .sk-btn .cdt { position: absolute; font-size: 17px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px #000; pointer-events: none; }
+  #btnSkill1 { right: calc(128px + env(safe-area-inset-right)); bottom: calc(98px + env(safe-area-inset-bottom)); }
+  #btnSkill2 { right: calc(204px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); }
+  #btnAct { right: calc(24px + env(safe-area-inset-right)); bottom: calc(198px + env(safe-area-inset-bottom)); height: 56px; padding: 0 21px; border-radius: 28px; font-size: 17.5px; display: none;
     background: rgba(255,212,121,0.85); color: #2a1d08; border-color: #fff3d0; max-width: 46vw; }
   @media (max-height: 500px) {
     #status { font-size: 13px; padding: 6px 10px; }
@@ -115,8 +139,13 @@
 <div id="hudBtns">
   <div id="btnInv" class="hbtn">🎒</div>
   <div id="btnPotion" class="hbtn">🧪<span id="potionN" class="n">0</span></div>
+  <div id="btnSkills" class="hbtn">⭐<span id="skillN" class="n"></span></div>
 </div>
 <div id="floaters"></div>
+<div id="skills" class="hidden"><div class="inv-box">
+  <div class="inv-head"><b>Навыки</b><span id="skPoints"></span><div class="ibtn small" data-act="reset">Сбросить</div><div class="ibtn" data-act="close">✕</div></div>
+  <div id="skGrid"></div>
+</div></div>
 <div id="inv" class="hidden"><div class="inv-box">
   <div class="inv-head"><b>Инвентарь</b><span id="invGold"></span><div class="ibtn small" data-act="reset">Новая игра</div><div class="ibtn" data-act="close">✕</div></div>
   <div class="inv-body">
@@ -130,6 +159,8 @@
   <div id="joyHint"></div>
   <div id="joyBase"><div id="joyKnob"></div></div>
   <div id="btnAttack" class="tbtn">⚔</div>
+  <div id="btnSkill1" class="tbtn sk-btn">🌀<span class="cdv"></span><span class="cdt"></span></div>
+  <div id="btnSkill2" class="tbtn sk-btn">💨<span class="cdv"></span><span class="cdt"></span></div>
   <div id="btnJump" class="tbtn">⤒</div>
   <div id="btnRun" class="tbtn">🏃</div>
   <div id="btnAct" class="tbtn"></div>
@@ -832,6 +863,7 @@ const state = {
   yaw: 0, pitch: 0.35, dist: 8, treasures: 0, busy: false,
   hp: 100, maxHp: 100, attackT: -1, attackHit: false, invuln: 0, hurtAgo: 99, dead: false, kills: 0,
   pushX: 0, pushZ: 0,
+  spinT: -1, spinHit: false, dashT: -1, dashX: 0, dashZ: 1, dashHit: null, cd: { whirl: 0, dash: 0 },
 };
 
 addEventListener('resize', () => {
@@ -865,7 +897,7 @@ function initTouch() {
 
   addEventListener('touchstart', e => {
     for (const t of e.changedTouches) {
-      if (t.target.closest?.('.tbtn, .hbtn, #inv')) continue;
+      if (t.target.closest?.('.tbtn, .hbtn, #inv, #skills')) continue;
       pts.set(t.identifier, { x: t.clientX, y: t.clientY });
       if (t.clientX < innerWidth * 0.42 && joyId === null) {
         joyId = t.identifier; ox = t.clientX; oy = t.clientY;
@@ -875,7 +907,7 @@ function initTouch() {
       else if (pinchId === null) { pinchId = t.identifier; pinchD = pinchDist(); }
     }
     // Кнопки интерфейса и инвентарь работают обычными нажатиями
-    if (!e.target.closest?.('.hbtn, #inv')) e.preventDefault();
+    if (!e.target.closest?.('.hbtn, #inv, #skills')) e.preventDefault();
   }, { passive: false });
 
   addEventListener('touchmove', e => {
@@ -900,7 +932,7 @@ function initTouch() {
         }
       }
     }
-    e.preventDefault();
+    if (!e.target.closest?.('#inv, #skills')) e.preventDefault();
   }, { passive: false });
 
   const end = e => {
@@ -920,6 +952,8 @@ function initTouch() {
     el.addEventListener('touchcancel', () => { el.classList.remove('pressed'); up?.(); });
   };
   press(document.getElementById('btnAttack'), attack);
+  press(document.getElementById('btnSkill1'), () => useSkill('whirl'));
+  press(document.getElementById('btnSkill2'), () => useSkill('dash'));
   press(btnJump, () => touch.jump = true, () => touch.jump = false);
   press(btnRun, () => { touch.run = !touch.run; btnRun.classList.toggle('on', touch.run); });
   press(btnAct, interact);
@@ -1093,6 +1127,7 @@ function updatePlayer(dt) {
   let speed = touch.run ? 11 : 5.5;
   speed *= Math.max(0.3, Math.min(1, len)); // джойстик: чем сильнее наклон, тем быстрее
   if (swimming) speed *= 0.5;
+  speed *= 1 + 0.08 * skillRank('agility');
   if (state.attackT >= 0) speed *= 0.45;
   let dx = 0, dz = 0;
   if (len > 0.12) {
@@ -1106,10 +1141,18 @@ function updatePlayer(dt) {
   } else {
     state.speedNow = lerp(state.speedNow, 0, Math.min(1, dt * 10));
   }
+  // Рывок: быстрое движение вперёд сквозь врагов, герой неуязвим
+  if (state.dashT >= 0) {
+    state.dashT += dt;
+    dx = state.dashX * 28 * dt; dz = state.dashZ * 28 * dt;
+    state.invuln = Math.max(state.invuln, 0.1);
+    if (state.dashT >= 0.26) state.dashT = -1;
+  }
   // Отбрасывание от ударов врагов
   dx += state.pushX * dt; dz += state.pushZ * dt;
   const decay = Math.exp(-dt * 7); state.pushX *= decay; state.pushZ *= decay;
   if (dx || dz) moveEntity(p, dx, dz, PLAYER_R, state.mode);
+  if (state.dashT >= 0) dashHits();
 
   // Вертикаль
   const floorY = inside ? dungeons[state.mode].Y : Math.max(groundAt(p.x, p.z), swimming ? WATER - 1.1 : -Infinity);
@@ -1132,10 +1175,11 @@ function updatePlayer(dt) {
   ud.arms[0].rotation.x = state.onGround ? -sw * amp * 0.8 : -2.4;
   ud.arms[1].rotation.x = state.onGround ? sw * amp * 0.8 : -2.4;
   // Удар мечом: замах над головой → рубящий удар вперёд → возврат
-  ud.arms[0].rotation.z = 0;
+  ud.arms[0].rotation.z = 0; ud.arms[1].rotation.z = 0;
   slash.material.opacity = 0;
+  for (const k in state.cd) state.cd[k] = Math.max(0, state.cd[k] - dt);
   if (state.attackT >= 0) {
-    state.attackT += dt;
+    state.attackT += dt * (1 + 0.1 * skillRank('agility'));
     const t = state.attackT;
     let ax, az;
     if (t < 0.12) { const k = t / 0.12; ax = lerp(0, -2.7, k); az = lerp(0, 0.45, k); }
@@ -1147,8 +1191,19 @@ function updatePlayer(dt) {
     if (t >= 0.48) state.attackT = -1;
   }
 
-  // Здоровье: восстанавливается вне боя, у костра — быстро
+  // Вихрь: герой крутится с вытянутым мечом
+  let spin = 0;
+  if (state.spinT >= 0) {
+    state.spinT += dt;
+    spin = Math.min(1, state.spinT / 0.45) * Math.PI * 2;
+    ud.arms[0].rotation.x = 0; ud.arms[0].rotation.z = -1.4; ud.arms[1].rotation.z = 1.2;
+    if (!state.spinHit && state.spinT >= 0.2) { state.spinHit = true; whirlHit(); }
+    if (state.spinT >= 0.45) state.spinT = -1;
+  }
+
+  // Здоровье: восстанавливается вне боя, у костра — быстро; навык «Регенерация» лечит всегда
   state.invuln -= dt; state.hurtAgo += dt;
+  if (!state.dead && skillRank('regen')) state.hp = Math.min(state.maxHp, state.hp + skillRank('regen') * 1.5 * dt);
   if (!state.dead && state.hp < state.maxHp) {
     const nearFire = state.mode < 0 && Math.hypot(p.x - campfire.position.x, p.z - campfire.position.z) < 7;
     if (nearFire || state.hurtAgo > 5) state.hp = Math.min(state.maxHp, state.hp + (nearFire ? 15 : 4) * dt);
@@ -1156,12 +1211,12 @@ function updatePlayer(dt) {
 
   const bob = moving && state.onGround ? Math.abs(Math.cos(state.walk)) * 0.08 : Math.sin(performance.now() / 600) * 0.015;
   hero.position.set(p.x, p.y + bob, p.z);
-  hero.rotation.y = state.facing;
+  hero.rotation.y = state.facing + spin;
   if (state.dead) {
     state.deadT += dt;
     hero.rotation.x = -Math.min(1, state.deadT * 2.5) * 1.45;
     hero.position.y = p.y + Math.min(1, state.deadT * 2.5) * 0.25;
-  } else hero.rotation.x = 0;
+  } else hero.rotation.x = state.dashT >= 0 ? 0.35 : 0;
 }
 
 // ============================================================
@@ -1181,7 +1236,7 @@ hero.add(slash);
 hero.rotation.order = 'YXZ';
 
 function attack() {
-  if (state.attackT >= 0 || state.busy || state.dead) return;
+  if (state.attackT >= 0 || state.spinT >= 0 || state.dashT >= 0 || state.busy || state.dead) return;
   state.attackT = 0; state.attackHit = false;
   // Автонаведение на ближайшего врага рядом — удобно на телефоне
   let best = null, bd = 4.5;
@@ -1199,13 +1254,23 @@ function swordHit() {
     const dx = e.pos.x - state.pos.x, dz = e.pos.z - state.pos.z, d = Math.hypot(dx, dz) || 0.01;
     if (d > 2.3 + e.T.r || Math.abs(e.pos.y - state.pos.y) > 2.5) continue;
     if (Math.abs(angDiff(Math.atan2(dx, dz), state.facing)) > 1.25 && d > e.T.r + 0.7) continue;
-    hitEnemy(e, state.dmg + Math.floor(Math.random() * 9), dx / d, dz / d);
+    dealDamage(e, 1, dx / d, dz / d);
   }
 }
 
-function hitEnemy(e, dmg, nx, nz) {
+// Урон героя с учётом навыков «Критический удар» и «Вампиризм»
+function dealDamage(e, mult, nx, nz) {
+  let dmg = Math.round((state.dmg + Math.random() * 8) * mult);
+  const crit = Math.random() < skillRank('crit') * 0.08;
+  if (crit) dmg *= 2;
+  hitEnemy(e, dmg, nx, nz, crit);
+  const vamp = skillRank('vamp') * 0.04;
+  if (vamp && !state.dead) state.hp = Math.min(state.maxHp, state.hp + dmg * vamp);
+}
+
+function hitEnemy(e, dmg, nx, nz, crit = false) {
   e.hp -= dmg; e.flash = 1;
-  floater(String(dmg), { x: e.pos.x, y: e.pos.y + e.T.barY - 2.0, z: e.pos.z }, '#fff2b0');
+  floater(crit ? dmg + '!' : String(dmg), { x: e.pos.x, y: e.pos.y + e.T.barY - 2.0, z: e.pos.z }, crit ? '#ff9a3a' : '#fff2b0', crit);
   e.kx = nx * 9; e.kz = nz * 9;
   if (e.hp <= 0) {
     e.dead = true; e.deadT = 0; e.bar.visible = false;
@@ -1234,7 +1299,7 @@ function damagePlayer(dmg, fromX, fromZ) {
 }
 
 function playerDie() {
-  state.dead = true; state.deadT = 0; state.attackT = -1;
+  state.dead = true; state.deadT = 0; state.attackT = -1; state.spinT = -1; state.dashT = -1;
   showBanner('Ты пал в бою', 'Очнёшься у костра…');
   setTimeout(() => transition(() => {
     setMode(-1);
@@ -1568,12 +1633,16 @@ const LOOT = {
 };
 const xpNext = lvl => 30 + lvl * 30;
 
-const prog = { level: 1, xp: 0, gold: 0, inv: [], equip: { weapon: null, armor: null, helm: null, amulet: null } };
+const prog = { level: 1, xp: 0, gold: 0, inv: [], equip: { weapon: null, armor: null, helm: null, amulet: null }, skills: {} };
 
 function heroStats() {
   const eq = Object.values(prog.equip).filter(Boolean).map(id => ITEMS[id]);
   const sum = k => eq.reduce((a, it) => a + (it[k] || 0), 0);
-  return { maxHp: 100 + (prog.level - 1) * 15 + sum('hp'), dmg: 18 + (prog.level - 1) * 4 + sum('dmg'), armor: sum('armor') };
+  return {
+    maxHp: 100 + (prog.level - 1) * 15 + sum('hp') + skillRank('vitality') * 20,
+    dmg: 18 + (prog.level - 1) * 4 + sum('dmg') + skillRank('strength') * 5,
+    armor: sum('armor'),
+  };
 }
 function refreshStats() {
   const st = heroStats();
@@ -1597,7 +1666,7 @@ function updateHeroLook() {
 // --- Сохранение прогресса героя
 const SAVE_KEY = 'zemli-save-v1';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ level: prog.level, xp: prog.xp, gold: prog.gold, inv: prog.inv, equip: prog.equip, kills: state.kills })); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ level: prog.level, xp: prog.xp, gold: prog.gold, inv: prog.inv, equip: prog.equip, skills: prog.skills, kills: state.kills })); } catch {}
 }
 function load() {
   try {
@@ -1607,6 +1676,7 @@ function load() {
     prog.inv = (d.inv || []).filter(x => ITEMS[x.id]).slice(0, INV_SIZE);
     for (const [k] of SLOTS) prog.equip[k] = ITEMS[d.equip?.[k]] ? d.equip[k] : null;
     state.kills = d.kills || 0;
+    for (const sk of SKILLS) if (d.skills?.[sk.id]) prog.skills[sk.id] = Math.min(sk.max, d.skills[sk.id] | 0);
     return true;
   } catch { return false; }
 }
@@ -1642,22 +1712,22 @@ function giveXP(n, pos) {
     prog.level++;
     refreshStats();
     state.hp = state.maxHp;
-    showBanner(`Уровень ${prog.level}!`, 'Здоровье +15 · Урон +4 · здоровье восстановлено');
+    showBanner(`Уровень ${prog.level}!`, 'Здоровье +15 · Урон +4' + (prog.level <= 10 ? ' · +1 очко навыка ⭐' : ''));
     floater(`Уровень ${prog.level}!`, state.pos, '#ffd479', true);
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.9, 40),
       new THREE.MeshBasicMaterial({ color: 0xffd060, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     ring.rotation.x = -Math.PI / 2; scene.add(ring);
-    fx.push({ mesh: ring, t: 0 });
+    fx.push({ mesh: ring, t: 0, rise: true, grow: 3, dur: 1.2 });
   }
   save();
 }
 function updateFx(dt) {
   for (let i = fx.length - 1; i >= 0; i--) {
     const f = fx[i]; f.t += dt;
-    f.mesh.position.set(state.pos.x, state.pos.y + 0.1 + f.t * 1.5, state.pos.z);
-    f.mesh.scale.setScalar(1 + f.t * 3);
-    f.mesh.material.opacity = Math.max(0, 1 - f.t / 1.2);
-    if (f.t > 1.2) { scene.remove(f.mesh); fx.splice(i, 1); }
+    if (f.rise) f.mesh.position.set(state.pos.x, state.pos.y + 0.1 + f.t * 1.5, state.pos.z);
+    f.mesh.scale.setScalar(1 + f.t * f.grow);
+    f.mesh.material.opacity = Math.max(0, 1 - f.t / f.dur);
+    if (f.t > f.dur) { scene.remove(f.mesh); fx.splice(i, 1); }
   }
 }
 
@@ -1763,6 +1833,7 @@ const invEl = document.getElementById('inv');
 let invOpen = false, sel = null;
 function openInv(open) {
   if (open && (state.dead || state.busy)) return;
+  if (open && skillsOpen) openSkills(false);
   invOpen = open; sel = null;
   invEl.classList.toggle('hidden', !open);
   if (open) {
@@ -1844,12 +1915,150 @@ invEl.addEventListener('click', e => {
 document.getElementById('btnInv').addEventListener('click', () => openInv(!invOpen));
 document.getElementById('btnPotion').addEventListener('click', usePotion);
 
+// ============================================================
+//  Навыки: очко за каждый новый уровень до 10-го
+// ============================================================
+const SKILLS = [
+  { id: 'strength', icon: '💪', name: 'Сила', max: 5, lvl: 1, desc: r => `Урон +${5 * r}` },
+  { id: 'vitality', icon: '❤️', name: 'Стойкость', max: 5, lvl: 1, desc: r => `Здоровье +${20 * r}` },
+  { id: 'agility', icon: '🪶', name: 'Ловкость', max: 3, lvl: 2, desc: r => `Бег +${8 * r}%, удары быстрее на ${10 * r}%` },
+  { id: 'regen', icon: '🌿', name: 'Регенерация', max: 3, lvl: 2, desc: r => `+${1.5 * r} здоровья/с, даже в бою` },
+  { id: 'whirl', icon: '🌀', name: 'Вихрь', max: 3, lvl: 3, active: true,
+    desc: r => `Удар вокруг: ${120 + 30 * (r - 1)}% урона, откат ${8 - 1.5 * (r - 1)} с` },
+  { id: 'crit', icon: '🎯', name: 'Крит. удар', max: 3, lvl: 4, desc: r => `${8 * r}% шанс двойного урона` },
+  { id: 'dash', icon: '💨', name: 'Рывок', max: 3, lvl: 5, active: true,
+    desc: r => `Сквозь врагов: ${80 + 30 * (r - 1)}% урона, неуязвим, откат ${6 - (r - 1)} с` },
+  { id: 'vamp', icon: '🩸', name: 'Вампиризм', max: 3, lvl: 6, desc: r => `Лечение: ${4 * r}% от урона` },
+];
+const MAX_SKILL_LEVEL = 10;
+function skillRank(id) { return prog.skills[id] || 0; }
+function pointsFree() {
+  return Math.min(prog.level, MAX_SKILL_LEVEL) - 1 - SKILLS.reduce((a, sk) => a + skillRank(sk.id), 0);
+}
+
+// --- Активные умения
+function useSkill(id) {
+  const r = skillRank(id);
+  if (!r || state.cd[id] > 0 || state.busy || state.dead || invOpen || skillsOpen || state.spinT >= 0 || state.dashT >= 0) return;
+  state.attackT = -1;
+  if (id === 'whirl') {
+    state.spinT = 0; state.spinHit = false;
+    state.cd.whirl = 8 - 1.5 * (r - 1);
+  } else if (id === 'dash') {
+    // Направление — куда наклонён джойстик, иначе — куда смотрит герой
+    let dx = Math.sin(state.facing), dz = Math.cos(state.facing);
+    if (Math.hypot(touch.x, touch.y) > 0.2) {
+      dx = -Math.sin(state.yaw) * touch.y + Math.cos(state.yaw) * touch.x;
+      dz = -Math.cos(state.yaw) * touch.y - Math.sin(state.yaw) * touch.x;
+      const l = Math.hypot(dx, dz); dx /= l; dz /= l;
+    }
+    state.dashX = dx; state.dashZ = dz; state.facing = Math.atan2(dx, dz);
+    state.dashT = 0; state.dashHit = new Set();
+    state.cd.dash = 6 - (r - 1);
+  }
+}
+function skillRing(color, grow, dur) {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.2, 40),
+    new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.set(state.pos.x, state.pos.y + 0.6, state.pos.z);
+  scene.add(ring);
+  fx.push({ mesh: ring, t: 0, rise: false, grow, dur });
+}
+function whirlHit() {
+  const mult = 1.2 + 0.3 * (skillRank('whirl') - 1);
+  skillRing(0xbfefff, 7, 0.4);
+  for (const e of enemies) {
+    if (e.mode !== state.mode || e.dead) continue;
+    const dx = e.pos.x - state.pos.x, dz = e.pos.z - state.pos.z, d = Math.hypot(dx, dz) || 0.01;
+    if (d > 3.3 + e.T.r || Math.abs(e.pos.y - state.pos.y) > 2.5) continue;
+    dealDamage(e, mult, dx / d, dz / d);
+    e.kx *= 1.5; e.kz *= 1.5;
+  }
+}
+function dashHits() {
+  const mult = 0.8 + 0.3 * (skillRank('dash') - 1);
+  for (const e of enemies) {
+    if (e.mode !== state.mode || e.dead || state.dashHit.has(e)) continue;
+    const dx = e.pos.x - state.pos.x, dz = e.pos.z - state.pos.z, d = Math.hypot(dx, dz) || 0.01;
+    if (d > 1.6 + e.T.r || Math.abs(e.pos.y - state.pos.y) > 2.5) continue;
+    state.dashHit.add(e);
+    // Отбрасываем в сторону от линии рывка
+    const side = Math.sign(dx * state.dashZ - dz * state.dashX) || 1;
+    dealDamage(e, mult, state.dashZ * side, -state.dashX * side);
+  }
+}
+
+// --- Кнопки умений с перезарядкой
+const skillBtns = [['whirl', document.getElementById('btnSkill1')], ['dash', document.getElementById('btnSkill2')]];
+function updateSkillButtons() {
+  for (const [id, el] of skillBtns) {
+    const r = skillRank(id);
+    const disp = r ? 'flex' : 'none';
+    if (el.style.display !== disp) el.style.display = disp;
+    if (!r) continue;
+    const cd = state.cd[id], total = id === 'whirl' ? 8 - 1.5 * (r - 1) : 6 - (r - 1);
+    const pct = cd > 0 ? Math.round(cd / total * 100) : 0;
+    if (el.dataset.pct !== String(pct)) {
+      el.dataset.pct = pct;
+      el.children[0].style.background = pct ? `conic-gradient(rgba(0,0,0,0.62) ${pct}%, transparent 0)` : '';
+      el.children[1].textContent = cd > 0 ? Math.ceil(cd) : '';
+    }
+  }
+}
+
+// --- Экран навыков
+const skillsEl = document.getElementById('skills');
+let skillsOpen = false;
+function openSkills(open) {
+  if (open && (state.dead || state.busy)) return;
+  if (open && invOpen) openInv(false);
+  skillsOpen = open;
+  skillsEl.classList.toggle('hidden', !open);
+  if (open) { touch.x = touch.y = 0; touch.jump = false; renderSkills(); }
+}
+function renderSkills() {
+  const free = pointsFree();
+  document.getElementById('skPoints').innerHTML = `Очки навыков: <b>${free}</b> <span style="opacity:.6;font-size:12px">· по 1 за каждый уровень до ${MAX_SKILL_LEVEL}-го</span>`;
+  document.getElementById('skGrid').innerHTML = SKILLS.map(sk => {
+    const r = skillRank(sk.id), locked = prog.level < sk.lvl;
+    let btn;
+    if (locked) btn = `<div class="note" style="color:#ff9a7a">Нужен уровень ${sk.lvl}</div>`;
+    else if (r >= sk.max) btn = `<div class="note" style="color:#7dff8a">Максимум</div>`;
+    else btn = `<div class="ibtn primary ${free > 0 ? '' : 'off'}" data-up="${sk.id}">${r ? 'Улучшить' : 'Изучить'}</div>`;
+    return `<div class="sk ${sk.active ? 'act' : ''} ${locked ? 'locked' : ''}">
+      <div class="t"><span>${sk.icon}</span>${sk.name}</div>
+      <div class="tag"><span class="pips">${'●'.repeat(r)}${'○'.repeat(sk.max - r)}</span> ${sk.active ? 'умение (кнопка)' : 'пассивный'}</div>
+      <div class="d">${sk.desc(Math.max(1, r))}${r && r < sk.max ? `<br><i>Далее: ${sk.desc(r + 1)}</i>` : ''}</div>
+      ${btn}</div>`;
+  }).join('');
+}
+skillsEl.addEventListener('click', e => {
+  const t = e.target;
+  if (t === skillsEl) { openSkills(false); return; }
+  const act = t.closest('[data-act]')?.dataset.act, up = t.closest('[data-up]')?.dataset.up;
+  if (act === 'close') { openSkills(false); return; }
+  if (act === 'reset') {
+    if (Object.keys(prog.skills).length && confirm('Сбросить навыки? Все очки вернутся.')) { prog.skills = {}; refreshStats(); save(); }
+  } else if (up) {
+    const sk = SKILLS.find(x => x.id === up), r = skillRank(up);
+    if (pointsFree() > 0 && prog.level >= sk.lvl && r < sk.max) {
+      prog.skills[up] = r + 1;
+      const hpBefore = state.maxHp;
+      refreshStats();
+      if (up === 'vitality') state.hp += state.maxHp - hpBefore;
+      save();
+    }
+  }
+  renderSkills();
+});
+document.getElementById('btnSkills').addEventListener('click', () => openSkills(!skillsOpen));
+
 // --- Полоски и счётчики на экране
 const lvlEl = document.getElementById('lvlBadge'), xpBarEl = document.getElementById('xpbar'), hpTextEl = document.getElementById('hptext'), potionEl = document.getElementById('potionN');
 let hudKey = '';
 function updateHud() {
   const potions = prog.inv.find(x => x.id === 'potion')?.n || 0;
-  const key = [Math.ceil(state.hp), state.maxHp, prog.level, prog.xp, potions].join();
+  const key = [Math.ceil(state.hp), state.maxHp, prog.level, prog.xp, potions, pointsFree()].join();
   if (key === hudKey) return;
   hudKey = key;
   hpBarEl.style.width = (state.hp / state.maxHp * 100) + '%';
@@ -1858,6 +2067,9 @@ function updateHud() {
   xpBarEl.style.width = (prog.xp / xpNext(prog.level) * 100) + '%';
   potionEl.textContent = potions;
   document.getElementById('btnPotion').style.opacity = potions ? 1 : 0.5;
+  const free = pointsFree();
+  document.getElementById('skillN').textContent = free || '';
+  document.getElementById('btnSkills').classList.toggle('glow', free > 0);
 }
 
 // Новая игра: ржавый меч и пара зелий
@@ -1972,7 +2184,7 @@ const actBtn = document.getElementById('btnAct');
 let lastPrompt = null;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-  if (!invOpen) {
+  if (!invOpen && !skillsOpen) {
     updatePlayer(dt);
     updateEnemies(dt);
     updateLoot(dt);
@@ -1981,6 +2193,7 @@ function frame() {
   updateFloaters(dt);
   updateFx(dt);
   updateHud();
+  updateSkillButtons();
 
   // Огонь и свечение
   const cf = campfire.userData;
@@ -2020,7 +2233,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Ca
   navigator.serviceWorker.register('sw.js').catch(() => {});
 
 window.__move = moveEntity;
-window.__game = { prog, addItem, giveXP, openInv, usePotion, dropLoot, loot, touch, enemies, attack, damagePlayer, hitEnemy, state, dungeons, surfaceEntrances, groundAt, normalYAt, enterDungeon, exitDungeon, HALF };
+window.__game = { useSkill, openSkills, skillRank, pointsFree, prog, addItem, giveXP, openInv, usePotion, dropLoot, loot, touch, enemies, attack, damagePlayer, hitEnemy, state, dungeons, surfaceEntrances, groundAt, normalYAt, enterDungeon, exitDungeon, HALF };
 </script>
 </body>
 </html>
