@@ -1,8 +1,7 @@
-## Навыки: очко за каждый новый уровень до 10-го (как в веб-версии)
+## Навыки: очко навыка за каждое повышение уровня героя
 class_name SkillDefs
 extends RefCounted
 
-const MAX_SKILL_LEVEL := 10
 const EVOLUTION_ENABLED := false  # эволюция остальных навыков на максимальном ранге — откроем позже
 
 const LIST := [

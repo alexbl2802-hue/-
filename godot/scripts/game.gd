@@ -190,7 +190,7 @@ func points_free() -> int:
 		spent += rank(s["id"])
 	# Эволюция в Скользящий шаг даёт его 1-й уровень бесплатно, дальше — по очку за уровень
 	spent += maxi(0, rank("dash_slide") - 1)
-	return mini(level, SkillDefs.MAX_SKILL_LEVEL) - 1 - spent
+	return level - 1 - spent   # очко навыка — за каждое повышение уровня
 
 func refresh() -> void:
 	var hp_b := 0

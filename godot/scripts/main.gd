@@ -216,9 +216,7 @@ func open_chest(i: int) -> void:
 	hud.banner("Сокровище найдено!", "Все сокровища собраны — ты настоящий искатель приключений!" if n >= dungeons.size() else "Осталось ещё одно подземелье")
 
 func _on_level_up(level: int) -> void:
-	var sub := "Здоровье +15 · Урон +4"
-	if level <= SkillDefs.MAX_SKILL_LEVEL:
-		sub += " · +1 очко навыка ⭐"
+	var sub := "Здоровье +15 · Урон +4 · +1 очко навыка"
 	hud.banner("Уровень %d!" % level, sub)
 	Fx.text("Уровень %d!" % level, hero.global_position, Color("#ffd479"), true)
 	Fx.ring(hero.global_position + Vector3(0, 0.1, 0), Color("#ffd060"), 3.0, 1.2, true)
