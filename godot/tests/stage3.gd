@@ -123,6 +123,8 @@ func _ready() -> void:
 	_tap_act()
 	await _frames(40)
 	await _shot("s3_chest.png")
+	var on_floor: bool = main.loot._items.size() >= 4 and main.loot._items.all(func(it): return absf(it["pos"].y - d.Y) < 1.0)
+	_check("chest loot lies on dungeon floor", on_floor, str(main.loot._items.map(func(it): return snappedf(it["pos"].y, 0.1))))
 	for it in main.loot._items.duplicate():
 		main.hero.global_position = it["pos"] + Vector3(0, 0.3, 0)
 		await _frames(10)

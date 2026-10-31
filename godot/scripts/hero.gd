@@ -47,6 +47,7 @@ var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
 var _anim: AnimationPlayer
 var _new_swing := false
+var _gear := {}            # детали брони и шлема на костях модели: имя → MeshInstance3D
 
 func _ready() -> void:
 	collision_layer = 2
@@ -179,7 +180,66 @@ func _attach_character() -> void:
 	att.add_child(_sword)
 	_sword.transform = Transform3D(Basis(fingers, blade, flat), grip + blade * 0.02)
 	_sword.scale = Vector3.ONE / CHAR_SCALE
+	_build_gear(sk)
 	_anim.play(A_WALK)
+	update_look()
+
+## Броня и шлем — детали на костях модели, двигаются вместе с телом.
+## Размеры подобраны по модели: торс ~0,4 м в ширину, голова ~0,2 м.
+func _build_gear(sk: Skeleton3D) -> void:
+	var on_bone := func(bone: String) -> BoneAttachment3D:
+		var att := BoneAttachment3D.new()
+		sk.add_child(att)
+		for i in sk.get_bone_count():
+			if sk.get_bone_name(i).ends_with(bone):
+				att.bone_name = sk.get_bone_name(i)
+				att.bone_idx = i
+		return att
+	var part := func(parent: Node3D, mesh: Mesh, pos: Vector3, scale := Vector3.ONE, rot := Vector3.ZERO) -> MeshInstance3D:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.position = pos
+		mi.scale = scale
+		mi.rotation = rot
+		mi.material_override = StandardMaterial3D.new()
+		parent.add_child(mi)
+		return mi
+	var tube := CylinderMesh.new()
+	tube.top_radius = 1.0
+	tube.bottom_radius = 1.0
+	tube.height = 1.0
+	tube.radial_segments = 16
+	var dome := SphereMesh.new()
+	dome.radius = 1.0
+	dome.height = 1.0
+	dome.is_hemisphere = true
+	dome.radial_segments = 16
+	dome.rings = 6
+	var box := BoxMesh.new()
+	# Нагрудник: овальный панцирь на позвоночнике, поверх — пояс
+	var chest: BoneAttachment3D = on_bone.call("Spine1")
+	_gear["cuirass"] = part.call(chest, tube, Vector3(0, 0.07, 0.0), Vector3(0.22, 0.36, 0.2))
+	_gear["chest_top"] = part.call(chest, dome, Vector3(0, 0.25, -0.01), Vector3(0.22, 0.08, 0.2))
+	_gear["belt"] = part.call(chest, tube, Vector3(0, -0.12, 0.005), Vector3(0.245, 0.06, 0.225))
+	# Наплечники
+	for side in ["Left", "Right"]:
+		var arm: BoneAttachment3D = on_bone.call(side + "Arm")
+		_gear["pauldron_" + side] = part.call(arm, dome, Vector3(0, 0.04, 0), Vector3(0.11, 0.09, 0.11), Vector3(0, 0, PI / 2 if side == "Left" else -PI / 2))
+	# Шлем: купол, обод и наносник
+	var head: BoneAttachment3D = on_bone.call("Head")
+	_gear["helm"] = part.call(head, dome, Vector3(0, 0.12, -0.015), Vector3(0.128, 0.13, 0.14))
+	_gear["helm_rim"] = part.call(head, tube, Vector3(0, 0.12, -0.015), Vector3(0.135, 0.02, 0.147))
+	_gear["helm_nose"] = part.call(head, box, Vector3(0, 0.07, 0.125), Vector3(0.025, 0.09, 0.02))
+
+func _set_gear(names: Array, show: bool, color: Color, metal: bool) -> void:
+	for n in names:
+		var mi: MeshInstance3D = _gear[n]
+		mi.visible = show
+		var m := mi.material_override as StandardMaterial3D
+		m.albedo_color = color
+		m.albedo_color = color.darkened(0.25) if metal else color
+		m.metallic = 0.5 if metal else 0.0
+		m.roughness = 0.5 if metal else 0.85
 
 func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 	for i in sk.get_bone_count():
@@ -255,6 +315,15 @@ func update_look() -> void:
 	_helmet.visible = not h.is_empty()
 	if not h.is_empty():
 		_helmet_mat.set_shader_parameter("albedo", WorldGen.hex(h["color"]))
+	if not _gear.is_empty():
+		var am: bool = a.get("metal", false)
+		_set_gear(["cuirass", "chest_top", "belt"], not a.is_empty(), WorldGen.hex(a.get("color", 0)), am)
+		_set_gear(["belt"], not a.is_empty(), WorldGen.hex(0x4a3220), false)
+		# Наплечники — только у металлических доспехов
+		_set_gear(["pauldron_Left", "pauldron_Right"], am, WorldGen.hex(a.get("color", 0)), true)
+		var hm: bool = h.get("id", "") == "helm_iron" or (not h.is_empty() and h["color"] != 0x6a4626)
+		_set_gear(["helm"], not h.is_empty(), WorldGen.hex(h.get("color", 0)), hm)
+		_set_gear(["helm_rim", "helm_nose"], hm, WorldGen.hex(h.get("color", 0)).darkened(0.15), true)
 
 # ---------- Бой
 func attack() -> void:

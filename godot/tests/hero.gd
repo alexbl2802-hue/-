@@ -61,6 +61,20 @@ func _ready() -> void:
 	h.attack()
 	await _frames(7)
 	get_viewport().get_texture().get_image().save_png(out + "hm_fight.png")
+	# Доспехи: кожа, кольчуга, латы со шлемами
+	main.enemies.reset_all()
+	for gear_set in [["armor_leather", "helm_leather", "hm_gear_leather.png"], ["armor_chain", "helm_iron", "hm_gear_chain.png"], ["armor_plate", "helm_iron", "hm_gear_plate.png"]]:
+		Game.equip["armor"] = Items.make(gear_set[0])
+		Game.equip["helm"] = Items.make(gear_set[1])
+		Game.refresh()
+		_place(p + Vector3(6, 0, 0))
+		h.facing = 0.0
+		await _shot(gear_set[2], 0.45, 0.1, 2.8, 25)
+	h.touch.run = true
+	h.touch.move = Vector2(0, 1)
+	await _shot("hm_gear_run.png", -1.2, 0.15, 3.6, 20)
+	h.touch.move = Vector2.ZERO
+	h.touch.run = false
 	get_tree().quit()
 
 func _place(p: Vector3) -> void:

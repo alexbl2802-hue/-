@@ -63,7 +63,8 @@ func drop(id: String, n: int, at: Vector3, r := -1) -> void:
 	var a := randf() * TAU
 	var rr := 0.5 + randf()
 	var pos := at + Vector3(cos(a) * rr, 0.9, sin(a) * rr)
-	var base := WorldGen.ground_at(pos.x, pos.z)
+	# Подземелья лежат глубоко под миром: там пол — высота, на которой выпала вещь
+	var base := at.y if at.y < -50.0 else WorldGen.ground_at(pos.x, pos.z)
 	add_child(node)
 	node.global_position = pos
 	_items.append({"id": id, "n": n, "r": r, "node": node, "pos": pos, "vy": 5.0, "base": base, "t": 0.0})
