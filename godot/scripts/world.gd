@@ -1,7 +1,8 @@
 ## Мир на поверхности: рельеф, вода, растительность, костёр, входы в подземелья и город.
 extends Node3D
 
-const CHUNK := 60  # клеток рельефа в одном куске — куски вне экрана не рисуются
+const CHUNK := 60
+const TREE_SCALE := 1.2  # деревья крупнее, чем в веб-версии  # клеток рельефа в одном куске — куски вне экрана не рисуются
 
 var entrances: Array = []   # [{name, door: Vector3, dir: Vector3}]
 var town_map: Array = []    # прямоугольники построек для миникарты
@@ -33,6 +34,9 @@ func _build_terrain() -> void:
 	var c := WorldGen.colors
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/terrain.gdshader")
+	mat.set_shader_parameter("detail", Mats.noise_texture("grain"))
+	mat.set_shader_parameter("macro", Mats.noise_texture("macro"))
+	mat.set_shader_parameter("rock", Mats.noise_texture("rock"))
 	for cj in range(0, seg, CHUNK):
 		for ci in range(0, seg, CHUNK):
 			var w := mini(CHUNK, seg - ci) + 1
@@ -137,6 +141,9 @@ func _multimesh(mesh: Mesh, mat: Material, items: Array, shadow := true) -> void
 func _build_vegetation() -> void:
 	var p: Dictionary = WorldGen.props
 	var white := Mats.lp(0xffffff)
+	var bark := Mats.lp(0xffffff, 0.95, 0.0, -1, 0.0, 0.45, 3.0)   # кора: шероховатая фактура
+	var leaves := Mats.lp(0xffffff, 0.9, 0.0, -1, 0.0, 0.28, 1.2)
+	var stone := Mats.lp(0xffffff, 0.95, 0.0, -1, 0.0, 0.4, 1.0)
 	var trunk_c := WorldGen.hex(0x6b4a2b)
 	var trunk := _cyl(0.22, 0.32, 1.0, 6)
 	var body := StaticBody3D.new()
@@ -146,32 +153,33 @@ func _build_vegetation() -> void:
 	var cones := [[], [], []]
 	var crowns := [[], []]
 	# Ели: ствол и три яруса конусов
-	var layers := [[1.6, 1.0], [3.0, 0.78], [4.3, 0.55]]
+	# Нижний ярус ели начинается выше роста героя, ствол выше — под деревьями можно ходить
+	var layers := [[2.7, 1.0], [4.1, 0.8], [5.4, 0.58]]
 	for t in p["pines"]:
 		var pos := Vector3(t[0], t[2], t[1])
-		var s: float = t[3]
+		var s: float = t[3] * TREE_SCALE
 		var rot: float = t[4]
-		trunks.append([pos + Vector3(0, -0.2 + 1.2 * s, 0), rot, Vector3(s, s * 2.4, s), trunk_c])
+		trunks.append([pos + Vector3(0, -0.2 + 1.9 * s, 0), rot, Vector3(s, s * 3.8, s), trunk_c])
 		for l in 3:
 			var ls: float = layers[l][1] * s
 			cones[l].append([pos + Vector3(0, layers[l][0] * s + 1.6 * ls, 0), rot, Vector3(ls, ls, ls), WorldGen.hex(int(t[5 + l]))])
-		_tree_collider(body, pos, 0.45 * s)
+		_tree_collider(body, pos, 0.3 * s)
 	# Лиственные: ствол и две кроны
 	for t in p["oaks"]:
 		var pos := Vector3(t[0], t[2], t[1])
-		var s: float = t[3]
+		var s: float = t[3] * TREE_SCALE
 		var rot: float = t[4]
-		trunks.append([pos + Vector3(0, -0.2 + 1.3 * s, 0), rot, Vector3(s * 1.1, s * 2.6, s * 1.1), trunk_c])
-		crowns[0].append([pos + Vector3(0, 3.4 * s, 0), rot, Vector3(s * 1.15, s, s * 1.15), WorldGen.hex(int(t[5]))])
-		crowns[1].append([pos + Vector3(0.6 * s, 4.3 * s, -0.3 * s), rot, Vector3(0.7 * s, 0.7 * s, 0.7 * s), WorldGen.hex(int(t[6]))])
-		_tree_collider(body, pos, 0.45 * s)
-	_multimesh(trunk, white, trunks)
+		trunks.append([pos + Vector3(0, -0.2 + 2.0 * s, 0), rot, Vector3(s * 1.1, s * 4.0, s * 1.1), trunk_c])
+		crowns[0].append([pos + Vector3(0, 5.3 * s, 0), rot, Vector3(s * 1.2, s, s * 1.2), WorldGen.hex(int(t[5]))])
+		crowns[1].append([pos + Vector3(0.6 * s, 6.3 * s, -0.3 * s), rot, Vector3(0.75 * s, 0.75 * s, 0.75 * s), WorldGen.hex(int(t[6]))])
+		_tree_collider(body, pos, 0.33 * s)
+	_multimesh(trunk, bark, trunks)
 	var cone := _cyl(0.0, 1.7, 3.2, 7)
 	for l in 3:
-		_multimesh(cone, white, cones[l])
+		_multimesh(cone, leaves, cones[l])
 	var crown := _blob(1.9)
 	for k in 2:
-		_multimesh(crown, white, crowns[k])
+		_multimesh(crown, leaves, crowns[k])
 	# Камни: большие мешают пройти
 	var rocks := []
 	for r in p["rocks"]:
@@ -180,7 +188,7 @@ func _build_vegetation() -> void:
 		rocks.append([pos, r[4], Vector3(s * 1.2, s * 0.8, s), WorldGen.hex(int(r[5]))])
 		if s > 0.9:
 			_tree_collider(body, pos, s * 0.95)
-	_multimesh(_blob(1.0, 5, 2), white, rocks)
+	_multimesh(_blob(1.0, 5, 2), stone, rocks)
 	# Трава
 	var tufts := []
 	for t in p["tufts"]:

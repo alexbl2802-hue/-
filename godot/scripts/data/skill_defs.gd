@@ -5,14 +5,14 @@ extends RefCounted
 const MAX_SKILL_LEVEL := 10
 
 const LIST := [
-	{"id": "strength", "icon": "💪", "name": "Сила", "max": 5, "lvl": 1},
-	{"id": "vitality", "icon": "❤️", "name": "Стойкость", "max": 5, "lvl": 1},
-	{"id": "agility", "icon": "🪶", "name": "Ловкость", "max": 3, "lvl": 2},
-	{"id": "regen", "icon": "🌿", "name": "Регенерация", "max": 3, "lvl": 2},
-	{"id": "whirl", "icon": "🌀", "name": "Вихрь", "max": 3, "lvl": 3, "active": true},
-	{"id": "crit", "icon": "🎯", "name": "Крит. удар", "max": 3, "lvl": 4},
-	{"id": "dash", "icon": "💨", "name": "Рывок", "max": 3, "lvl": 5, "active": true},
-	{"id": "vamp", "icon": "🩸", "name": "Вампиризм", "max": 3, "lvl": 6},
+	{"id": "strength", "icon": "💪", "name": "Сила", "max": 7, "lvl": 1},
+	{"id": "vitality", "icon": "❤️", "name": "Стойкость", "max": 7, "lvl": 1},
+	{"id": "agility", "icon": "🪶", "name": "Ловкость", "max": 7, "lvl": 2},
+	{"id": "regen", "icon": "🌿", "name": "Регенерация", "max": 7, "lvl": 2},
+	{"id": "whirl", "icon": "🌀", "name": "Вихрь", "max": 7, "lvl": 3, "active": true},
+	{"id": "crit", "icon": "🎯", "name": "Крит. удар", "max": 7, "lvl": 4},
+	{"id": "dash", "icon": "💨", "name": "Рывок", "max": 7, "lvl": 5, "active": true},
+	{"id": "vamp", "icon": "🩸", "name": "Вампиризм", "max": 7, "lvl": 6},
 ]
 
 static func find(id: String) -> Dictionary:
@@ -22,10 +22,10 @@ static func find(id: String) -> Dictionary:
 	return {}
 
 static func whirl_cd(r: int) -> float:
-	return 8.0 - 1.5 * (r - 1)
+	return maxf(2.5, 8.0 - 1.5 * (r - 1))
 
 static func dash_cd(r: int) -> float:
-	return 6.0 - (r - 1)
+	return maxf(2.0, 6.0 - (r - 1))
 
 ## Описание эффекта навыка на ранге r
 static func desc(id: String, r: int) -> String:

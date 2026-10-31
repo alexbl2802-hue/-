@@ -132,8 +132,11 @@ func _render() -> void:
 		vb.add_theme_constant_override("separation", 2)
 		card.add_child(vb)
 		vb.add_child(_lbl("%s %s" % [s["icon"], s["name"]], 14, Color("#ffe7b0")))
-		var pips := "●".repeat(r) + "○".repeat(s["max"] - r)
-		vb.add_child(_lbl("%s  %s" % [pips, "умение (кнопка)" if s.get("active", false) else "пассивный"], 10, Color("#8fd8ff")))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.add_child(_lbl("%d / %d" % [r, s["max"]], 13, Color("#ffd479")))
+		row.add_child(_lbl("умение (кнопка)" if s.get("active", false) else "пассивный", 10, Color("#8fd8ff")))
+		vb.add_child(row)
 		var d := _lbl(SkillDefs.desc(id, maxi(1, r)), 11, Color(1, 1, 1, 0.88))
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		d.custom_minimum_size = Vector2(170, 0)

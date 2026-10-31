@@ -6,8 +6,8 @@ static var _lowpoly_shader: Shader = preload("res://shaders/lowpoly.gdshader")
 static var _cache := {}
 
 ## Низкополигональный материал с плоскими гранями
-static func lp(color: int, rough := 0.9, metal := 0.0, emit := -1, emit_energy := 0.0) -> ShaderMaterial:
-	var key := "%d|%f|%f|%d|%f" % [color, rough, metal, emit, emit_energy]
+static func lp(color: int, rough := 0.9, metal := 0.0, emit := -1, emit_energy := 0.0, detail := 0.0, detail_scale := 0.8) -> ShaderMaterial:
+	var key := "%d|%f|%f|%d|%f|%f|%f" % [color, rough, metal, emit, emit_energy, detail, detail_scale]
 	if _cache.has(key):
 		return _cache[key]
 	var m := ShaderMaterial.new()
@@ -18,8 +18,45 @@ static func lp(color: int, rough := 0.9, metal := 0.0, emit := -1, emit_energy :
 	if emit >= 0:
 		m.set_shader_parameter("emission", WorldGen.hex(emit))
 		m.set_shader_parameter("emission_energy", emit_energy)
+	if detail > 0.0:
+		m.set_shader_parameter("detail", detail)
+		m.set_shader_parameter("detail_scale", detail_scale)
+		m.set_shader_parameter("detail_tex", noise_texture("grain"))
 	_cache[key] = m
 	return m
+
+## Бесшовные шумовые текстуры для детализации (генерируются движком один раз)
+static func noise_texture(kind: String) -> NoiseTexture2D:
+	var key := "noise_" + kind
+	if _cache.has(key):
+		return _cache[key]
+	var n := FastNoiseLite.new()
+	n.seed = 7
+	var size := 256
+	match kind:
+		"grain":
+			n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+			n.frequency = 0.06
+			n.fractal_octaves = 4
+		"macro":
+			n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+			n.frequency = 0.02
+			n.fractal_octaves = 3
+			size = 128
+		"rock":
+			n.noise_type = FastNoiseLite.TYPE_CELLULAR
+			n.frequency = 0.04
+			n.cellular_return_type = FastNoiseLite.RETURN_DISTANCE2_SUB
+			n.fractal_octaves = 2
+	var t := NoiseTexture2D.new()
+	t.width = size
+	t.height = size
+	t.seamless = true
+	t.normalize = true
+	t.generate_mipmaps = true
+	t.noise = n
+	_cache[key] = t
+	return t
 
 ## Светящийся материал без освещения (пламя, фонари)
 static func glow(color: int) -> StandardMaterial3D:

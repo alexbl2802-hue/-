@@ -8,7 +8,7 @@ const TYPES := {
 	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
 	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
 	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
-	"rabbit": {"hp": 85, "dmg": 12, "speed": 6.0, "r": 0.45, "aggro": 14.0, "reach": 1.6, "cd": 1.0, "windup": 0.3, "bar": 1.6, "lunge": true, "roam": true},
+	"rabbit": {"hp": 85, "dmg": 12, "speed": 7.8, "r": 0.45, "aggro": 14.0, "reach": 1.6, "cd": 1.0, "windup": 0.3, "bar": 1.6, "lunge": true, "roam": true},
 	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
 	"kobold": {"hp": 130, "dmg": 17, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 1.9, "cd": 1.1, "windup": 0.45, "bar": 2.1},
 }
@@ -214,7 +214,7 @@ func _build_rabbit() -> void:
 	var claw := _mat(0xf4f4f0, 0.3)
 	var torso := _blob(_body, 0.45, fur, Vector3(0, 0.75, -0.05), 7, 4)
 	torso.scale = Vector3(0.9, 1.0, 1.15)
-	var bl := _blob(_body, 0.3, belly, Vector3(0, 0.72, 0.22), 6, 3)
+	var bl := _blob(_body, 0.3, belly, Vector3(0, 0.72, 0.33), 6, 3)
 	bl.scale = Vector3(0.9, 1.1, 0.6)
 	var head := Node3D.new()
 	head.position = Vector3(0, 1.28, 0.22)
@@ -224,12 +224,12 @@ func _build_rabbit() -> void:
 	for sx in [-1.0, 1.0]:
 		var ear := _box(head, Vector3(0.1, 0.62, 0.05), fur, Vector3(sx * 0.12, 0.48, -0.04))
 		ear.rotation = Vector3(-0.15, 0, -sx * 0.18)
-		var inner_ear := _box(head, Vector3(0.05, 0.45, 0.02), _mat(0xe8a0a8), Vector3(sx * 0.12, 0.46, -0.01))
+		var inner_ear := _box(head, Vector3(0.05, 0.45, 0.02), _mat(0xe8a0a8), Vector3(sx * 0.12, 0.46, 0.006))
 		inner_ear.rotation = Vector3(-0.15, 0, -sx * 0.18)
 	var eye := _mat(0xd02020, 0.4, 0xff2020, 0.8)
 	for sx in [-1.0, 1.0]:
-		_box(head, Vector3(0.06, 0.07, 0.03), eye, Vector3(sx * 0.13, 0.05, 0.25))
-	_box(head, Vector3(0.07, 0.05, 0.04), _mat(0xe88aa0), Vector3(0, -0.04, 0.28))
+		_box(head, Vector3(0.06, 0.07, 0.04), eye, Vector3(sx * 0.12, 0.05, 0.285))
+	_box(head, Vector3(0.08, 0.06, 0.05), _mat(0xe88aa0), Vector3(0, -0.04, 0.305))
 	# Мощные задние лапы
 	for sx in [-1.0, 1.0]:
 		var hl := Node3D.new()
@@ -445,7 +445,8 @@ func _physics_process(dt: float) -> void:
 			if can_see and dist < T["aggro"]:
 				st = "chase"
 		"chase":
-			if not can_see or dist > T["aggro"] * 1.8 or home_d > 40.0:
+			# Монстр гонится долго: сдаётся, только если герой очень далеко или он сам ушёл далеко от дома
+			if not can_see or dist > T["aggro"] * 3.5 or home_d > 90.0:
 				st = "return"
 			elif dist < T["reach"]:
 				st = "windup"
@@ -464,7 +465,7 @@ func _physics_process(dt: float) -> void:
 					hero.take_damage(T["dmg"], global_position)
 		"recover":
 			if _t >= T["cd"]:
-				st = "chase" if can_see and dist < T["aggro"] * 1.8 else "return"
+				st = "chase" if can_see and dist < T["aggro"] * 3.5 else "return"
 		"return":
 			if home_d < 1.5:
 				st = "idle"
@@ -472,7 +473,7 @@ func _physics_process(dt: float) -> void:
 				mv = to_home / home_d
 				sp = T["speed"] * 0.7
 				hp = minf(T["hp"], hp + 10.0 * dt)
-				if can_see and dist < T["aggro"] * 0.6:
+				if can_see and dist < T["aggro"] * 0.9:
 					st = "chase"
 	if sp > 0.0:
 		facing += angle_difference(facing, atan2(mv.x, mv.z)) * minf(1.0, dt * 8.0)

@@ -129,10 +129,10 @@ const colors = new Uint8Array(N * N * 3);
 }
 
 // ---------- Растительность и камни (тот же порядок вызовов rand, что в веб-версии)
-const Q = { trees: 1800, rocks: 420, tufts: 3800 };
+const Q = { trees: 2600, rocks: 420, tufts: 3800 };
 const r3 = v => Math.round(v * 1000) / 1000;
 const pines = [], oaks = [];
-for (let n = 0; n < 16000 && pines.length + oaks.length < Q.trees; n++) {
+for (let n = 0; n < 40000 && pines.length + oaks.length < Q.trees; n++) {
   const x = (rand() * 2 - 1) * (HALF - 10), z = (rand() * 2 - 1) * (HALF - 10);
   const h = groundAt(x, z);
   if (h < 1.3 || h > 42) continue;
