@@ -92,10 +92,38 @@
   #banner { position: fixed; top: 28%; width: 100%; text-align: center; font-size: 42px; font-weight: 700; letter-spacing: 2px; text-shadow: 0 3px 10px #000; opacity: 0; transition: opacity 0.8s; pointer-events: none; }
   #banner small { display: block; font-size: 18px; font-weight: 400; letter-spacing: 1px; opacity: 0.85; }
   #fade { position: fixed; inset: 0; background: #000; opacity: 1; transition: opacity 0.45s; pointer-events: none; }
-  #start { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 16px; background: radial-gradient(ellipse at center, rgba(30,24,14,0.6), rgba(0,0,0,0.85)); cursor: pointer; }
-  #start h1 { font-size: 48px; margin: 0 0 8px; color: #ffd479; text-shadow: 0 3px 12px #000; }
-  #start p { margin: 4px; opacity: 0.9; }
-  #rotate { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: #0d0a06; z-index: 20; font-size: 20px; text-align: center; padding: 24px; }
+  #menu { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;
+    background: radial-gradient(ellipse at center, rgba(30,24,14,0.55), rgba(0,0,0,0.88)); touch-action: manipulation; }
+  #menu.hidden { display: none; }
+  body.menu-open #hudBtns, body.menu-open #touch, body.menu-open #status, body.menu-open #bars, body.menu-open #minimap { visibility: hidden; }
+  .menu-box { width: min(440px, 92vw); display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: center; }
+  .menu-box h1 { font-size: 44px; margin: 0; color: #ffd479; text-shadow: 0 3px 12px #000; line-height: 1.05; }
+  .menu-box .sub { margin: 0 0 6px; opacity: 0.85; font-size: 14px; }
+  .menu-box label { font-size: 13px; opacity: 0.8; text-align: left; margin-bottom: -4px; }
+  #nameInput { font: inherit; font-size: 18px; padding: 10px 14px; border-radius: 10px; border: 2px solid rgba(255,220,160,0.5); background: rgba(0,0,0,0.5);
+    color: #fff3d8; outline: none; user-select: text; -webkit-user-select: text; text-align: center; }
+  #nameInput:focus { border-color: #ffd479; }
+  .mbtn { padding: 12px; border-radius: 12px; font-size: 19px; font-weight: 700; cursor: pointer; background: rgba(40,30,18,0.9); border: 2px solid rgba(255,220,160,0.5); color: #ffe7b0; }
+  .mbtn.primary { background: linear-gradient(#ffe08a, #e0a83a); color: #2a1d08; border-color: #fff3d0; font-size: 21px; }
+  .mbtn.small { padding: 8px; font-size: 15px; font-weight: 600; }
+  .mbtn:active { transform: scale(0.97); }
+  #menuInfo { margin: 2px 0 0; font-size: 13px; opacity: 0.75; }
+  #nameTag { position: fixed; left: 0; top: 0; pointer-events: none; font-weight: 700; font-size: 13px; color: #ffe7b0; white-space: nowrap;
+    text-shadow: 0 1px 3px #000, 0 0 2px #000; }
+  #forge { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 15; touch-action: manipulation; }
+  #forge.hidden { display: none; }
+  .forge-body { display: flex; gap: 12px; }
+  .fcard { position: relative; flex: 1; border-radius: 10px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); padding: 10px; overflow: hidden; }
+  .fcard h3 { margin: 0 0 6px; font-size: 16px; color: #ffe7b0; }
+  .fcard p { margin: 4px 0; font-size: 12.5px; opacity: 0.85; }
+  .frow { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0; font-size: 20px; }
+  .frow .slot { width: 52px; flex: none; }
+  .fcard .ibtn { opacity: 0.4; margin-top: 6px; }
+  .lock { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    background: rgba(10,8,6,0.62); font-size: 15px; font-weight: 700; color: #ffd479; text-shadow: 0 1px 3px #000; }
+  .lock span { font-size: 30px; }
+  .forge-note { margin-top: 8px; font-size: 12px; opacity: 0.65; text-align: center; }
+  #rotate { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; flex-direction: column; background: #0d0a06; font-size: 20px; text-align: center; padding: 24px; }
   #rotate div { font-size: 64px; animation: spin 2s ease-in-out infinite; }
   @keyframes spin { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
 
@@ -122,14 +150,14 @@
     #bars { top: calc(44px + env(safe-area-inset-top)); }
     #hpwrap, #xpwrap { width: 170px; } #lvlBadge { width: 26px; height: 26px; font-size: 13px; }
     #banner { font-size: 30px; top: 22%; } #banner small { font-size: 15px; }
-    #start h1 { font-size: 34px; }
+    .menu-box h1 { font-size: 34px; } .menu-box { gap: 6px; } .mbtn { padding: 9px; } #nameInput { padding: 7px 12px; }
   }
 </style>
 <script type="importmap">
 { "imports": { "three": "./three.module.min.js" } }
 </script>
 </head>
-<body>
+<body class="menu-open">
 <canvas id="game"></canvas>
 <div id="status" class="panel"><span id="loc">Камнеград</span> &nbsp;·&nbsp; Сокровища: <span id="treasure">0</span>/2 &nbsp;·&nbsp; ⚔ <span id="kills">0</span></div>
 <div id="bars"><div id="lvlBadge">1</div><div class="col">
@@ -140,6 +168,7 @@
   <div id="btnInv" class="hbtn">🎒</div>
   <div id="btnPotion" class="hbtn">🧪<span id="potionN" class="n">0</span></div>
   <div id="btnSkills" class="hbtn">⭐<span id="skillN" class="n"></span></div>
+  <div id="btnMenu" class="hbtn">☰</div>
 </div>
 <div id="floaters"></div>
 <div id="skills" class="hidden"><div class="inv-box">
@@ -147,7 +176,7 @@
   <div id="skGrid"></div>
 </div></div>
 <div id="inv" class="hidden"><div class="inv-box">
-  <div class="inv-head"><b>Инвентарь</b><span id="invGold"></span><div class="ibtn small" data-act="reset">Новая игра</div><div class="ibtn" data-act="close">✕</div></div>
+  <div class="inv-head"><b>Инвентарь</b><span id="invGold"></span><div class="ibtn" data-act="close">✕</div></div>
   <div class="inv-body">
     <div class="inv-left"><div id="invStats"></div><div id="invEquip"></div></div>
     <div class="inv-right"><div id="invGrid"></div><div id="invInfo"></div></div>
@@ -167,19 +196,45 @@
 </div>
 <div id="banner"></div>
 <div id="fade"></div>
-<div id="start">
+<div id="menu"><div class="menu-box">
   <h1>Земли Приключений</h1>
-  <p>Исследуй долину, найди два подземелья и сокровища в них. Берегись чудовищ!</p>
-  <p style="opacity:.8">Левая половина экрана — ходьба, правая — камера, щипок — зум, ⚔ — удар</p>
-  <p style="opacity:.7">Нажми, чтобы начать</p>
-</div>
+  <p class="sub">Город за крепостной стеной, долина, полная чудовищ, и два подземелья с сокровищами</p>
+  <label for="nameInput">Имя героя</label>
+  <input id="nameInput" maxlength="16" placeholder="Введи имя или ник" autocomplete="off" autocapitalize="words" enterkeyhint="done">
+  <div id="menuMain" class="mbtn primary">Начать игру</div>
+  <div id="menuNew" class="mbtn small">Новая игра</div>
+  <p id="menuInfo"></p>
+</div></div>
+<div id="nameTag"></div>
+<div id="forge" class="hidden"><div class="inv-box">
+  <div class="inv-head"><b>⚒ Кузница</b><span style="flex:1"></span><div class="ibtn" data-act="close">✕</div></div>
+  <div class="forge-body">
+    <div class="fcard">
+      <h3>Улучшение оружия</h3>
+      <p>Закаляй надетое оружие: каждая ступень добавляет урон. Нужны золото и материалы.</p>
+      <div class="frow"><div class="slot" id="forgeWeapon"></div>→<div class="slot" id="forgeWeaponUp"></div></div>
+      <p id="forgeUpInfo"></p>
+      <div class="ibtn primary">Улучшить</div>
+      <div class="lock"><span>🔒</span>Скоро будет доступно</div>
+    </div>
+    <div class="fcard">
+      <h3>Объединение</h3>
+      <p>Объедини два предмета, чтобы получить новый — более редкий и сильный.</p>
+      <div class="frow"><div class="slot"></div>+<div class="slot"></div>=<div class="slot">❔</div></div>
+      <p>Результат зависит от редкости объединяемых вещей.</p>
+      <div class="ibtn primary">Объединить</div>
+      <div class="lock"><span>🔒</span>Скоро будет доступно</div>
+    </div>
+  </div>
+  <div class="forge-note">Кузнец ещё разжигает горн — улучшение и объединение появятся в следующих версиях.</div>
+</div></div>
 <div id="rotate"><div>📱</div><p>Поверни телефон горизонтально</p></div>
 
 <script type="module">
 import * as THREE from 'three';
 
 // Графика, рассчитанная на телефон
-const Q = { dpr: Math.min(devicePixelRatio, 1.5), aa: false, shadow: 1024, trees: 1100, rocks: 260, tufts: 2500 };
+const Q = { dpr: Math.min(devicePixelRatio, 1.5), aa: false, shadow: 1024, trees: 1800, rocks: 420, tufts: 3800 };
 
 // ============================================================
 //  Шум и вспомогательные функции
@@ -225,16 +280,17 @@ function ridged(x, z, oct = 5) {
 // ============================================================
 //  Рельеф
 // ============================================================
-const WORLD = 600, HALF = WORLD / 2, SEG = 300, STEP = WORLD / SEG;
+const WORLD = 900, HALF = WORLD / 2, SEG = 360, STEP = WORLD / SEG;
 const WATER = 0;
 // Город на месте появления: квадрат стен ±TOWN_WALL, земля внутри ровная на высоте TOWN_Y
 const TOWN_Y = 4, TOWN_WALL = 34, TOWN_NAME = 'Камнеград';
+const FORGE_POS = { x: 20, z: -2.6 };
 const townDist = (x, z) => Math.max(Math.abs(x), Math.abs(z));
 
 // Подземелья: где на поверхности стоят входы
 const DUNGEON_SITES = [
-  { x: -95, z: 70, r: 12, name: 'Древний склеп' },
-  { x: 45, z: -100, r: 12, name: 'Пещера кристаллов' },
+  { x: -175, z: 135, r: 12, name: 'Древний склеп' },
+  { x: 75, z: -205, r: 12, name: 'Пещера кристаллов' },
 ];
 
 function rawHeight(x, z) {
@@ -246,7 +302,7 @@ function rawHeight(x, z) {
   const ring = smoothstep(0.62, 0.95, d);
   h += ring * (r * r * 75 + 12);
   // Горный массив на севере
-  const md = Math.hypot(x - 60, z + 165) / 115;
+  const md = Math.hypot(x - 90, z + 300) / 170;
   const massif = Math.max(0, 1 - md);
   h += massif * massif * (r * 70 + 25);
   // Ровная поляна в центре (точка старта)
@@ -355,7 +411,7 @@ const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, rough
       const d = Math.hypot(x - s.x, z - s.z);
       c.lerp(dirt, (1 - smoothstep(4, 9, d)) * 0.7);
     }
-    if (Math.abs(x) < 3.5 && Math.abs(z) > 30 && Math.abs(z) < 75) c.lerp(dirt, 0.75);
+    if (Math.abs(x) < 3.5 && Math.abs(z) > 30 && Math.abs(z) < 90) c.lerp(dirt, 0.75);
     colors[k * 3] = c.r; colors[k * 3 + 1] = c.g; colors[k * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -385,7 +441,7 @@ function addObstacle(x, z, r) {
 const treePoints = [];
 {
   const pines = [], oaks = [];
-  for (let n = 0; n < 9000 && pines.length + oaks.length < Q.trees; n++) {
+  for (let n = 0; n < 16000 && pines.length + oaks.length < Q.trees; n++) {
     const x = (rand() * 2 - 1) * (HALF - 10), z = (rand() * 2 - 1) * (HALF - 10);
     const h = groundAt(x, z);
     if (h < 1.3 || h > 42) continue;
@@ -436,7 +492,7 @@ const treePoints = [];
 
   // Камни
   const rocks = [];
-  for (let n = 0; n < 3000 && rocks.length < Q.rocks; n++) {
+  for (let n = 0; n < 6000 && rocks.length < Q.rocks; n++) {
     const x = (rand() * 2 - 1) * (HALF - 5), z = (rand() * 2 - 1) * (HALF - 5);
     const h = groundAt(x, z);
     if (h < 0.5 || townDist(x, z) < 42) continue;
@@ -453,7 +509,7 @@ const treePoints = [];
 
   // Трава — кустики
   const tufts = [];
-  for (let n = 0; n < 20000 && tufts.length < Q.tufts; n++) {
+  for (let n = 0; n < 40000 && tufts.length < Q.tufts; n++) {
     const x = (rand() * 2 - 1) * (HALF - 20), z = (rand() * 2 - 1) * (HALF - 20);
     if (townDist(x, z) < 37) continue;
     const h = groundAt(x, z);
@@ -749,6 +805,23 @@ const townBoxes = [], townSolids = [], townMap = [];
     const f = boxM(x0 === x1 ? 0.12 : len, 0.9, x0 === x1 ? len : 0.12, fence, (x0 + x1) / 2, G + 0.45, (z0 + z1) / 2);
   }
   townMap.push({ x0: 11, x1: 29, z0: -31.5, z1: -19.6, c: '#6a8a3a' });
+
+  // --- Кузница у поперечной улицы: навес, горн с огнём, наковальня
+  {
+    const FX = 20, FZ = -6;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) boxM(0.22, 3.2, 0.22, timber, FX + sx * 3, G + 1.6, FZ + sz * 2.2);
+    const shed = boxM(7, 0.18, 5.4, roofBrown, FX, G + 3.3, FZ); shed.rotation.x = -0.14;
+    boxM(3, 2.2, 1.8, stone, FX, G + 1.1, FZ - 1.6);
+    mesh(new THREE.BoxGeometry(1.1, 0.8, 0.1), new THREE.MeshStandardMaterial({ color: 0xff8a2a, emissive: 0xff6a10, emissiveIntensity: 1.6 }), FX, G + 0.9, FZ - 0.66, town, false);
+    boxM(0.9, 3.6, 0.9, stone, FX + 0.8, G + 3.8, FZ - 1.9);
+    boxM(1.0, 0.6, 0.5, darkWood, FX - 0.6, G + 0.3, FZ + 0.6);
+    const anvilM = new THREE.MeshStandardMaterial({ color: 0x3a3c40, metalness: 0.7, roughness: 0.4 });
+    boxM(0.5, 0.5, 0.35, anvilM, FX + 1.2, G + 0.25, FZ + 0.6); boxM(0.95, 0.25, 0.45, anvilM, FX + 1.2, G + 0.62, FZ + 0.6);
+    mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.8, 10), timber, FX - 2.2, G + 0.4, FZ - 1.2);
+    solid({ x0: FX - 1.6, x1: FX + 1.6, z0: FZ - 2.6, z1: FZ - 0.6 }, '#6a5a4a');
+    addObstacle(FX + 1.2, FZ + 0.6, 0.5); addObstacle(FX - 2.2, FZ - 1.2, 0.5);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) addObstacle(FX + sx * 3, FZ + sz * 2.2, 0.2);
+  }
 
   // --- Площадь: колодец и торговые лавки (костёр уже стоит здесь)
   mesh(new THREE.CylinderGeometry(1.1, 1.2, 1.0, 12), stone, -6, G + 0.5, 6);
@@ -1099,13 +1172,11 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-const startEl = document.getElementById('start');
-startEl.addEventListener('click', () => {
-  startEl.remove();
-  initTouch();
+let touchReady = false;
+function enterGame() {
+  if (!touchReady) { initTouch(); touchReady = true; }
   document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
-  showBanner(TOWN_NAME, 'За стенами в долине скрыты два подземелья');
-});
+}
 
 const rotateEl = document.getElementById('rotate');
 const checkOrientation = () => { rotateEl.style.display = innerHeight > innerWidth * 1.1 ? 'flex' : 'none'; };
@@ -1125,7 +1196,7 @@ function initTouch() {
 
   addEventListener('touchstart', e => {
     for (const t of e.changedTouches) {
-      if (t.target.closest?.('.tbtn, .hbtn, #inv, #skills')) continue;
+      if (t.target.closest?.('.tbtn, .hbtn, #inv, #skills, #forge, #menu')) continue;
       pts.set(t.identifier, { x: t.clientX, y: t.clientY });
       if (t.clientX < innerWidth * 0.42 && joyId === null) {
         joyId = t.identifier; ox = t.clientX; oy = t.clientY;
@@ -1135,7 +1206,7 @@ function initTouch() {
       else if (pinchId === null) { pinchId = t.identifier; pinchD = pinchDist(); }
     }
     // Кнопки интерфейса и инвентарь работают обычными нажатиями
-    if (!e.target.closest?.('.hbtn, #inv, #skills')) e.preventDefault();
+    if (!e.target.closest?.('.hbtn, #inv, #skills, #forge, #menu')) e.preventDefault();
   }, { passive: false });
 
   addEventListener('touchmove', e => {
@@ -1160,7 +1231,7 @@ function initTouch() {
         }
       }
     }
-    if (!e.target.closest?.('#inv, #skills')) e.preventDefault();
+    if (!e.target.closest?.('#inv, #skills, #forge, #menu')) e.preventDefault();
   }, { passive: false });
 
   const end = e => {
@@ -1264,6 +1335,7 @@ function currentInteraction() {
   if (state.busy) return null;
   const p = state.pos;
   if (state.mode < 0) {
+    if (Math.hypot(p.x - FORGE_POS.x, p.z - FORGE_POS.z) < 3.4) return { text: '⚒ Кузница', fn: () => openForge(true) };
     for (const e of surfaceEntrances) {
       if (Math.hypot(p.x - e.door.x, p.z - e.door.z) < 3.2)
         return { text: `Войти: ${e.site.name}`, fn: () => enterDungeon(e.idx) };
@@ -1727,10 +1799,10 @@ function resetEnemies(mode) {
       && surfaceObstaclesNear({ x, z }).every(o => Math.hypot(o.x - x, o.z - z) > o.r + 1);
   };
   let slimes = 0, goblins = 0;
-  for (let n = 0; n < 5000 && (slimes < 14 || goblins < 6); n++) {
+  for (let n = 0; n < 8000 && (slimes < 22 || goblins < 10); n++) {
     const x = (er() * 2 - 1) * (HALF - 40), z = (er() * 2 - 1) * (HALF - 40);
     if (!ok(x, z)) continue;
-    if (slimes < 14) { spawnEnemy('slime', -1, x, z, surface); slimes++; }
+    if (slimes < 22) { spawnEnemy('slime', -1, x, z, surface); slimes++; }
     else { spawnEnemy('goblin', -1, x, z, surface); goblins++; }
   }
   // Гоблины охраняют входы в подземелья
@@ -1875,7 +1947,7 @@ const LOOT = {
 };
 const xpNext = lvl => 30 + lvl * 30;
 
-const prog = { level: 1, xp: 0, gold: 0, inv: [], equip: { weapon: null, armor: null, helm: null, amulet: null }, skills: {} };
+const prog = { name: '', level: 1, xp: 0, gold: 0, inv: [], equip: { weapon: null, armor: null, helm: null, amulet: null }, skills: {} };
 
 function heroStats() {
   const eq = Object.values(prog.equip).filter(Boolean).map(id => ITEMS[id]);
@@ -1908,13 +1980,13 @@ function updateHeroLook() {
 // --- Сохранение прогресса героя
 const SAVE_KEY = 'zemli-save-v1';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ level: prog.level, xp: prog.xp, gold: prog.gold, inv: prog.inv, equip: prog.equip, skills: prog.skills, kills: state.kills })); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: prog.name, level: prog.level, xp: prog.xp, gold: prog.gold, inv: prog.inv, equip: prog.equip, skills: prog.skills, kills: state.kills })); } catch {}
 }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (!d || !d.level) return false;
-    prog.level = d.level; prog.xp = d.xp || 0; prog.gold = d.gold || 0;
+    prog.level = d.level; prog.xp = d.xp || 0; prog.gold = d.gold || 0; prog.name = d.name || '';
     prog.inv = (d.inv || []).filter(x => ITEMS[x.id]).slice(0, INV_SIZE);
     for (const [k] of SLOTS) prog.equip[k] = ITEMS[d.equip?.[k]] ? d.equip[k] : null;
     state.kills = d.kills || 0;
@@ -2181,7 +2253,7 @@ function pointsFree() {
 // --- Активные умения
 function useSkill(id) {
   const r = skillRank(id);
-  if (!r || state.cd[id] > 0 || state.busy || state.dead || invOpen || skillsOpen || state.spinT >= 0 || state.dashT >= 0) return;
+  if (!r || state.cd[id] > 0 || state.busy || state.dead || invOpen || skillsOpen || state.spinT >= 0 || state.dashT >= 0 || forgeOpen || menuOpen) return;
   state.attackT = -1;
   if (id === 'whirl') {
     state.spinT = 0; state.spinHit = false;
@@ -2307,6 +2379,83 @@ function updateZone() {
   if (zone === 'town' && !first) showBanner(TOWN_NAME, 'Под защитой крепостных стен');
 }
 
+// ============================================================
+//  Кузница: улучшение и объединение оружия (пока закрыто)
+// ============================================================
+const FORGE_ENABLED = false; // включим, когда доделаем систему
+const forgeEl = document.getElementById('forge');
+let forgeOpen = false;
+function openForge(open) {
+  if (open && (state.dead || state.busy)) return;
+  forgeOpen = open;
+  forgeEl.classList.toggle('hidden', !open);
+  if (!open) return;
+  touch.x = touch.y = 0; touch.jump = false;
+  const w = ITEMS[prog.equip.weapon];
+  document.getElementById('forgeWeapon').innerHTML = w ? w.icon : '';
+  document.getElementById('forgeWeaponUp').innerHTML = w ? `${w.icon}<span class="n">+1</span>` : '';
+  document.getElementById('forgeUpInfo').textContent = w ? `${w.name}: урон +${w.dmg} → +${w.dmg + 3}` : 'Надень оружие, чтобы улучшить его';
+}
+forgeEl.addEventListener('click', e => {
+  if (e.target === forgeEl || e.target.closest('[data-act="close"]')) openForge(false);
+});
+
+// ============================================================
+//  Главное меню: имя героя, «Начать игру» / «Продолжить»
+// ============================================================
+const menuEl = document.getElementById('menu'), nameInput = document.getElementById('nameInput');
+let menuOpen = true, sessionStarted = false;
+const anyPanelOpen = () => invOpen || skillsOpen || forgeOpen || menuOpen;
+const heroName = () => prog.name || 'Странник';
+function renderMenu() {
+  nameInput.value = prog.name || (() => { try { return sessionStorage.getItem('zemli-name') || ''; } catch { return ''; } })();
+  document.getElementById('menuMain').textContent = hasSave ? 'Продолжить' : 'Начать игру';
+  document.getElementById('menuNew').style.display = hasSave ? '' : 'none';
+  document.getElementById('menuInfo').textContent = hasSave
+    ? `${heroName()} · уровень ${prog.level} · 🪙 ${prog.gold}`
+    : 'Твоё приключение начнётся в городе Камнеград';
+}
+function openMenu(open) {
+  if (open && (state.dead || state.busy)) return;
+  if (open) { openInv(false); openSkills(false); openForge(false); touch.x = touch.y = 0; touch.jump = false; renderMenu(); }
+  menuOpen = open;
+  menuEl.classList.toggle('hidden', !open);
+  document.body.classList.toggle('menu-open', open);
+}
+document.getElementById('menuMain').addEventListener('click', () => {
+  prog.name = nameInput.value.trim().slice(0, 16) || 'Странник';
+  nameInput.blur();
+  const first = !hasSave;
+  hasSave = true;
+  save();
+  openMenu(false);
+  enterGame();
+  if (!sessionStarted) {
+    sessionStarted = true;
+    showBanner(first ? `Добро пожаловать, ${prog.name}!` : `С возвращением, ${prog.name}!`,
+      first ? 'Камнеград — твой дом. За стенами ждут чудовища и два подземелья' : TOWN_NAME);
+  }
+});
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
+document.getElementById('menuNew').addEventListener('click', () => {
+  if (!confirm('Начать новую игру? Уровень, навыки, предметы и золото будут удалены.')) return;
+  try { localStorage.removeItem(SAVE_KEY); sessionStorage.setItem('zemli-name', nameInput.value.trim()); } catch {}
+  location.reload();
+});
+document.getElementById('btnMenu').addEventListener('click', () => openMenu(true));
+
+// Имя над героем
+const nameTagEl = document.getElementById('nameTag');
+function updateNameTag() {
+  const show = !menuOpen && !state.dead;
+  if (!show) { nameTagEl.style.display = 'none'; return; }
+  fv.set(state.pos.x, state.pos.y + 2.55, state.pos.z).project(camera);
+  if (fv.z > 1) { nameTagEl.style.display = 'none'; return; }
+  nameTagEl.style.display = 'block';
+  if (nameTagEl.textContent !== heroName()) nameTagEl.textContent = heroName();
+  nameTagEl.style.transform = `translate(${(fv.x * 0.5 + 0.5) * innerWidth}px, ${(-fv.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
+}
+
 // --- Полоски и счётчики на экране
 const lvlEl = document.getElementById('lvlBadge'), xpBarEl = document.getElementById('xpbar'), hpTextEl = document.getElementById('hptext'), potionEl = document.getElementById('potionN');
 let hudKey = '';
@@ -2326,11 +2475,13 @@ function updateHud() {
   document.getElementById('btnSkills').classList.toggle('glow', free > 0);
 }
 
-// Новая игра: ржавый меч и пара зелий
-if (!load()) { prog.equip.weapon = 'sword_rusty'; prog.inv.push({ id: 'potion', n: 2 }); save(); }
+// Новая игра: ржавый меч и пара зелий. Сохранение появляется только после «Начать игру»
+let hasSave = load();
+if (!hasSave) { prog.equip.weapon = 'sword_rusty'; prog.inv.push({ id: 'potion', n: 2 }); }
 refreshStats();
 state.hp = state.maxHp;
 killsEl.textContent = state.kills;
+renderMenu();
 
 // ============================================================
 //  Камера
@@ -2445,7 +2596,7 @@ const actBtn = document.getElementById('btnAct');
 let lastPrompt = null;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-  if (!invOpen && !skillsOpen) {
+  if (!anyPanelOpen()) {
     updatePlayer(dt);
     updateEnemies(dt);
     updateLoot(dt);
@@ -2456,6 +2607,7 @@ function frame() {
   updateHud();
   updateSkillButtons();
   updateZone();
+  updateNameTag();
 
   // Огонь и свечение
   const cf = campfire.userData;
