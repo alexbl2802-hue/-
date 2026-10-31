@@ -30,7 +30,6 @@ var _blade: MeshInstance3D
 var _blade_mat: ShaderMaterial
 var _tunic_mat: ShaderMaterial
 var _helmet: MeshInstance3D
-var _armor: MeshInstance3D
 var _helmet_mat: ShaderMaterial
 var _walk := 0.0
 var _speed_now := 0.0
@@ -73,47 +72,50 @@ func _box(parent: Node3D, size: Vector3, m: Material, pos: Vector3) -> MeshInsta
 	parent.add_child(mi)
 	return mi
 
-## Модель героя из assets/models/hero.glb (подготовлена tools/convert_hero.py):
-## туловище с головой, руки от плеч и ноги от бёдер — их качает анимация.
 func _build_model() -> void:
 	_model = Node3D.new()
 	add_child(_model)
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/hero_model.json"))
-	var skin_mat := Mats.lp(0xffffff, 0.8)
-	var parts: Dictionary = data["parts"]
-	var nodes := {}
-	for name in parts:
-		var pt: Dictionary = parts[name]
-		var node := Node3D.new()
-		node.position = Vector3(pt["pivot"][0], pt["pivot"][1], pt["pivot"][2])
-		_model.add_child(node)
-		var mi := MeshInstance3D.new()
-		mi.mesh = _part_mesh(pt)
-		mi.material_override = skin_mat
-		node.add_child(mi)
-		nodes[name] = node
-	_legs.append(nodes["leg_r"])
-	_legs.append(nodes["leg_l"])
-	_arms.append(nodes["arm_r"])
-	_arms.append(nodes["arm_l"])
-	# Доспех и шлем — растянутые копии торса и причёски, видны, когда надеты
-	var shells: Dictionary = data["shells"]
-	_tunic_mat = Mats.lp(0x8f979f, 0.6).duplicate()
-	_armor = _shell(shells["armor"], _tunic_mat, Vector3(1.15, 0.94, 1.26))
-	_armor.visible = false
+	var M := func(c: int) -> Material: return Mats.lp(c, 0.8)
+	var skin: Material = M.call(0xf1c27d)
+	_tunic_mat = Mats.lp(0x2e6b8a, 0.8).duplicate()
+	var pants: Material = M.call(0x5b4632)
+	var boots: Material = M.call(0x3a2a1a)
+	var hair: Material = M.call(0x5a3a1e)
+	_box(_model, Vector3(0.62, 0.75, 0.36), _tunic_mat, Vector3(0, 1.25, 0))
+	_box(_model, Vector3(0.64, 0.1, 0.38), M.call(0x2a1a0a), Vector3(0, 0.92, 0))
+	_box(_model, Vector3(0.66, 0.22, 0.4), _tunic_mat, Vector3(0, 0.78, 0))
+	var head := Node3D.new()
+	head.position.y = 1.85
+	_model.add_child(head)
+	_box(head, Vector3(0.42, 0.42, 0.42), skin, Vector3.ZERO)
+	_box(head, Vector3(0.46, 0.14, 0.46), hair, Vector3(0, 0.21, 0))
+	_box(head, Vector3(0.46, 0.32, 0.1), hair, Vector3(0, 0.06, -0.2))
+	_box(head, Vector3(0.07, 0.07, 0.02), M.call(0x1a1a1a), Vector3(-0.1, 0.03, 0.215))
+	_box(head, Vector3(0.07, 0.07, 0.02), M.call(0x1a1a1a), Vector3(0.1, 0.03, 0.215))
 	_helmet_mat = Mats.lp(0xa0a8b0, 0.8).duplicate()
-	_helmet = _shell(shells["helmet"], _helmet_mat, Vector3(1.32, 2.2, 1.38))
-	_helmet.position.y -= 0.01
+	_helmet = _box(head, Vector3(0.5, 0.24, 0.5), _helmet_mat, Vector3(0, 0.2, 0))
+	for s in [-1.0, 1.0]:
+		var lp := Node3D.new()
+		lp.position = Vector3(0.16 * s, 0.88, 0)
+		_model.add_child(lp)
+		_box(lp, Vector3(0.24, 0.6, 0.26), pants, Vector3(0, -0.3, 0))
+		_box(lp, Vector3(0.26, 0.2, 0.34), boots, Vector3(0, -0.75, 0.04))
+		_legs.append(lp)
+		var ap := Node3D.new()
+		ap.position = Vector3(0.42 * s, 1.55, 0)
+		_model.add_child(ap)
+		_box(ap, Vector3(0.2, 0.62, 0.22), _tunic_mat, Vector3(0, -0.28, 0))
+		_box(ap, Vector3(0.19, 0.17, 0.19), skin, Vector3(0, -0.66, 0))
+		_arms.append(ap)
 	# Меч в правой руке: клинок смотрит вперёд, когда рука опущена
 	_sword = Node3D.new()
-	var hand: Array = data["hand_r"]
-	_sword.position = Vector3(hand[0], hand[1], hand[2] + 0.04)
+	_sword.position = Vector3(0, -0.68, 0.04)
 	_sword.rotation.x = PI / 2
 	_arms[0].add_child(_sword)
 	_blade_mat = Mats.lp(0xc0c8d0, 0.4, 0.3).duplicate()
 	_blade = _box(_sword, Vector3(0.08, 1.0, 0.03), _blade_mat, Vector3(0, 0.62, 0))
-	_box(_sword, Vector3(0.32, 0.07, 0.09), Mats.lp(0x8a6a2a, 0.8), Vector3(0, 0.1, 0))
-	_box(_sword, Vector3(0.06, 0.2, 0.06), Mats.lp(0x3a2410, 0.8), Vector3(0, -0.02, 0))
+	_box(_sword, Vector3(0.32, 0.07, 0.09), M.call(0x8a6a2a), Vector3(0, 0.1, 0))
+	_box(_sword, Vector3(0.06, 0.2, 0.06), M.call(0x3a2410), Vector3(0, -0.02, 0))
 	# След от взмаха меча — полукольцо
 	_slash = MeshInstance3D.new()
 	_slash.mesh = _half_ring(1.0, 2.1, 20)
@@ -126,34 +128,6 @@ func _build_model() -> void:
 	_slash.position = Vector3(-0.3, 1.2, 0.3)
 	_slash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_model.add_child(_slash)
-
-func _shell(sh: Dictionary, mat: Material, scale: Vector3) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = _part_mesh(sh)
-	mi.material_override = mat
-	mi.position = Vector3(sh["center"][0], sh["center"][1], sh["center"][2])
-	mi.scale = scale
-	_model.add_child(mi)
-	return mi
-
-func _part_mesh(pt: Dictionary) -> ArrayMesh:
-	var v: Array = pt["v"]
-	var c: Array = pt.get("c", [])
-	var verts := PackedVector3Array()
-	var cols := PackedColorArray()
-	verts.resize(v.size() / 3)
-	cols.resize(v.size() / 3)
-	for k in verts.size():
-		verts[k] = Vector3(v[k * 3], v[k * 3 + 1], v[k * 3 + 2])
-		cols[k] = Color(c[k * 3], c[k * 3 + 1], c[k * 3 + 2]) if not c.is_empty() else Color.WHITE
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_COLOR] = cols
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(pt["i"])
-	var m := ArrayMesh.new()
-	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return m
 
 ## Полукольцо в вертикальной плоскости: от спины через верх вперёд
 func _half_ring(r0: float, r1: float, segs: int) -> ArrayMesh:
@@ -192,14 +166,12 @@ func update_look() -> void:
 			_blade_mat.set_shader_parameter("emission_energy", 1.0 if w.has("glow") else 0.0)
 		_blade.scale.y = w["len"]
 		_blade.position.y = 0.12 + 0.5 * w["len"]
-	_armor.visible = not a.is_empty()
-	# Доспех поверх камуфляжа: металл чуть темнее и матовее, чтобы не сиял белым
-	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)).darkened(0.3 if a.get("metal", false) else 0.0))
-	_tunic_mat.set_shader_parameter("metallic", 0.3 if a.get("metal", false) else 0.0)
-	_tunic_mat.set_shader_parameter("roughness", 0.6 if a.get("metal", false) else 0.85)
+	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)))
+	_tunic_mat.set_shader_parameter("metallic", 0.55 if a.get("metal", false) else 0.0)
+	_tunic_mat.set_shader_parameter("roughness", 0.45 if a.get("metal", false) else 0.8)
 	_helmet.visible = not h.is_empty()
 	if not h.is_empty():
-		_helmet_mat.set_shader_parameter("albedo", WorldGen.hex(h["color"]).darkened(0.25))
+		_helmet_mat.set_shader_parameter("albedo", WorldGen.hex(h["color"]))
 
 # ---------- Бой
 func attack() -> void:
