@@ -20,9 +20,59 @@
   #help b { color: #ffd479; }
   #status { top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font-size: 15px; text-align: center; white-space: nowrap; }
   #minimap { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); border: 2px solid rgba(255, 220, 160, 0.4); border-radius: 8px; background: #111; }
-  #hpwrap { position: fixed; top: calc(58px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 220px; height: 12px; border-radius: 6px;
-    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,220,160,0.35); overflow: hidden; pointer-events: none; }
+  #bars { position: fixed; top: calc(58px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
+  #lvlBadge { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(#ffe39a, #c98a1c); color: #2a1d08; font-weight: 800; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; border: 2px solid #fff3d0; box-shadow: 0 1px 4px #000; }
+  #bars .col { display: flex; flex-direction: column; gap: 3px; }
+  #hpwrap { position: relative; width: 220px; height: 13px; border-radius: 6px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,220,160,0.35); overflow: hidden; }
   #hpbar { height: 100%; width: 100%; background: linear-gradient(#e8574a, #a3241b); transition: width 0.15s; }
+  #hptext { position: absolute; inset: 0; font-size: 10px; line-height: 13px; text-align: center; color: #fff; text-shadow: 0 1px 2px #000; }
+  #xpwrap { width: 220px; height: 6px; border-radius: 3px; background: rgba(0,0,0,0.55); border: 1px solid rgba(160,220,255,0.3); overflow: hidden; }
+  #xpbar { height: 100%; width: 0; background: linear-gradient(#9fe4ff, #2a7fb0); transition: width 0.3s; }
+  #hudBtns { position: fixed; left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 8px; z-index: 5; }
+  body.touch #hudBtns { bottom: auto; top: calc(12px + env(safe-area-inset-top)); }
+  .hbtn { position: relative; width: 50px; height: 50px; border-radius: 12px; background: rgba(20,16,10,0.65); border: 2px solid rgba(255,220,160,0.45);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; }
+  .hbtn:active { transform: scale(0.93); }
+  .hbtn .n { position: absolute; right: 4px; bottom: 1px; font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000; }
+  .hbtn kbd { position: absolute; left: 3px; top: 1px; font-size: 9px; opacity: 0.6; font-family: inherit; }
+  body.touch .hbtn kbd { display: none; }
+  #floaters { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .floater { position: absolute; left: 0; top: 0; font-weight: 800; font-size: 17px; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 2px #000; }
+  .floater.big { font-size: 24px; }
+  #inv { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 15; touch-action: manipulation; }
+  #inv.hidden { display: none; }
+  .inv-box { width: min(800px, 96vw); max-height: 96vh; overflow-y: auto; background: rgba(28,22,16,0.97); border: 2px solid rgba(255,220,160,0.4); border-radius: 12px;
+    padding: 10px 14px; box-sizing: border-box; }
+  .inv-head { display: flex; align-items: center; gap: 14px; font-size: 18px; color: #ffd479; margin-bottom: 8px; }
+  #invGold { color: #ffd34d; font-size: 15px; flex: 1; }
+  .ibtn { padding: 7px 13px; border-radius: 8px; background: #3a2d1c; border: 1px solid rgba(255,220,160,0.5); color: #ffe7b0; cursor: pointer; font-size: 14px; text-align: center; }
+  .ibtn.primary { background: #ffd479; color: #2a1d08; font-weight: 700; }
+  .ibtn.small { padding: 4px 9px; font-size: 12px; opacity: 0.8; }
+  .inv-body { display: flex; gap: 14px; }
+  .inv-left { width: 36%; display: flex; flex-direction: column; gap: 8px; }
+  #invStats { font-size: 14px; line-height: 1.55; }
+  #invStats .xp { height: 8px; background: #000; border-radius: 4px; overflow: hidden; margin: 3px 0; }
+  #invStats .xp div { height: 100%; background: linear-gradient(#9fe4ff, #2a7fb0); }
+  #invEquip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .inv-right { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  #invGrid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+  .slot { position: relative; aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-sizing: border-box; }
+  .slot.ghost { opacity: 0.35; }
+  .slot.sel { outline: 2px solid #ffd479; outline-offset: 1px; background: rgba(255,212,121,0.15); }
+  .slot .n { position: absolute; right: 3px; bottom: 0; font-size: 11px; font-weight: 800; text-shadow: 0 1px 2px #000; }
+  .slot .lbl { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 9px; text-align: center; opacity: 0.75; }
+  #invEquip .slot { font-size: 26px; padding-bottom: 8px; }
+  #invInfo { min-height: 70px; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.04); }
+  #invInfo .name { font-weight: 700; font-size: 15px; width: 100%; }
+  #invInfo .line { width: 100%; opacity: 0.9; }
+  #invInfo .cmp { width: 100%; opacity: 0.65; font-size: 12px; }
+  @media (max-height: 500px) {
+    .inv-box { padding: 6px 10px; } .inv-head { margin-bottom: 4px; font-size: 16px; }
+    #invStats { font-size: 12px; line-height: 1.4; } .slot { font-size: 18px; } #invEquip .slot { font-size: 20px; }
+    #invInfo { min-height: 56px; padding: 6px; }
+  }
   #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s;
     background: radial-gradient(ellipse at center, rgba(160,0,0,0) 45%, rgba(170,0,0,0.65) 100%); }
   #prompt { bottom: 70px; left: 50%; transform: translateX(-50%); font-size: 18px; display: none; }
@@ -57,7 +107,8 @@
     background: rgba(255,212,121,0.85); color: #2a1d08; border-color: #fff3d0; max-width: 46vw; }
   @media (max-height: 500px) {
     #status { font-size: 13px; padding: 6px 10px; }
-    #hpwrap { top: calc(44px + env(safe-area-inset-top)); width: 180px; height: 10px; }
+    #bars { top: calc(44px + env(safe-area-inset-top)); }
+    #hpwrap, #xpwrap { width: 170px; } #lvlBadge { width: 26px; height: 26px; font-size: 13px; }
     #banner { font-size: 30px; top: 22%; } #banner small { font-size: 15px; }
     #start h1 { font-size: 34px; }
   }
@@ -72,11 +123,27 @@
   <b>WASD</b> — ходьба &nbsp; <b>Shift</b> — бег<br>
   <b>Пробел</b> — прыжок &nbsp; <b>E</b> — действие<br>
   <b>ЛКМ / F</b> — удар мечом<br>
+  <b>I</b> — инвентарь &nbsp; <b>Q</b> — зелье<br>
   <b>Мышь</b> — камера &nbsp; <b>Колесо</b> — зум<br>
   <b>Esc</b> — освободить курсор
 </div>
 <div id="status" class="panel"><span id="loc">Долина</span> &nbsp;·&nbsp; Сокровища: <span id="treasure">0</span>/2 &nbsp;·&nbsp; ⚔ <span id="kills">0</span></div>
-<div id="hpwrap"><div id="hpbar"></div></div>
+<div id="bars"><div id="lvlBadge">1</div><div class="col">
+  <div id="hpwrap"><div id="hpbar"></div><div id="hptext"></div></div>
+  <div id="xpwrap"><div id="xpbar"></div></div>
+</div></div>
+<div id="hudBtns">
+  <div id="btnInv" class="hbtn" title="Инвентарь (I)"><kbd>I</kbd>🎒</div>
+  <div id="btnPotion" class="hbtn" title="Выпить зелье (Q)"><kbd>Q</kbd>🧪<span id="potionN" class="n">0</span></div>
+</div>
+<div id="floaters"></div>
+<div id="inv" class="hidden"><div class="inv-box">
+  <div class="inv-head"><b>Инвентарь</b><span id="invGold"></span><div class="ibtn small" data-act="reset">Новая игра</div><div class="ibtn" data-act="close">✕</div></div>
+  <div class="inv-body">
+    <div class="inv-left"><div id="invStats"></div><div id="invEquip"></div></div>
+    <div class="inv-right"><div id="invGrid"></div><div id="invInfo"></div></div>
+  </div>
+</div></div>
 <div id="hurt"></div>
 <canvas id="minimap" width="180" height="180"></canvas>
 <div id="prompt" class="panel"></div>
@@ -462,7 +529,7 @@ DUNGEON_SITES.forEach((s, idx) => {
 const CELL = 4, WALL_H = 5;
 const DUNGEON_DEFS = [
   {
-    name: 'Древний склеп', sub: 'Холодный камень и забытые кости', style: 'crypt', y: -300,
+    name: 'Древний склеп', sub: 'Холодный камень и забытые кости', style: 'crypt', y: -300, chestLoot: ['sword_steel', 'amulet_life'],
     map: [
       '#####################',
       '#S..#.......#.......#',
@@ -481,7 +548,7 @@ const DUNGEON_DEFS = [
     ],
   },
   {
-    name: 'Пещера кристаллов', sub: 'Глубоко под горами что-то мерцает', style: 'cave', y: -600,
+    name: 'Пещера кристаллов', sub: 'Глубоко под горами что-то мерцает', style: 'cave', y: -600, chestLoot: ['sword_crystal', 'armor_plate'],
     map: [
       '########################',
       '####S..######......#####',
@@ -769,10 +836,12 @@ function makeHero() {
   }
   // Меч в правой руке: клинок смотрит вперёд, когда рука опущена
   const sword = new THREE.Group(); sword.position.set(0, -0.68, 0.04); sword.rotation.x = Math.PI / 2; arms[0].add(sword);
-  box(0.08, 1.0, 0.03, steel, 0, 0.62, 0, sword);
+  const blade = box(0.08, 1.0, 0.03, steel, 0, 0.62, 0, sword);
+  const helmetMat = M(0xa0a8b0);
+  const helmet = box(0.5, 0.24, 0.5, helmetMat, 0, 0.2, 0, head); helmet.visible = false;
   box(0.32, 0.07, 0.09, M(0x8a6a2a), 0, 0.1, 0, sword);
   box(0.06, 0.2, 0.06, M(0x3a2410), 0, -0.02, 0, sword);
-  g.userData = { legs, arms, head, sword };
+  g.userData = { legs, arms, head, sword, blade, bladeMat: steel, tunic, helmet, helmetMat };
   return g;
 }
 const hero = makeHero();
@@ -792,6 +861,10 @@ const state = {
 
 const keys = {};
 addEventListener('keydown', e => {
+  if (e.code === 'KeyI' || e.code === 'Tab') { e.preventDefault(); openInv(!invOpen); return; }
+  if (e.code === 'Escape' && invOpen) { openInv(false); return; }
+  if (invOpen) return;
+  if (e.code === 'KeyQ') usePotion();
   keys[e.code] = true;
   if (e.code === 'KeyE') interact();
   if (e.code === 'KeyF' || e.code === 'KeyJ') attack();
@@ -846,7 +919,7 @@ function initTouch() {
 
   addEventListener('touchstart', e => {
     for (const t of e.changedTouches) {
-      if (t.target.closest?.('.tbtn')) continue;
+      if (t.target.closest?.('.tbtn, .hbtn, #inv')) continue;
       pts.set(t.identifier, { x: t.clientX, y: t.clientY });
       if (t.clientX < innerWidth * 0.42 && joyId === null) {
         joyId = t.identifier; ox = t.clientX; oy = t.clientY;
@@ -855,7 +928,8 @@ function initTouch() {
       } else if (camId === null) camId = t.identifier;
       else if (pinchId === null) { pinchId = t.identifier; pinchD = pinchDist(); }
     }
-    e.preventDefault();
+    // Кнопки интерфейса и инвентарь работают обычными нажатиями
+    if (!e.target.closest?.('.hbtn, #inv')) e.preventDefault();
   }, { passive: false });
 
   addEventListener('touchmove', e => {
@@ -999,6 +1073,10 @@ function interact() { const it = currentInteraction(); if (it) it.fn(); }
 function openChest(d) {
   d.chest.opened = true;
   state.treasures++;
+  const c = d.chest.pos;
+  dropLoot('gold', 40 + Math.floor(Math.random() * 25), c.x, d.Y, c.z, d.di);
+  dropLoot('potion', 2, c.x, d.Y, c.z, d.di);
+  for (const id of d.def.chestLoot) dropLoot(id, 1, c.x, d.Y, c.z, d.di);
   treasureEl.textContent = state.treasures;
   showBanner('Сокровище найдено!', state.treasures === 2 ? 'Все сокровища собраны — ты настоящий искатель приключений!' : 'Осталось ещё одно подземелье');
 }
@@ -1180,16 +1258,19 @@ function swordHit() {
     const dx = e.pos.x - state.pos.x, dz = e.pos.z - state.pos.z, d = Math.hypot(dx, dz) || 0.01;
     if (d > 2.3 + e.T.r || Math.abs(e.pos.y - state.pos.y) > 2.5) continue;
     if (Math.abs(angDiff(Math.atan2(dx, dz), state.facing)) > 1.25 && d > e.T.r + 0.7) continue;
-    hitEnemy(e, 22 + Math.floor(Math.random() * 10), dx / d, dz / d);
+    hitEnemy(e, state.dmg + Math.floor(Math.random() * 9), dx / d, dz / d);
   }
 }
 
 function hitEnemy(e, dmg, nx, nz) {
   e.hp -= dmg; e.flash = 1;
+  floater(String(dmg), { x: e.pos.x, y: e.pos.y + e.T.barY - 2.0, z: e.pos.z }, '#fff2b0');
   e.kx = nx * 9; e.kz = nz * 9;
   if (e.hp <= 0) {
     e.dead = true; e.deadT = 0; e.bar.visible = false;
     state.kills++; killsEl.textContent = state.kills;
+    giveXP(ENEMY_XP[e.type], e.pos);
+    rollLoot(e);
     return;
   }
   // Удар сбивает замах врага
@@ -1199,7 +1280,9 @@ function hitEnemy(e, dmg, nx, nz) {
 
 function damagePlayer(dmg, fromX, fromZ) {
   if (state.invuln > 0 || state.dead || state.busy) return;
+  dmg = Math.max(1, Math.round(dmg * 100 / (100 + state.armor * 4)));
   state.hp = Math.max(0, state.hp - dmg);
+  floater('−' + dmg, state.pos, '#ff6a5a');
   state.invuln = 0.5; state.hurtAgo = 0;
   const dx = state.pos.x - fromX, dz = state.pos.z - fromZ, d = Math.hypot(dx, dz) || 1;
   state.pushX = dx / d * 10; state.pushZ = dz / d * 10;
@@ -1509,6 +1592,342 @@ function updateEnemies(dt) {
 const WHITE = new THREE.Color(1, 1, 1);
 
 // ============================================================
+//  Опыт, уровни, предметы, инвентарь
+// ============================================================
+const RARITY = [
+  { name: 'Обычный', css: '#e0e0e0', hex: 0xd8d8d8 },
+  { name: 'Редкий', css: '#5ab0ff', hex: 0x4aa8ff },
+  { name: 'Эпический', css: '#c87dff', hex: 0xc060ff },
+];
+const ITEMS = {
+  gold:           { name: 'Золото', icon: '🪙', kind: 'gold', rarity: 0 },
+  potion:         { name: 'Зелье лечения', icon: '🧪', kind: 'potion', rarity: 0, heal: 50 },
+  sword_rusty:    { name: 'Ржавый меч', icon: '🗡️', kind: 'weapon', rarity: 0, dmg: 4, color: 0x9a7a60, len: 0.9 },
+  sword_iron:     { name: 'Железный меч', icon: '🗡️', kind: 'weapon', rarity: 0, dmg: 9, color: 0xc0c8d0, len: 1.0 },
+  sword_bone:     { name: 'Костяной меч', icon: '🦴', kind: 'weapon', rarity: 1, dmg: 13, color: 0xe6dfc8, len: 1.05 },
+  sword_steel:    { name: 'Стальной меч', icon: '⚔️', kind: 'weapon', rarity: 1, dmg: 16, color: 0xeef4fa, len: 1.15 },
+  sword_crystal:  { name: 'Кристальный клинок', icon: '🔷', kind: 'weapon', rarity: 2, dmg: 25, color: 0x8fe8ff, len: 1.25, glow: 0x1a7aa8 },
+  armor_leather:  { name: 'Кожаная куртка', icon: '🧥', kind: 'armor', rarity: 0, armor: 4, color: 0x7a5230 },
+  armor_chain:    { name: 'Кольчуга', icon: '⛓️', kind: 'armor', rarity: 1, armor: 9, color: 0x8f979f, metal: true },
+  armor_plate:    { name: 'Латы', icon: '🛡️', kind: 'armor', rarity: 2, armor: 15, color: 0xc8ccd4, metal: true },
+  helm_leather:   { name: 'Кожаный шлем', icon: '🧢', kind: 'helm', rarity: 0, armor: 2, color: 0x6a4626 },
+  helm_iron:      { name: 'Железный шлем', icon: '⛑️', kind: 'helm', rarity: 1, armor: 5, color: 0xa0a8b0 },
+  amulet_life:    { name: 'Амулет жизни', icon: '📿', kind: 'amulet', rarity: 1, hp: 25 },
+  amulet_crystal: { name: 'Кристальный амулет', icon: '💎', kind: 'amulet', rarity: 2, hp: 40, dmg: 5 },
+};
+const SLOTS = [['weapon', 'Оружие', '🗡️'], ['armor', 'Доспех', '🧥'], ['helm', 'Шлем', '⛑️'], ['amulet', 'Амулет', '📿']];
+const INV_SIZE = 20;
+const ENEMY_XP = { slime: 12, goblin: 20, skeleton: 30, spider: 28 };
+// Что выпадает из монстров: [шанс, мин, макс] золота, шанс зелья, шанс предмета и список предметов
+const LOOT = {
+  slime:    { gold: [0.6, 2, 6],   potion: 0.2,  item: 0.07, pool: ['sword_rusty', 'helm_leather', 'armor_leather'] },
+  goblin:   { gold: [0.75, 4, 10], potion: 0.25, item: 0.15, pool: ['sword_rusty', 'sword_iron', 'armor_leather', 'helm_leather', 'helm_iron'] },
+  skeleton: { gold: [0.6, 6, 14],  potion: 0.3,  item: 0.25, pool: ['sword_iron', 'sword_bone', 'armor_chain', 'helm_iron', 'amulet_life', 'sword_steel'] },
+  spider:   { gold: [0.5, 6, 14],  potion: 0.35, item: 0.25, pool: ['sword_steel', 'armor_chain', 'helm_iron', 'amulet_life', 'sword_crystal', 'amulet_crystal', 'armor_plate'] },
+};
+const xpNext = lvl => 30 + lvl * 30;
+
+const prog = { level: 1, xp: 0, gold: 0, inv: [], equip: { weapon: null, armor: null, helm: null, amulet: null } };
+
+function heroStats() {
+  const eq = Object.values(prog.equip).filter(Boolean).map(id => ITEMS[id]);
+  const sum = k => eq.reduce((a, it) => a + (it[k] || 0), 0);
+  return { maxHp: 100 + (prog.level - 1) * 15 + sum('hp'), dmg: 18 + (prog.level - 1) * 4 + sum('dmg'), armor: sum('armor') };
+}
+function refreshStats() {
+  const st = heroStats();
+  state.maxHp = st.maxHp; state.hp = Math.min(state.hp, st.maxHp);
+  state.dmg = st.dmg; state.armor = st.armor;
+  updateHeroLook();
+}
+function updateHeroLook() {
+  const ud = hero.userData, w = ITEMS[prog.equip.weapon], a = ITEMS[prog.equip.armor], h = ITEMS[prog.equip.helm];
+  ud.sword.visible = !!w;
+  if (w) {
+    ud.bladeMat.color.set(w.color); ud.bladeMat.emissive.set(w.glow || 0x000000);
+    ud.blade.scale.y = w.len; ud.blade.position.y = 0.12 + 0.5 * w.len;
+  }
+  ud.tunic.color.set(a ? a.color : 0x2e6b8a);
+  ud.tunic.metalness = a?.metal ? 0.55 : 0; ud.tunic.roughness = a?.metal ? 0.45 : 0.8;
+  ud.helmet.visible = !!h;
+  if (h) ud.helmetMat.color.set(h.color);
+}
+
+// --- Сохранение прогресса героя
+const SAVE_KEY = 'zemli-save-v1';
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ level: prog.level, xp: prog.xp, gold: prog.gold, inv: prog.inv, equip: prog.equip, kills: state.kills })); } catch {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!d || !d.level) return false;
+    prog.level = d.level; prog.xp = d.xp || 0; prog.gold = d.gold || 0;
+    prog.inv = (d.inv || []).filter(x => ITEMS[x.id]).slice(0, INV_SIZE);
+    for (const [k] of SLOTS) prog.equip[k] = ITEMS[d.equip?.[k]] ? d.equip[k] : null;
+    state.kills = d.kills || 0;
+    return true;
+  } catch { return false; }
+}
+
+// --- Всплывающие надписи (урон, опыт, предметы)
+const floatLayer = document.getElementById('floaters'), floaters = [];
+function floater(text, pos, color, big = false) {
+  const el = document.createElement('div');
+  el.className = 'floater' + (big ? ' big' : '');
+  el.textContent = text; el.style.color = color;
+  floatLayer.appendChild(el);
+  floaters.push({ el, p: new THREE.Vector3(pos.x + (Math.random() - 0.5) * 0.6, pos.y + 2.2, pos.z + (Math.random() - 0.5) * 0.6), t: 0 });
+}
+const fv = new THREE.Vector3();
+function updateFloaters(dt) {
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i]; f.t += dt;
+    if (f.t > 1.4) { f.el.remove(); floaters.splice(i, 1); continue; }
+    fv.copy(f.p); fv.y += f.t * 1.3; fv.project(camera);
+    if (fv.z > 1) { f.el.style.opacity = 0; continue; }
+    f.el.style.transform = `translate(${(fv.x * 0.5 + 0.5) * innerWidth}px, ${(-fv.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -50%)`;
+    f.el.style.opacity = 1 - Math.max(0, (f.t - 0.9) / 0.5);
+  }
+}
+
+// --- Опыт и уровни
+const fx = [];
+function giveXP(n, pos) {
+  prog.xp += n;
+  floater(`+${n} опыта`, { x: pos.x, y: pos.y + 0.4, z: pos.z }, '#8fe0ff');
+  while (prog.xp >= xpNext(prog.level)) {
+    prog.xp -= xpNext(prog.level);
+    prog.level++;
+    refreshStats();
+    state.hp = state.maxHp;
+    showBanner(`Уровень ${prog.level}!`, 'Здоровье +15 · Урон +4 · здоровье восстановлено');
+    floater(`Уровень ${prog.level}!`, state.pos, '#ffd479', true);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.9, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffd060, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    ring.rotation.x = -Math.PI / 2; scene.add(ring);
+    fx.push({ mesh: ring, t: 0 });
+  }
+  save();
+}
+function updateFx(dt) {
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const f = fx[i]; f.t += dt;
+    f.mesh.position.set(state.pos.x, state.pos.y + 0.1 + f.t * 1.5, state.pos.z);
+    f.mesh.scale.setScalar(1 + f.t * 3);
+    f.mesh.material.opacity = Math.max(0, 1 - f.t / 1.2);
+    if (f.t > 1.2) { scene.remove(f.mesh); fx.splice(i, 1); }
+  }
+}
+
+// --- Предметы на земле
+const loot = [];
+const lootGeo = {
+  coin: new THREE.CylinderGeometry(0.16, 0.16, 0.05, 10),
+  gem: new THREE.OctahedronGeometry(0.24, 0),
+  bottle: new THREE.CylinderGeometry(0.12, 0.14, 0.26, 8),
+  neck: new THREE.CylinderGeometry(0.05, 0.05, 0.12, 6),
+  beam: new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6, 1, true),
+};
+const lootMat = {
+  gold: new THREE.MeshStandardMaterial({ color: 0xffd34d, emissive: 0x6a4a00, metalness: 0.8, roughness: 0.3 }),
+  potion: new THREE.MeshStandardMaterial({ color: 0xff4040, emissive: 0x801010, roughness: 0.2, transparent: true, opacity: 0.9 }),
+  cork: new THREE.MeshStandardMaterial({ color: 0x8a6a40 }),
+  gem: RARITY.map(r => new THREE.MeshStandardMaterial({ color: r.hex, emissive: r.hex, emissiveIntensity: 0.45, roughness: 0.2, flatShading: true })),
+  beam: RARITY.map(r => new THREE.MeshBasicMaterial({ color: r.hex, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })),
+};
+function dropLoot(id, n, x, y, z, mode) {
+  const g = new THREE.Group(), it = ITEMS[id];
+  if (id === 'gold') {
+    for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(lootGeo.coin, lootMat.gold); c.position.set((k - 1) * 0.12, k * 0.06, (k % 2) * 0.1); g.add(c); }
+  } else if (id === 'potion') {
+    const b = new THREE.Mesh(lootGeo.bottle, lootMat.potion); g.add(b);
+    const nk = new THREE.Mesh(lootGeo.neck, lootMat.cork); nk.position.y = 0.19; g.add(nk);
+  } else {
+    g.add(new THREE.Mesh(lootGeo.gem, lootMat.gem[it.rarity]));
+    const beam = new THREE.Mesh(lootGeo.beam, lootMat.beam[it.rarity]); beam.position.y = 1.2; g.add(beam);
+  }
+  const a = Math.random() * 6.28, r = 0.5 + Math.random() * 1.0;
+  const L = { id, n, mode, g, pos: new THREE.Vector3(x + Math.cos(a) * r, y + 0.9, z + Math.sin(a) * r), vy: 5, t: 0 };
+  L.base = mode < 0 ? groundAt(L.pos.x, L.pos.z) : dungeons[mode].Y;
+  if (mode >= 0) dungeonCollide(dungeons[mode], L.pos, 0.3);
+  g.position.copy(L.pos);
+  (mode < 0 ? surface : dungeons[mode].group).add(g);
+  loot.push(L);
+}
+function removeLoot(i) { loot[i].g.removeFromParent(); loot.splice(i, 1); }
+let fullWarnT = 0;
+function updateLoot(dt) {
+  fullWarnT -= dt;
+  for (let i = loot.length - 1; i >= 0; i--) {
+    const L = loot[i];
+    if (L.mode !== state.mode) continue;
+    L.t += dt;
+    if (L.t > 180) { removeLoot(i); continue; }
+    if (L.vy !== null) {
+      L.vy -= 20 * dt; L.pos.y += L.vy * dt;
+      if (L.pos.y <= L.base + 0.35) { L.pos.y = L.base + 0.35; L.vy = null; }
+    } else L.pos.y = L.base + 0.35 + Math.sin(L.t * 3) * 0.08;
+    L.g.position.copy(L.pos);
+    L.g.rotation.y += dt * 2;
+    if (L.t > 0.6 && !state.dead && Math.hypot(L.pos.x - state.pos.x, L.pos.z - state.pos.z) < 1.5 && Math.abs(L.pos.y - state.pos.y) < 2.5) {
+      if (pickup(L.id, L.n, L.pos)) removeLoot(i);
+    }
+  }
+}
+function rollLoot(e) {
+  const t = LOOT[e.type], y = e.pos.y;
+  if (Math.random() < t.gold[0]) dropLoot('gold', t.gold[1] + Math.floor(Math.random() * (t.gold[2] - t.gold[1] + 1)), e.pos.x, y, e.pos.z, e.mode);
+  if (Math.random() < t.potion) dropLoot('potion', 1, e.pos.x, y, e.pos.z, e.mode);
+  if (Math.random() < t.item) {
+    // Эпические предметы выпадают реже
+    const w = t.pool.map(id => [1, 0.6, 0.25][ITEMS[id].rarity]);
+    let r = Math.random() * w.reduce((a, b) => a + b, 0), k = 0;
+    while ((r -= w[k]) > 0) k++;
+    dropLoot(t.pool[k], 1, e.pos.x, y, e.pos.z, e.mode);
+  }
+}
+
+// --- Инвентарь
+function addItem(id, n = 1) {
+  if (id === 'gold') { prog.gold += n; return true; }
+  if (id === 'potion') { const st = prog.inv.find(x => x.id === 'potion'); if (st) { st.n += n; return true; } }
+  if (prog.inv.length >= INV_SIZE) return false;
+  prog.inv.push({ id, n });
+  return true;
+}
+function pickup(id, n, pos) {
+  if (!addItem(id, n)) {
+    if (fullWarnT <= 0) { floater('Инвентарь полон', state.pos, '#ff8a6a'); fullWarnT = 3; }
+    return false;
+  }
+  const it = ITEMS[id];
+  floater(id === 'gold' ? `+${n} 🪙` : `${it.icon} ${it.name}${n > 1 ? ' ×' + n : ''}`, pos, id === 'gold' ? '#ffd34d' : RARITY[it.rarity].css);
+  save();
+  if (invOpen) renderInv();
+  return true;
+}
+function usePotion() {
+  const i = prog.inv.findIndex(x => x.id === 'potion');
+  if (i < 0 || state.dead || state.hp >= state.maxHp) return;
+  const heal = Math.min(ITEMS.potion.heal, state.maxHp - state.hp);
+  state.hp += heal;
+  floater(`+${Math.round(heal)} ❤`, state.pos, '#7dff8a');
+  if (--prog.inv[i].n <= 0) prog.inv.splice(i, 1);
+  save();
+  if (invOpen) renderInv();
+}
+
+const invEl = document.getElementById('inv');
+let invOpen = false, sel = null;
+function openInv(open) {
+  if (open && (state.dead || state.busy)) return;
+  invOpen = open; sel = null;
+  invEl.classList.toggle('hidden', !open);
+  if (open) {
+    if (document.pointerLockElement) document.exitPointerLock();
+    for (const k in keys) keys[k] = false;
+    touch.x = touch.y = 0; touch.jump = false;
+    renderInv();
+  }
+}
+const itemLines = it => [it.dmg && `Урон +${it.dmg}`, it.armor && `Броня +${it.armor}`, it.hp && `Здоровье +${it.hp}`, it.heal && `Лечит ${it.heal} здоровья`].filter(Boolean).join(' · ');
+const slotHtml = (it, attrs, extra = '', cls = '') =>
+  `<div class="slot ${cls}" ${attrs} style="${it ? `border-color:${RARITY[it.rarity].css}` : ''}">${it ? it.icon : ''}${extra}</div>`;
+function renderInv() {
+  const st = heroStats(), need = xpNext(prog.level);
+  document.getElementById('invGold').textContent = `🪙 ${prog.gold}`;
+  document.getElementById('invStats').innerHTML =
+    `<b style="color:#ffd479">Уровень ${prog.level}</b><div class="xp"><div style="width:${prog.xp / need * 100}%"></div></div>` +
+    `Опыт: ${prog.xp} / ${need}<br>❤️ Здоровье: ${Math.ceil(state.hp)} / ${st.maxHp}<br>⚔️ Урон: ${st.dmg}–${st.dmg + 8}<br>` +
+    `🛡️ Броня: ${st.armor} <span style="opacity:.6">(−${Math.round(100 - 10000 / (100 + st.armor * 4))}% урона)</span><br>💀 Побеждено врагов: ${state.kills}`;
+  document.getElementById('invEquip').innerHTML = SLOTS.map(([k, label, ghost]) => {
+    const it = ITEMS[prog.equip[k]];
+    const isSel = sel?.eq === k;
+    return it ? slotHtml(it, `data-eq="${k}"`, `<span class="lbl">${label}</span>`, isSel ? 'sel' : '')
+      : `<div class="slot ghost" data-eq="${k}">${ghost}<span class="lbl">${label}</span></div>`;
+  }).join('');
+  let grid = '';
+  for (let i = 0; i < INV_SIZE; i++) {
+    const x = prog.inv[i], it = x && ITEMS[x.id];
+    grid += slotHtml(it, `data-i="${i}"`, x && x.n > 1 ? `<span class="n">${x.n}</span>` : '', sel?.i === i ? 'sel' : '');
+  }
+  document.getElementById('invGrid').innerHTML = grid;
+
+  const info = document.getElementById('invInfo');
+  let it = null, html = '';
+  if (sel?.i !== undefined && prog.inv[sel.i]) {
+    it = ITEMS[prog.inv[sel.i].id];
+    const cur = ITEMS[prog.equip[it.kind]];
+    html = `<div class="name" style="color:${RARITY[it.rarity].css}">${it.icon} ${it.name}</div><div class="line">${RARITY[it.rarity].name} · ${itemLines(it)}</div>`;
+    if (cur) html += `<div class="cmp">Сейчас надето: ${cur.name} (${itemLines(cur)})</div>`;
+    if (it.kind === 'potion') html += `<div class="ibtn primary" data-act="use">Выпить</div>`;
+    else html += `<div class="ibtn primary" data-act="equip">Надеть</div>`;
+    html += `<div class="ibtn" data-act="drop">Выбросить</div>`;
+  } else if (sel?.eq && prog.equip[sel.eq]) {
+    it = ITEMS[prog.equip[sel.eq]];
+    html = `<div class="name" style="color:${RARITY[it.rarity].css}">${it.icon} ${it.name}</div><div class="line">${RARITY[it.rarity].name} · ${itemLines(it)}</div>` +
+      `<div class="ibtn" data-act="unequip">Снять</div>`;
+  } else html = '<span style="opacity:.6">Нажми на предмет, чтобы посмотреть его. Предметы выпадают из побеждённых монстров и сундуков.</span>';
+  info.innerHTML = html;
+}
+invEl.addEventListener('click', e => {
+  const t = e.target;
+  if (t === invEl) { openInv(false); return; }
+  const act = t.closest('[data-act]')?.dataset.act;
+  const cell = t.closest('[data-i]'), eqCell = t.closest('[data-eq]');
+  if (act === 'close') { openInv(false); return; }
+  if (act === 'reset') {
+    if (confirm('Начать заново? Уровень, предметы и золото будут сброшены.')) { try { localStorage.removeItem(SAVE_KEY); } catch {} location.reload(); }
+    return;
+  }
+  if (act === 'use') usePotion();
+  else if (act === 'equip') {
+    const x = prog.inv[sel.i], slot = ITEMS[x.id].kind, prev = prog.equip[slot];
+    prog.equip[slot] = x.id;
+    prog.inv.splice(sel.i, 1, ...(prev ? [{ id: prev, n: 1 }] : []));
+    sel = null; refreshStats(); save();
+  } else if (act === 'unequip') {
+    if (prog.inv.length >= INV_SIZE) { floater('Инвентарь полон', state.pos, '#ff8a6a'); return; }
+    prog.inv.push({ id: prog.equip[sel.eq], n: 1 });
+    prog.equip[sel.eq] = null;
+    sel = null; refreshStats(); save();
+  } else if (act === 'drop') {
+    prog.inv.splice(sel.i, 1); sel = null; save();
+  } else if (cell) {
+    const i = +cell.dataset.i;
+    sel = prog.inv[i] ? { i } : null;
+  } else if (eqCell) {
+    sel = prog.equip[eqCell.dataset.eq] ? { eq: eqCell.dataset.eq } : null;
+  }
+  renderInv();
+});
+document.getElementById('btnInv').addEventListener('click', () => openInv(!invOpen));
+document.getElementById('btnPotion').addEventListener('click', usePotion);
+
+// --- Полоски и счётчики на экране
+const lvlEl = document.getElementById('lvlBadge'), xpBarEl = document.getElementById('xpbar'), hpTextEl = document.getElementById('hptext'), potionEl = document.getElementById('potionN');
+let hudKey = '';
+function updateHud() {
+  const potions = prog.inv.find(x => x.id === 'potion')?.n || 0;
+  const key = [Math.ceil(state.hp), state.maxHp, prog.level, prog.xp, potions].join();
+  if (key === hudKey) return;
+  hudKey = key;
+  hpBarEl.style.width = (state.hp / state.maxHp * 100) + '%';
+  hpTextEl.textContent = `${Math.ceil(state.hp)} / ${state.maxHp}`;
+  lvlEl.textContent = prog.level;
+  xpBarEl.style.width = (prog.xp / xpNext(prog.level) * 100) + '%';
+  potionEl.textContent = potions;
+  document.getElementById('btnPotion').style.opacity = potions ? 1 : 0.5;
+}
+
+// Новая игра: ржавый меч и пара зелий
+if (!load()) { prog.equip.weapon = 'sword_rusty'; prog.inv.push({ id: 'potion', n: 2 }); save(); }
+refreshStats();
+state.hp = state.maxHp;
+killsEl.textContent = state.kills;
+
+// ============================================================
 //  Камера
 // ============================================================
 const camPos = new THREE.Vector3();
@@ -1614,11 +2033,15 @@ const actBtn = document.getElementById('btnAct');
 let lastPrompt = null;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-  updatePlayer(dt);
+  if (!invOpen) {
+    updatePlayer(dt);
+    updateEnemies(dt);
+    updateLoot(dt);
+  }
   updateCamera(dt);
-  updateEnemies(dt);
-  const hpW = Math.round(state.hp / state.maxHp * 100) + '%';
-  if (hpBarEl.style.width !== hpW) hpBarEl.style.width = hpW;
+  updateFloaters(dt);
+  updateFx(dt);
+  updateHud();
 
   // Огонь и свечение
   const cf = campfire.userData;
@@ -1660,7 +2083,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Ca
   navigator.serviceWorker.register('sw.js').catch(() => {});
 
 window.__move = moveEntity;
-window.__game = { touch, enemies, attack, damagePlayer, hitEnemy, state, dungeons, surfaceEntrances, groundAt, normalYAt, enterDungeon, exitDungeon, HALF };
+window.__game = { prog, addItem, giveXP, openInv, usePotion, dropLoot, loot, touch, enemies, attack, damagePlayer, hitEnemy, state, dungeons, surfaceEntrances, groundAt, normalYAt, enterDungeon, exitDungeon, HALF };
 </script>
 </body>
 </html>
