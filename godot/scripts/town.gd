@@ -370,4 +370,12 @@ static func _lanterns() -> void:
 			var l := BoxMesh.new()
 			l.size = Vector3(0.4, 0.5, 0.4)
 			_mesh(l, lantern, Vector3(sx * 3.6, G + 3.4, z), false)
+			# Ночью фонарь светит (яркость меняет смена дня и ночи в main.gd)
+			var light := OmniLight3D.new()
+			light.light_color = WorldGen.hex(0xffc070)
+			light.light_energy = 0.0
+			light.omni_range = 9.0
+			light.position = Vector3(sx * 3.6, G + 3.2, z)
+			light.add_to_group("night_lights")
+			_root.add_child(light)
 			_round(sx * 3.6, z, 0.25, 3.2)

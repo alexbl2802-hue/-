@@ -18,6 +18,8 @@ var player_name := ""
 var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»
 var chests: Array = []  # номера подземелий, где сундук уже открыт
 var bosses: Array = []  # номера подземелий, где босс побеждён
+var time_of_day := 0.33 # время суток: 0 — полночь, 0,25 — рассвет, 0,5 — полдень, 0,75 — закат
+var is_night := false
 var level := 1
 var xp := 0
 var gold := 0
@@ -52,6 +54,7 @@ func new_game() -> void:
 	skills = {}
 	chests = []
 	bosses = []
+	time_of_day = 0.33
 	refresh()
 	hp = max_hp
 
@@ -327,7 +330,7 @@ func reset_skills() -> void:
 func save_game() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "bosses": bosses, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
+		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "bosses": bosses, "time": time_of_day, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -339,6 +342,7 @@ func load_game() -> bool:
 	chests = []
 	for c in d.get("chests", []):
 		chests.append(int(c))
+	time_of_day = clampf(float(d.get("time", 0.33)), 0.0, 1.0)
 	bosses = []
 	for c in d.get("bosses", []):
 		bosses.append(int(c))

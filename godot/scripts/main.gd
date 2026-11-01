@@ -15,6 +15,7 @@ var _sun: DirectionalLight3D
 var _hero_light: OmniLight3D
 var _zone := ""
 var _act := Callable()
+var day_night: DayNight
 
 func _ready() -> void:
 	var loading := Label.new()
@@ -101,6 +102,10 @@ func _ready() -> void:
 	enemies.boss_killed.connect(func(e): hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт"))
 	Game.message.connect(func(t, c, p): Fx.text(t, p, c))
 
+	# Смена дня и ночи
+	day_night = DayNight.new()
+	add_child(day_night)
+	day_night.setup(_env, _sun, rig, hud)
 	cl.queue_free()
 	hud.open_menu()
 
@@ -169,6 +174,9 @@ func _set_mode(m: int) -> void:
 	for i in dungeons.size():
 		dungeons[i].visible = i == m
 	_apply_env(m)
+	if day_night:
+		day_night.surface = m < 0
+		day_night.apply()
 	hud.minimap.dungeon = dungeons[m] if m >= 0 else null
 	_zone = ""
 

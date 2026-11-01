@@ -669,7 +669,7 @@ func _dash_hits() -> void:
 func take_damage(raw: int, from: Vector3) -> void:
 	if _invuln > 0.0 or dead or busy:
 		return
-	var dmg := Game.reduce_damage(raw)
+	var dmg := Game.reduce_damage(roundi(raw * DayNight.monster_mult()))   # ночью монстры бьют сильнее
 	var v := _flat(from - global_position)
 	var blocked := blocking and v.length() > 0.01 and absf(angle_difference(facing, atan2(v.x, v.z))) < BLOCK_ARC
 	if blocked:
