@@ -18,7 +18,7 @@ func _ready() -> void:
 	for e in main.enemies.list:
 		e.T = e.T.duplicate()
 		e.T["aggro"] = 0.0
-	var wolves: Array = main.enemies.list.filter(func(e): return e.type == "wolf")
+	var wolves: Array = main.enemies.list.filter(func(e): return e.type == "wolf" and not e.in_dungeon)
 	_check("8 wolves in the valley", wolves.size() == 8 and not wolves[0].in_dungeon, str(wolves.size()))
 	var w: Node3D = wolves[0]
 	var h: Node3D = main.hero
