@@ -72,6 +72,8 @@ func drop(id: String, n: int, at: Vector3, r := -1) -> void:
 ## Бросаем кости: что выпало из монстра
 func roll(type: String, at: Vector3) -> void:
 	var t: Dictionary = Items.LOOT[type]
+	if t.has("mat"):   # материал босса выпадает всегда
+		drop(t["mat"], 1, at)
 	var g: Array = t["gold"]
 	if randf() < g[0]:
 		drop("gold", randi_range(g[1], g[2]), at)

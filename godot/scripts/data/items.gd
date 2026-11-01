@@ -18,11 +18,34 @@ const ALL := {
 	"gold": {"name": "Золото", "icon": "🪙", "kind": "gold", "rank": 0},
 	"potion": {"name": "Зелье лечения", "icon": "🧪", "kind": "potion", "rank": 0, "heal": 50},
 	"shard": {"name": "Тёмный осколок", "icon": "🔮", "kind": "material", "rank": 3},
+	# Материалы боссов — для ковки уникального оружия
+	"mat_crown": {"name": "Корона Короля-скелета", "icon": "👑", "kind": "material", "rank": 3},
+	"mat_chitin": {"name": "Хитин Королевы", "icon": "🪲", "kind": "material", "rank": 3},
+	"mat_fang": {"name": "Клык Альфы", "icon": "🦷", "kind": "material", "rank": 3},
+	"mat_totem": {"name": "Тотем вождя", "icon": "🗿", "kind": "material", "rank": 3},
+	"mat_ember": {"name": "Пустынный уголь", "icon": "🔥", "kind": "material", "rank": 3},
+	"mat_frost": {"name": "Ледяное ядро", "icon": "❄️", "kind": "material", "rank": 4},
+	"mat_banner": {"name": "Знамя полководца", "icon": "🚩", "kind": "material", "rank": 4},
 	"sword_rusty": {"name": "Ржавый меч", "icon": "🗡️", "kind": "weapon", "rank": 0, "dmg": 4, "color": 0x9a7a60, "len": 0.9},
 	"sword_iron": {"name": "Железный меч", "icon": "🗡️", "kind": "weapon", "rank": 0, "dmg": 9, "color": 0xc0c8d0, "len": 1.0},
 	"sword_bone": {"name": "Костяной меч", "icon": "🦴", "kind": "weapon", "rank": 1, "dmg": 13, "color": 0xe6dfc8, "len": 1.05},
 	"sword_steel": {"name": "Стальной меч", "icon": "⚔️", "kind": "weapon", "rank": 1, "dmg": 16, "color": 0xeef4fa, "len": 1.15},
 	"sword_crystal": {"name": "Кристальный клинок", "icon": "🔷", "kind": "weapon", "rank": 2, "dmg": 25, "color": 0x8fe8ff, "len": 1.25, "glow": 0x1a7aa8},
+	# Двуручники, рапиры, кинжалы — у оружия есть тип (wt), см. WTYPES
+	"great_iron": {"name": "Железный двуручник", "icon": "🗡️", "kind": "weapon", "wt": "great", "rank": 0, "dmg": 15, "color": 0xb8c0c8, "len": 1.4},
+	"great_obsidian": {"name": "Обсидиановый двуручник", "icon": "🗡️", "kind": "weapon", "wt": "great", "rank": 2, "dmg": 33, "color": 0x3a3048, "len": 1.5, "glow": 0x6a30c0},
+	"rapier_steel": {"name": "Стальная рапира", "icon": "🤺", "kind": "weapon", "wt": "rapier", "rank": 1, "dmg": 11, "color": 0xe8eef4, "len": 1.15},
+	"rapier_star": {"name": "Звёздная рапира", "icon": "🤺", "kind": "weapon", "wt": "rapier", "rank": 2, "dmg": 19, "color": 0xcfe8ff, "len": 1.2, "glow": 0x4a8aff},
+	"dagger_iron": {"name": "Железный кинжал", "icon": "🔪", "kind": "weapon", "wt": "dagger", "rank": 0, "dmg": 6, "color": 0xc0c8d0, "len": 0.55},
+	"dagger_venom": {"name": "Ядовитый кинжал", "icon": "🔪", "kind": "weapon", "wt": "dagger", "rank": 1, "dmg": 10, "color": 0x8fd070, "len": 0.6, "glow": 0x40c020},
+	# Уникальное оружие — куётся у кузнеца из материалов боссов
+	"u_bone_king": {"name": "Клинок Костяного Короля", "icon": "🗡️", "kind": "weapon", "wt": "sword", "rank": 3, "dmg": 30, "color": 0xe8dcc0, "len": 1.2, "glow": 0xff3020, "unique": true},
+	"u_queen": {"name": "Жало Королевы", "icon": "🤺", "kind": "weapon", "wt": "rapier", "rank": 3, "dmg": 24, "color": 0x9ad080, "len": 1.2, "glow": 0x40ff30, "unique": true},
+	"u_alpha": {"name": "Клык Альфы", "icon": "🗡️", "kind": "weapon", "wt": "great", "rank": 3, "dmg": 44, "color": 0xd8d8e0, "len": 1.5, "glow": 0x90a0ff, "unique": true},
+	"u_chief": {"name": "Тесак вождя", "icon": "🔪", "kind": "weapon", "wt": "dagger", "rank": 3, "dmg": 18, "color": 0xa07040, "len": 0.65, "glow": 0xffa020, "unique": true},
+	"u_ember": {"name": "Пламенная рапира", "icon": "🤺", "kind": "weapon", "wt": "rapier", "rank": 4, "dmg": 30, "color": 0xff9050, "len": 1.2, "glow": 0xff5010, "unique": true},
+	"u_frost": {"name": "Ледяной осколок", "icon": "🔪", "kind": "weapon", "wt": "dagger", "rank": 4, "dmg": 26, "color": 0xbfe8ff, "len": 0.7, "glow": 0x40d0ff, "unique": true},
+	"u_warlord": {"name": "Меч Полководца", "icon": "⚔️", "kind": "weapon", "wt": "sword", "rank": 4, "dmg": 42, "color": 0xffe090, "len": 1.25, "glow": 0xffd040, "unique": true},
 	"armor_leather": {"name": "Кожаная куртка", "icon": "🧥", "kind": "armor", "rank": 0, "armor": 4, "color": 0x7a5230},
 	"armor_chain": {"name": "Кольчуга", "icon": "⛓️", "kind": "armor", "rank": 1, "armor": 9, "color": 0x8f979f, "metal": true},
 	"armor_plate": {"name": "Латы", "icon": "🛡️", "kind": "armor", "rank": 2, "armor": 15, "color": 0xc8ccd4, "metal": true},
@@ -48,6 +71,30 @@ const ALL := {
 	"shield_tower": {"name": "Башенный щит", "icon": "🔰", "kind": "shield", "rank": 2, "armor": 10, "block": 25, "color": 0xc8ccd4, "metal": true},
 }
 
+## Ковка у кузнеца: уникальное оружие из материала босса, тёмных осколков и золота
+const RECIPES := [
+	{"id": "u_bone_king", "mat": "mat_crown", "shards": 6, "gold": 400},
+	{"id": "u_queen", "mat": "mat_chitin", "shards": 6, "gold": 400},
+	{"id": "u_alpha", "mat": "mat_fang", "shards": 8, "gold": 600},
+	{"id": "u_chief", "mat": "mat_totem", "shards": 8, "gold": 600},
+	{"id": "u_ember", "mat": "mat_ember", "shards": 10, "gold": 900},
+	{"id": "u_frost", "mat": "mat_frost", "shards": 12, "gold": 1100},
+	{"id": "u_warlord", "mat": "mat_banner", "shards": 14, "gold": 1400},
+]
+
+## Типы оружия: скорость удара, урон, дальность, прибавка к криту, ширина клинка
+const WTYPES := {
+	"sword": {"name": "Одноручный меч", "speed": 1.0, "dmg": 1.0, "reach": 1.0, "crit": 0.0, "width": 1.0},
+	"great": {"name": "Двуручный меч", "speed": 0.7, "dmg": 1.6, "reach": 1.25, "crit": 0.0, "width": 1.6},
+	"rapier": {"name": "Рапира", "speed": 1.35, "dmg": 0.8, "reach": 1.1, "crit": 0.1, "width": 0.45},
+	"dagger": {"name": "Кинжал", "speed": 1.7, "dmg": 0.6, "reach": 0.75, "crit": 0.15, "width": 0.7},
+}
+
+static func wtype_of(inst) -> Dictionary:
+	if inst == null:
+		return WTYPES["sword"]
+	return WTYPES[ALL[inst["id"]].get("wt", "sword")]
+
 const SLOTS := ["weapon", "armor", "helm", "amulet", "boots", "ring", "cloak", "shield"]
 const INV_SIZE := 20
 const STACKS := ["potion", "material"]   # такие вещи складываются в одну ячейку
@@ -67,15 +114,15 @@ static func combine_cost(r: int) -> Array:
 ## Что выпадает: [шанс, мин, макс] золота, шанс зелья, шанс предмета, список предметов
 ## и [шанс, мин, макс] тёмных осколков (только в подземельях)
 const LOOT := {
-	"goblin": {"gold": [0.75, 4, 10], "potion": 0.25, "item": 0.15, "pool": ["sword_rusty", "sword_iron", "armor_leather", "helm_leather", "helm_iron", "boots_leather", "ring_copper", "cloak_wool", "shield_wood"]},
-	"rabbit": {"gold": [0.65, 5, 12], "potion": 0.25, "item": 0.16, "pool": ["sword_iron", "armor_leather", "helm_leather", "helm_iron", "armor_chain", "boots_leather", "boots_iron", "ring_copper", "ring_silver", "cloak_wool", "shield_wood"]},
-	"skeleton": {"gold": [0.6, 6, 14], "potion": 0.3, "item": 0.25, "pool": ["sword_iron", "sword_bone", "armor_chain", "helm_iron", "amulet_life", "sword_steel", "boots_iron", "ring_silver", "cloak_ranger", "shield_iron"], "shard": [0.45, 1, 2]},
-	"spider": {"gold": [0.5, 6, 14], "potion": 0.35, "item": 0.25, "pool": ["sword_steel", "armor_chain", "helm_iron", "amulet_life", "sword_crystal", "amulet_crystal", "armor_plate", "boots_wind", "ring_silver", "cloak_ranger", "shield_iron"], "shard": [0.45, 1, 2]},
-	"wolf": {"gold": [0.85, 10, 20], "potion": 0.3, "item": 0.3, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "boots_iron", "boots_wind", "ring_silver", "cloak_ranger", "cloak_shadow", "shield_iron"]},
+	"goblin": {"gold": [0.75, 4, 10], "potion": 0.25, "item": 0.15, "pool": ["sword_rusty", "sword_iron", "armor_leather", "helm_leather", "helm_iron", "boots_leather", "ring_copper", "cloak_wool", "shield_wood", "dagger_iron", "great_iron"]},
+	"rabbit": {"gold": [0.65, 5, 12], "potion": 0.25, "item": 0.16, "pool": ["sword_iron", "armor_leather", "helm_leather", "helm_iron", "armor_chain", "boots_leather", "boots_iron", "ring_copper", "ring_silver", "cloak_wool", "shield_wood", "dagger_iron", "rapier_steel"]},
+	"skeleton": {"gold": [0.6, 6, 14], "potion": 0.3, "item": 0.25, "pool": ["sword_iron", "sword_bone", "armor_chain", "helm_iron", "amulet_life", "sword_steel", "boots_iron", "ring_silver", "cloak_ranger", "shield_iron", "great_iron", "rapier_steel", "dagger_venom"], "shard": [0.45, 1, 2]},
+	"spider": {"gold": [0.5, 6, 14], "potion": 0.35, "item": 0.25, "pool": ["sword_steel", "armor_chain", "helm_iron", "amulet_life", "sword_crystal", "amulet_crystal", "armor_plate", "boots_wind", "ring_silver", "cloak_ranger", "shield_iron", "rapier_star", "dagger_venom"], "shard": [0.45, 1, 2]},
+	"wolf": {"gold": [0.85, 10, 20], "potion": 0.3, "item": 0.3, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "boots_iron", "boots_wind", "ring_silver", "cloak_ranger", "cloak_shadow", "shield_iron", "great_iron", "dagger_venom", "rapier_steel"]},
 	# Боссы: много золота, два предмета, зелья и осколки
-	"skeleton_king": {"gold": [1.0, 90, 130], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_steel", "armor_plate", "helm_iron", "shield_tower", "ring_ruby", "cloak_shadow", "amulet_crystal"], "shard": [1.0, 4, 6]},
-	"spider_queen": {"gold": [1.0, 80, 120], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_crystal", "amulet_crystal", "boots_wind", "ring_ruby", "cloak_shadow", "shield_tower"], "shard": [1.0, 4, 6]},
-	"kobold": {"gold": [0.85, 12, 24], "potion": 0.35, "item": 0.35, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "amulet_crystal", "ring_ruby", "cloak_shadow", "shield_tower", "boots_wind"], "shard": [0.8, 2, 3]},
+	"skeleton_king": {"mat": "mat_crown", "gold": [1.0, 90, 130], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_steel", "armor_plate", "helm_iron", "shield_tower", "ring_ruby", "cloak_shadow", "amulet_crystal"], "shard": [1.0, 4, 6]},
+	"spider_queen": {"mat": "mat_chitin", "gold": [1.0, 80, 120], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_crystal", "amulet_crystal", "boots_wind", "ring_ruby", "cloak_shadow", "shield_tower"], "shard": [1.0, 4, 6]},
+	"kobold": {"gold": [0.85, 12, 24], "potion": 0.35, "item": 0.35, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "amulet_crystal", "ring_ruby", "cloak_shadow", "shield_tower", "boots_wind", "great_obsidian", "rapier_star"], "shard": [0.8, 2, 3]},
 }
 
 static func get_item(id: String) -> Dictionary:
@@ -83,7 +130,21 @@ static func get_item(id: String) -> Dictionary:
 
 ## Новая вещь: ранг по умолчанию — тот, с которым она выпадает
 static func make(id: String, n := 1, r := -1) -> Dictionary:
-	return {"id": id, "n": n, "r": ALL[id]["rank"] if r < 0 else r, "u": 0}
+	var inst := {"id": id, "n": n, "r": ALL[id]["rank"] if r < 0 else r, "u": 0}
+	if ALL[id]["kind"] == "weapon":
+		inst["d"] = max_dur(inst)
+	return inst
+
+## Прочность оружия: 200 у простого, +100 за каждый ранг
+static func max_dur(inst: Dictionary) -> int:
+	return 200 + 100 * int(inst.get("r", 0))
+
+static func broken(inst) -> bool:
+	return inst != null and inst.has("d") and int(inst["d"]) <= 0
+
+## Цена починки у кузнеца
+static func repair_cost(inst: Dictionary) -> int:
+	return 5 + ceili((max_dur(inst) - int(inst.get("d", 0))) * 0.3)
 
 ## Привести вещь из старого сохранения к нынешнему виду
 static func normalize(v) -> Dictionary:
@@ -94,7 +155,10 @@ static func normalize(v) -> Dictionary:
 	var id := str(v.get("id", ""))
 	if not ALL.has(id):
 		return {}
-	return {"id": id, "n": int(v.get("n", 1)), "r": clampi(int(v.get("r", ALL[id]["rank"])), 0, MAX_RANK), "u": clampi(int(v.get("u", 0)), 0, MAX_UPGRADE)}
+	var inst := {"id": id, "n": int(v.get("n", 1)), "r": clampi(int(v.get("r", ALL[id]["rank"])), 0, MAX_RANK), "u": clampi(int(v.get("u", 0)), 0, MAX_UPGRADE)}
+	if ALL[id]["kind"] == "weapon":
+		inst["d"] = clampi(int(v.get("d", max_dur(inst))), 0, max_dur(inst))
+	return inst
 
 static func rank_of(inst: Dictionary) -> Dictionary:
 	return RANKS[int(inst.get("r", 0))]
@@ -110,6 +174,8 @@ static func stat(inst: Dictionary, key: String) -> int:
 	var v := roundi(base * rank_of(inst)["mult"])
 	if key == "dmg" and ALL[inst["id"]]["kind"] == "weapon":
 		v += UPGRADE_DMG * int(inst.get("u", 0))
+		if broken(inst):
+			v = roundi(v * 0.3)   # сломанное оружие бьёт слабо
 	return v
 
 static func title(inst: Dictionary) -> String:
@@ -120,6 +186,9 @@ static func title(inst: Dictionary) -> String:
 ## Свойства вещи одной строкой
 static func lines(inst: Dictionary) -> String:
 	var l := []
+	if ALL[inst["id"]]["kind"] == "weapon":
+		l.append(wtype_of(inst)["name"])
+		l.append(("СЛОМАНО — почини у кузнеца" if broken(inst) else "Прочность %d / %d") % ([] if broken(inst) else [int(inst.get("d", 0)), max_dur(inst)]))
 	var dmg := stat(inst, "dmg")
 	var arm := stat(inst, "armor")
 	var hp := stat(inst, "hp")

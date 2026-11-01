@@ -40,7 +40,7 @@ func _physics_process(dt: float) -> void:
 		var seg := global_position - prev
 		var t := clampf((c - prev).dot(seg) / maxf(seg.length_squared(), 1e-6), 0.0, 1.0)
 		if (prev + seg * t).distance_to(c) < 0.65:
-			hero.take_damage(dmg, prev)
+			hero.take_damage(dmg, prev, null)
 			queue_free()
 			return
 	var g: float = WorldGen.ground_at(global_position.x, global_position.z)

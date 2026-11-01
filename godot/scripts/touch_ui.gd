@@ -24,8 +24,9 @@ var rig: Node3D
 var potions := 0
 var free_points := 0
 var skill_ranks := {"whirl": 0, "dash": 0}
-var cd_left := {"whirl": 0.0, "dash": 0.0}
-var cd_total := {"whirl": 1.0, "dash": 1.0}
+var cd_left := {"whirl": 0.0, "dash": 0.0, "art": 0.0}
+var cd_total := {"whirl": 1.0, "dash": 1.0, "art": 1.0}
+var art_icon := ""      # приём меча надетого оружия ("" — не изучен)
 var dash_icon := "💨"   # меняется с эволюцией: 🌬️ Скользящий шаг, ✨ Мерцание
 
 var _pts := {}          # индекс касания → позиция
@@ -59,6 +60,8 @@ func _buttons() -> Array:
 		{"id": "skills", "rect": Rect2(132, 12, 52, 52), "label": "👤", "fs": 27, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
 	]
 	list.append({"id": "block", "c": Vector2(s.x - 236, s.y - 140), "r": 30.0, "label": "🔰", "fs": 26, "border": Color(0.75, 0.8, 0.9, 0.7)})
+	if art_icon != "":
+		list.append({"id": "art", "c": Vector2(s.x - 312, s.y - 100), "r": 32.0, "label": art_icon, "fs": 28, "border": Color(1, 0.85, 0.4, 0.8)})
 	if skill_ranks["whirl"] > 0:
 		list.append({"id": "whirl", "c": Vector2(s.x - 128 - 32, s.y - 98 - 32), "r": 32.0, "label": "🌀", "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
@@ -98,7 +101,7 @@ func _press(id: String, down: bool) -> void:
 		"act": act_pressed.emit()
 		"potion": potion_pressed.emit()
 		"skills": skills_pressed.emit()
-		"whirl", "dash": skill_pressed.emit(id)
+		"whirl", "dash", "art": skill_pressed.emit(id)
 		"inventory": inventory_pressed.emit()
 		"menu": menu_pressed.emit()
 

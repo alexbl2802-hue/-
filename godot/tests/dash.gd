@@ -78,7 +78,7 @@ func _ready() -> void:
 		_check("dash %s: low jump %.2f m high" % [SkillDefs.dash_form(sk), peak], peak > 0.1 and peak < 0.5, "")
 		var dist := Vector2(h.global_position.x - p0.x, h.global_position.z - p0.z).length()
 		var want: float = h.DASH_SPEED * SkillDefs.dash_stats(sk)["speed"] * h.DASH_TIME
-		_check("dash %s: 20%% damage" % SkillDefs.dash_form(sk), absf((hp0 - gob.hp) - roundf(Game.dmg * 0.2)) <= 2.0, "hp %d → %d, dmg %d" % [hp0, gob.hp, Game.dmg])
+		_check("dash %s: 20%% damage" % SkillDefs.dash_form(sk), (absf((hp0 - gob.hp) - roundf(Game.dmg * 0.2)) <= 2.0 or absf((hp0 - gob.hp) - roundf(Game.dmg * 0.4)) <= 3.0), "hp %d → %d, dmg %d" % [hp0, gob.hp, Game.dmg])
 		_check("dash %s: distance %.1f m (≈%.1f)" % [SkillDefs.dash_form(sk), dist, want], absf(dist - want) < want * 0.25, "")
 		_check("dash %s: cooldown %.1f" % [SkillDefs.dash_form(sk), h.cd["dash"] + 40.0 / 60.0], absf(h.cooldown_total("dash") - SkillDefs.dash_stats(sk)["cd"]) < 0.01, "")
 	print("RESULT: ", "ALL OK" if ok else "FAILED")

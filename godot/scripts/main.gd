@@ -100,7 +100,7 @@ func _ready() -> void:
 	hero.died.connect(_on_hero_died)
 	Game.leveled_up.connect(_on_level_up)
 	enemies.boss_killed.connect(func(e): hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт"))
-	Game.message.connect(func(t, c, p): Fx.text(t, p, c))
+	Game.message.connect(func(t, c, p): Fx.text(t, hero.global_position if p == Vector3.ZERO else p, c, p == Vector3.ZERO))
 
 	# Настройки: при изменении в окне сразу применяются
 	Settings.load_settings()
@@ -275,8 +275,12 @@ func _process(_dt: float) -> void:
 	# Кнопки: зелья, очки навыков, умения и их перезарядка
 	var t: Control = hud.touch
 	t.potions = Game.potions()
-	t.free_points = Game.points_free()
+	t.free_points = Game.points_free() + Game.stat_points_free()
 	t.dash_icon = SkillDefs.DASH_FORMS[SkillDefs.dash_form(Game.skills)]["icon"]
+	var art: String = hero.art_id()
+	t.art_icon = SkillDefs.find(art)["icon"] if art != "" and Game.rank(art) > 0 else ""
+	t.cd_left["art"] = hero.cd["art"]
+	t.cd_total["art"] = hero.cooldown_total("art")
 	for id in ["whirl", "dash"]:
 		t.skill_ranks[id] = Game.rank(id)
 		t.cd_left[id] = hero.cd[id]

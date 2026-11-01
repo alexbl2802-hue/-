@@ -13,7 +13,20 @@ const LIST := [
 	{"id": "crit", "icon": "🎯", "name": "Крит. удар", "max": 7, "lvl": 4},
 	{"id": "dash", "icon": "💨", "name": "Рывок", "max": 10, "lvl": 5, "active": true},
 	{"id": "vamp", "icon": "🩸", "name": "Вампиризм", "max": 7, "lvl": 6},
+	# Приёмы меча — у каждого типа оружия свой, кнопка ✦ на экране
+	{"id": "art_sword", "icon": "⚡", "name": "Резкий выпад", "max": 5, "lvl": 2, "active": true, "art": "sword"},
+	{"id": "art_great", "icon": "💥", "name": "Сокрушающий удар", "max": 5, "lvl": 2, "active": true, "art": "great"},
+	{"id": "art_rapier", "icon": "✴️", "name": "Звёздный укол", "max": 5, "lvl": 2, "active": true, "art": "rapier"},
+	{"id": "art_dagger", "icon": "🌑", "name": "Теневой надрез", "max": 5, "lvl": 2, "active": true, "art": "dagger"},
 ]
+
+## Приёмы меча: урон (множитель) растёт на 15% за ранг, откат меньше
+const ART_COLOR := {"sword": Color("#7fd0ff"), "great": Color("#ff8a3a"), "rapier": Color("#ffe27a"), "dagger": Color("#b07cff")}
+static func art_mult(base: float, r: int) -> float:
+	return base * (1.0 + 0.15 * (maxi(1, r) - 1))
+
+static func art_cd(r: int) -> float:
+	return maxf(4.0, 8.0 - 0.8 * (maxi(1, r) - 1))
 
 static func find(id: String) -> Dictionary:
 	for s in LIST:
@@ -72,4 +85,8 @@ static func desc(id: String, r: int) -> String:
 		"crit": return "%d%% шанс двойного урона" % (8 * r)
 		"dash": return dash_desc(1.0 + 0.1 * r, dash_cd(r))
 		"vamp": return "Лечение: %d%% от урона" % (4 * r)
+		"art_sword": return "С мечом: стойка, рывок вперёд на 5 м — %d%% урона всем на пути, откат %s с" % [roundi(art_mult(2.2, r) * 100), String.num(art_cd(r))]
+		"art_great": return "С двуручником: удар сверху по площади — %d%% урона и оглушение, откат %s с" % [roundi(art_mult(2.8, r) * 100), String.num(art_cd(r))]
+		"art_rapier": return "С рапирой: пять быстрых уколов по %d%% урона, откат %s с" % [roundi(art_mult(0.75, r) * 100), String.num(art_cd(r))]
+		"art_dagger": return "С кинжалом: мгновенно за спину врага, крит %d%% урона, откат %s с" % [roundi(art_mult(3.0, r) * 100), String.num(art_cd(r))]
 	return ""

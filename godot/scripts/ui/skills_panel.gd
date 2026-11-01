@@ -11,6 +11,14 @@ var _list: VBoxContainer
 var _reset: Button
 var _reset_armed := false
 var _sel := "strength"
+var _tab := "skills"          # skills — навыки, stats — характеристики
+var _sel_stat := "str"
+var _tabs := {}
+const STATS := [
+	{"id": "str", "icon": "💪", "name": "Сила"},
+	{"id": "agi", "icon": "🪶", "name": "Ловкость"},
+	{"id": "vit", "icon": "❤️", "name": "Выносливость"},
+]
 # Правая половина: описание выбранного навыка
 var _d_name: Label
 var _d_kind: Label
@@ -55,6 +63,16 @@ func _ready() -> void:
 	head.add_child(_title)
 	_points = _lbl("", 13, Color("#ffe7b0"))
 	_points.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for t in [["skills", "Навыки"], ["stats", "Характеристики"]]:
+		var tb := _btn(t[1], false)
+		var key: String = t[0]
+		tb.pressed.connect(func():
+			_tab = key
+			_reset_armed = false
+			_reset.text = "Сбросить"
+			_render())
+		head.add_child(tb)
+		_tabs[key] = tb
 	head.add_child(_points)
 	_reset = _btn("Сбросить", false)
 	_reset.pressed.connect(_on_reset)
@@ -114,7 +132,8 @@ func _ready() -> void:
 	_up.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_up.custom_minimum_size = Vector2(0, 40)
 	_up.pressed.connect(func():
-		if Game.learn(_sel):
+		var ok := Game.add_stat(_sel_stat) if _tab == "stats" else Game.learn(_sel)
+		if ok:
 			_render())
 	buttons.add_child(_up)
 	_evo = _btn("✨ Эволюция", false)
@@ -175,13 +194,16 @@ func close() -> void:
 	closed.emit()
 
 func _on_reset() -> void:
-	if Game.skills.is_empty():
+	if (_tab == "skills" and Game.skills.is_empty()) or (_tab == "stats" and Game.stat_points_free() == (Game.level - 1) * Game.STAT_PER_LEVEL):
 		return
 	if not _reset_armed:
 		_reset_armed = true
 		_reset.text = "Точно сбросить?"
 		return
-	Game.reset_skills()
+	if _tab == "stats":
+		Game.reset_stats()
+	else:
+		Game.reset_skills()
 	_reset_armed = false
 	_reset.text = "Сбросить"
 	_render()
@@ -189,10 +211,15 @@ func _on_reset() -> void:
 func _render() -> void:
 	var free := Game.points_free()
 	_title.text = "👤 %s · Ур. %d" % [Game.player_name if Game.player_name != "" else "Странник", Game.level]
-	_points.text = "Очки навыков: %d" % free
+	for k in _tabs:
+		(_tabs[k] as Button).text = ("● " if k == _tab else "") + ("Навыки" if k == "skills" else "Характеристики")
 	for c in _list.get_children():
 		_list.remove_child(c)
 		c.queue_free()
+	if _tab == "stats":
+		_render_stats()
+		return
+	_points.text = "Очки навыков: %d" % free
 	for s in SkillDefs.LIST:
 		var id: String = s["id"]
 		var r := Game.rank(id)
@@ -223,8 +250,54 @@ func _render() -> void:
 		_list.add_child(row)
 	_render_info(free)
 
+## Вкладка «Характеристики»: Сила, Ловкость, Выносливость — по 2 очка за уровень
+func _render_stats() -> void:
+	var free := Game.stat_points_free()
+	_points.text = "Очки характеристик: %d" % free
+	for st in STATS:
+		var id: String = st["id"]
+		var row := Button.new()
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.text = "%s  %s      %d" % [st["icon"], st["name"], Game.stats[id]]
+		row.add_theme_font_size_override("font_size", 14)
+		row.custom_minimum_size = Vector2(0, 40)
+		for state in ["normal", "hover", "pressed", "focus"]:
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(1, 0.83, 0.47, 0.22) if id == _sel_stat else Color(1, 1, 1, 0.05)
+			sb.border_color = Color("#ffd479") if id == _sel_stat else Color(1, 1, 1, 0.12)
+			sb.set_border_width_all(2 if id == _sel_stat else 1)
+			sb.set_corner_radius_all(8)
+			sb.content_margin_left = 10
+			row.add_theme_stylebox_override(state, sb)
+		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			row.add_theme_color_override(k, Color(1, 0.91, 0.69))
+		row.pressed.connect(func():
+			_sel_stat = id
+			_render())
+		_list.add_child(row)
+	var cur: Dictionary = STATS.filter(func(x): return x["id"] == _sel_stat)[0]
+	var n: int = Game.stats[_sel_stat]
+	_d_name.text = "%s %s" % [cur["icon"], cur["name"]]
+	_d_kind.text = "Характеристика · по %d очка за каждый уровень" % Game.STAT_PER_LEVEL
+	_d_rank.text = "Вложено очков: %d" % n
+	match _sel_stat:
+		"str":
+			_d_now.text = "Сейчас: урон +%d" % (n * Game.STAT_STR)
+			_d_next.text = "Каждое очко: урон +%d" % Game.STAT_STR
+		"agi":
+			_d_now.text = "Сейчас: удары быстрее на %d%%, крит +%d%%" % [roundi(n * Game.STAT_AGI_SPEED * 100), roundi(n * Game.STAT_AGI_CRIT * 100)]
+			_d_next.text = "Каждое очко: удары быстрее на %d%%, крит +%d%%" % [roundi(Game.STAT_AGI_SPEED * 100), roundi(Game.STAT_AGI_CRIT * 100)]
+		"vit":
+			_d_now.text = "Сейчас: здоровье +%d" % (n * Game.STAT_VIT)
+			_d_next.text = "Каждое очко: здоровье +%d" % Game.STAT_VIT
+	_d_need.text = ""
+	_up.text = "+1 очко"
+	_up.disabled = free <= 0
+	_evo.visible = false
+
 ## Правая половина: что даёт навык сейчас и на следующем ранге, кнопки
 func _render_info(free: int) -> void:
+	_evo.visible = true
 	if _sel == "dash" and SkillDefs.dash_form(Game.skills) != "dash":
 		_render_dash_evo(free)
 		return

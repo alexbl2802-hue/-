@@ -18,6 +18,7 @@ var player_name := ""
 var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»
 var chests: Array = []  # номера подземелий, где сундук уже открыт
 var bosses: Array = []  # номера подземелий, где босс побеждён
+var stats := {"str": 0, "agi": 0, "vit": 0}   # очки характеристик: Сила, Ловкость, Выносливость
 var time_of_day := 0.33 # время суток: 0 — полночь, 0,25 — рассвет, 0,5 — полдень, 0,75 — закат
 var is_night := false
 var level := 1
@@ -54,6 +55,7 @@ func new_game() -> void:
 	skills = {}
 	chests = []
 	bosses = []
+	stats = {"str": 0, "agi": 0, "vit": 0}
 	time_of_day = 0.33
 	refresh()
 	hp = max_hp
@@ -219,13 +221,88 @@ func refresh() -> void:
 		arm += Items.stat(e, "armor")
 		spd_b += Items.stat(e, "speed")
 		crit_b += Items.stat(e, "crit")
-	max_hp = 100.0 + (level - 1) * 15 + hp_b + rank("vitality") * 20
-	dmg = 18 + (level - 1) * 4 + dmg_b + rank("strength") * 5
+	max_hp = 100.0 + (level - 1) * 15 + hp_b + rank("vitality") * 20 + stats["vit"] * STAT_VIT
+	dmg = 18 + (level - 1) * 4 + dmg_b + rank("strength") * 5 + stats["str"] * STAT_STR
 	armor = arm
 	speed_bonus = spd_b / 100.0
 	crit_bonus = crit_b / 100.0
 	hp = minf(hp, max_hp)
 	changed.emit()
+
+# ---------- Ковка уникального оружия у кузнеца
+func can_forge(rec: Dictionary) -> String:
+	if count_of(rec["mat"]) < 1:
+		return "Нужен материал"
+	if count_of("shard") < rec["shards"]:
+		return "Мало осколков"
+	if gold < rec["gold"]:
+		return "Мало золота"
+	if inv.size() >= Items.INV_SIZE:
+		return "Нет места"
+	return ""
+
+func forge(rec: Dictionary) -> bool:
+	if can_forge(rec) != "":
+		return false
+	_take(rec["mat"], 1)
+	_take("shard", rec["shards"])
+	gold -= rec["gold"]
+	inv.append(Items.make(rec["id"]))
+	save_game()
+	changed.emit()
+	return true
+
+# ---------- Прочность оружия: каждый удар по врагу — минус единица
+func wear_weapon() -> void:
+	var w = equip["weapon"]
+	if w == null or not w.has("d") or w["d"] <= 0:
+		return
+	w["d"] -= 1
+	var mx := Items.max_dur(w)
+	if w["d"] == 0:
+		refresh()
+		message.emit("Оружие сломано! Почини у кузнеца", Color("#ff6a5a"), Vector3.ZERO)
+	elif w["d"] == int(mx * 0.2):
+		message.emit("Оружие изнашивается", Color("#ffc060"), Vector3.ZERO)
+
+func repair_weapon() -> bool:
+	var w = equip["weapon"]
+	if w == null or not w.has("d") or w["d"] >= Items.max_dur(w):
+		return false
+	var cost := Items.repair_cost(w)
+	if gold < cost:
+		return false
+	gold -= cost
+	w["d"] = Items.max_dur(w)
+	refresh()
+	save_game()
+	return true
+
+# ---------- Очки характеристик: 2 за каждое повышение уровня
+const STAT_PER_LEVEL := 2
+const STAT_STR := 3        # урона за очко Силы
+const STAT_VIT := 12       # здоровья за очко Выносливости
+const STAT_AGI_SPEED := 0.02   # скорость удара за очко Ловкости
+const STAT_AGI_CRIT := 0.01    # шанс крита за очко Ловкости
+
+func stat_points_free() -> int:
+	return (level - 1) * STAT_PER_LEVEL - stats["str"] - stats["agi"] - stats["vit"]
+
+func add_stat(k: String) -> bool:
+	if stat_points_free() <= 0 or not stats.has(k):
+		return false
+	var before := max_hp
+	stats[k] += 1
+	refresh()
+	if k == "vit":
+		hp += max_hp - before
+	save_game()
+	return true
+
+func reset_stats() -> void:
+	stats = {"str": 0, "agi": 0, "vit": 0}
+	refresh()
+	save_game()
 
 ## Щит усиливает блок (доля урона, которую он снимает сверх обычного блока)
 func block_bonus() -> float:
@@ -330,7 +407,7 @@ func reset_skills() -> void:
 func save_game() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "bosses": bosses, "time": time_of_day, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
+		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "bosses": bosses, "stats": stats, "time": time_of_day, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -343,6 +420,8 @@ func load_game() -> bool:
 	for c in d.get("chests", []):
 		chests.append(int(c))
 	time_of_day = clampf(float(d.get("time", 0.33)), 0.0, 1.0)
+	var st0: Dictionary = d.get("stats", {})
+	stats = {"str": int(st0.get("str", 0)), "agi": int(st0.get("agi", 0)), "vit": int(st0.get("vit", 0))}
 	bosses = []
 	for c in d.get("bosses", []):
 		bosses.append(int(c))

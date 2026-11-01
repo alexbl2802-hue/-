@@ -159,6 +159,15 @@ func show_fps(on: bool) -> void:
 		add_child(_fps_lbl)
 	_fps_lbl.visible = on
 
+## Цвет полоски здоровья: зелёная, с половины — жёлтая, на последней четверти — красная и мигает
+func hp_color(f: float) -> Color:
+	if f > 0.5:
+		return Color("#4cd964")
+	if f > 0.25:
+		return Color("#f2c230")
+	var blink := 0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
+	return Color("#e8382c").lerp(Color("#ff8a80"), 1.0 - blink)
+
 func set_status(text: String) -> void:
 	_status.text = text
 
@@ -216,7 +225,7 @@ func _draw_bars() -> void:
 	_bars.draw_string(font, c + Vector2(-15, 5), str(Game.level), HORIZONTAL_ALIGNMENT_CENTER, 30, 14, Color("#2a1d08"))
 	# Здоровье
 	_bars.draw_rect(Rect2(x, y, w, 12), Color(0, 0, 0, 0.55))
-	_bars.draw_rect(Rect2(x, y, w * clampf(Game.hp / Game.max_hp, 0, 1), 12), Color("#c8372c"))
+	_bars.draw_rect(Rect2(x, y, w * clampf(Game.hp / Game.max_hp, 0, 1), 12), hp_color(Game.hp / Game.max_hp))
 	_bars.draw_rect(Rect2(x, y, w, 12), Color(1, 0.86, 0.63, 0.35), false, 1.0)
 	var t := "%d / %d" % [ceili(Game.hp), roundi(Game.max_hp)]
 	_bars.draw_string_outline(font, Vector2(x, y + 10), t, HORIZONTAL_ALIGNMENT_CENTER, w, 10, 3, Color(0, 0, 0, 0.8))
@@ -238,7 +247,7 @@ func _draw_enemy_bars() -> void:
 		var s := camera.unproject_position(p)
 		var r := Rect2(s.x - 26, s.y - 4, 52, 7)
 		_enemy_bars.draw_rect(r.grow(1), Color(0, 0, 0, 0.6))
-		_enemy_bars.draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(e.hp / e.T["hp"], 0, 1), r.size.y)), Color("#e04a3a"))
+		_enemy_bars.draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(e.hp / e.T["hp"], 0, 1), r.size.y)), hp_color(e.hp / e.T["hp"]))
 
 # ---------- Всплывающие надписи (урон, опыт, добыча)
 func _draw_floaters() -> void:
@@ -294,7 +303,7 @@ func _draw_boss_bar() -> void:
 	_enemy_bars.draw_string(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 15, Color("#ffb070"))
 	var r := Rect2(x, y + 6, w, 11)
 	_enemy_bars.draw_rect(r.grow(2), Color(0, 0, 0, 0.6))
-	_enemy_bars.draw_rect(Rect2(r.position, Vector2(w * clampf(boss.hp / boss.T["hp"], 0, 1), r.size.y)), Color("#c8372c"))
+	_enemy_bars.draw_rect(Rect2(r.position, Vector2(w * clampf(boss.hp / boss.T["hp"], 0, 1), r.size.y)), hp_color(boss.hp / boss.T["hp"]))
 	_enemy_bars.draw_rect(r.grow(2), Color(1, 0.75, 0.4, 0.6), false, 1.5)
 
 # ---------- Название и уровень над монстрами

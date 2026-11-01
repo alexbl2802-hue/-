@@ -8,6 +8,11 @@ var _money: Label
 var _up_box: VBoxContainer
 var _list: VBoxContainer
 var _note: Label
+var _tab := "main"
+var _tab_btns := {}
+var _body: Control
+var _forge_box: VBoxContainer
+var _forge_scroll: Control
 
 func _ready() -> void:
 	var vb := UiKit.modal(self, close)
@@ -28,9 +33,31 @@ func _ready() -> void:
 	for i in Items.RANKS.size():
 		ranks.add_child(UiKit.label(Items.RANKS[i]["name"] + (" →" if i < Items.MAX_RANK else ""), 11, Items.RANKS[i]["color"]))
 	vb.add_child(ranks)
+	# Вкладки: «Кузня» (улучшение, починка, соединение) и «Ковка» (уникальное оружие)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	vb.add_child(tabs)
+	for t in [["main", "⚒ Кузня"], ["forge", "🔥 Ковка"]]:
+		var tb := UiKit.button(t[1], false, 13)
+		var key: String = t[0]
+		tb.pressed.connect(func():
+			_tab = key
+			_render())
+		tabs.add_child(tb)
+		_tab_btns[key] = tb
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 12)
 	vb.add_child(body)
+	_body = body
+	var fscroll := ScrollContainer.new()
+	fscroll.custom_minimum_size = Vector2(740, 230)
+	fscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vb.add_child(fscroll)
+	_forge_box = VBoxContainer.new()
+	_forge_box.add_theme_constant_override("separation", 6)
+	_forge_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fscroll.add_child(_forge_box)
+	_forge_scroll = fscroll
 	_up_box = VBoxContainer.new()
 	_up_box.add_theme_constant_override("separation", 6)
 	body.add_child(_card("Улучшение оружия", _up_box, 300))
@@ -82,8 +109,44 @@ func _clear(n: Node) -> void:
 
 func _render() -> void:
 	_money.text = "🪙 %d    🔮 %d" % [Game.gold, Game.count_of("shard")]
+	for k in _tab_btns:
+		(_tab_btns[k] as Button).text = ("● " if k == _tab else "") + ("⚒ Кузня" if k == "main" else "🔥 Ковка")
+	_body.visible = _tab == "main"
+	_forge_scroll.visible = _tab == "forge"
+	if _tab == "forge":
+		_render_forge()
+		return
 	_render_upgrade()
 	_render_combine()
+
+## Ковка: уникальное оружие из материалов боссов
+func _render_forge() -> void:
+	_clear(_forge_box)
+	_forge_box.add_child(UiKit.label("Материалы боссов + 🔮 тёмные осколки + 🪙 золото → уникальное оружие со своим свечением", 11, Color(1, 1, 1, 0.75)))
+	for rec in Items.RECIPES:
+		var inst := Items.make(rec["id"])
+		var it := Items.get_item(rec["id"])
+		var mat := Items.get_item(rec["mat"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.add_child(UiKit.slot(it["icon"], Items.color(inst), "", "", 40.0))
+		var info := VBoxContainer.new()
+		info.add_theme_constant_override("separation", 0)
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_child(UiKit.label("%s — %s" % [it["name"], Items.rank_of(inst)["name"]], 13, Items.color(inst)))
+		info.add_child(UiKit.label(Items.lines(inst), 10, Color(1, 1, 1, 0.75)))
+		info.add_child(UiKit.label("Нужно: %s %s (%d/1) · 🔮 %d (%d) · 🪙 %d" % [mat["icon"], mat["name"], Game.count_of(rec["mat"]), rec["shards"], Game.count_of("shard"), rec["gold"]], 10, Color(1, 0.9, 0.7, 0.85)))
+		row.add_child(info)
+		var why := Game.can_forge(rec)
+		var b := UiKit.button("Выковать" if why == "" else why, why == "", 12)
+		b.disabled = why != ""
+		b.custom_minimum_size = Vector2(130, 0)
+		b.pressed.connect(func():
+			if Game.forge(rec):
+				_note.text = "🔥 Выковано: %s" % Items.title(Items.make(rec["id"]))
+			_render())
+		row.add_child(b)
+		_forge_box.add_child(row)
 
 func _render_upgrade() -> void:
 	_clear(_up_box)
@@ -92,6 +155,20 @@ func _render_upgrade() -> void:
 		_up_box.add_child(UiKit.label("Надень оружие, чтобы улучшить его", 12))
 		return
 	var it := Items.get_item(w["id"])
+	# Починка: прочность оружия и цена
+	if w.has("d"):
+		var rep := HBoxContainer.new()
+		rep.add_theme_constant_override("separation", 8)
+		var full: bool = w["d"] >= Items.max_dur(w)
+		rep.add_child(UiKit.label("🔧 Прочность %d / %d" % [w["d"], Items.max_dur(w)], 12, Color("#ff8a7a") if Items.broken(w) else UiKit.TEXT))
+		var rb := UiKit.button("Целое" if full else "Починить за 🪙 %d" % Items.repair_cost(w), not full, 12)
+		rb.disabled = full or Game.gold < Items.repair_cost(w)
+		rb.pressed.connect(func():
+			if Game.repair_weapon():
+				_note.text = "🔧 Оружие как новое"
+			_render())
+		rep.add_child(rb)
+		_up_box.add_child(rep)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)

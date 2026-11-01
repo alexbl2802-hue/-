@@ -19,7 +19,7 @@ var attack_t := -1.0
 var dead := false
 var busy := false
 var underground := false   # в подземелье: никакой воды и плавания
-var cd := {"whirl": 0.0, "dash": 0.0}
+var cd := {"whirl": 0.0, "dash": 0.0, "art": 0.0}
 
 var _model: Node3D
 var _legs: Array[Node3D] = []
@@ -235,7 +235,8 @@ const BLADES := {
 	"bone_blade": "res://models/bone_blade.glb",
 	"crystal_blade": "res://models/crystal_blade.glb",
 }
-const BLADE_OF := {"sword_bone": "bone_blade", "sword_crystal": "crystal_blade"}
+const BLADE_OF := {"sword_bone": "bone_blade", "sword_crystal": "crystal_blade", "rapier_star": "crystal_blade", "dagger_venom": "bone_blade",
+	"u_bone_king": "bone_blade", "u_queen": "crystal_blade", "u_frost": "crystal_blade", "u_chief": "bone_blade"}
 
 func _attach_blades() -> void:
 	for key in BLADES:
@@ -370,6 +371,21 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		_anim.speed_scale = 1.0
 		_spread_arms(false)
 		return
+	if _art_t >= 0.0:
+		want = A_SLASH
+		if _art_t < ART_CHARGE:   # стойка: меч отведён для удара
+			speed = 1.0
+			if _anim.current_animation != A_SLASH:
+				_anim.play(A_SLASH, 0.08)
+			if absf(_anim.current_animation_position - 0.4) > 0.005:
+				_anim.seek(0.4, false)
+		else:
+			speed = 3.2 if _art == "rapier" else 2.2
+			if _art == "rapier" and _anim.current_animation_position > 1.1:
+				_anim.seek(0.55, false)   # уколы — повтор середины удара
+		_anim.speed_scale = speed
+		_spread_arms(false)
+		return
 	if _spin_t >= 0.0 and _anim.has_animation(A_WHIRL):
 		want = A_WHIRL
 		speed = _anim.get_animation(A_WHIRL).length / WHIRL_TIME
@@ -379,7 +395,7 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 	elif attack_t >= 0.0 or _spin_t >= 0.0:
 		want = A_SLASH
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
-		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED
+		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
 	elif _dash_t >= 0.0:
 		# Прыжок рывка: ноги в широком шаге, как в полёте
 		want = A_RUN
@@ -483,7 +499,9 @@ func update_look() -> void:
 			for k in _blades:
 				_blades[k]["node"].visible = k == key
 			var bl: Dictionary = _blades[key]
-			(bl["node"] as Node3D).transform = Transform3D(Basis(Vector3(0, 0, 1), PI).scaled(Vector3.ONE * s), Vector3(0, 0.65 * s, 0))
+			# Тип оружия меняет ширину клинка: двуручник шире, рапира тонкая
+			var wd: float = Items.wtype_of(Game.equip["weapon"])["width"]
+			(bl["node"] as Node3D).transform = Transform3D(Basis(Vector3(0, 0, 1), PI).scaled(Vector3(s * wd, s, s * wd)), Vector3(0, 0.65 * s, 0))
 			var mat: StandardMaterial3D = bl["base"]
 			if id == "sword_rusty" and bl.has("rust"):
 				mat = bl["rust"]
@@ -496,8 +514,9 @@ func update_look() -> void:
 				if mat != g:
 					g.albedo_color = Color.WHITE
 				g.emission_enabled = true
-				g.emission = Items.RANKS[r]["color"]
-				g.emission_energy_multiplier = 0.8
+				# Уникальное оружие светится своим цветом, остальное — цветом ранга
+				g.emission = WorldGen.hex(w["glow"]) if w.get("unique", false) else Items.RANKS[r]["color"]
+				g.emission_energy_multiplier = 1.2 if w.get("unique", false) else 0.8
 				mat = g
 			else:
 				(bl["glow"] as StandardMaterial3D).emission_enabled = false
@@ -532,7 +551,7 @@ func update_look() -> void:
 
 # ---------- Бой
 func attack() -> void:
-	if _spin_t >= 0.0 or _dash_t >= 0.0 or dead or busy or blocking:
+	if _spin_t >= 0.0 or _dash_t >= 0.0 or dead or busy or blocking or _art_t >= 0.0:
 		return
 	# Комбо: нажатие во время удара — следующий удар сразу после этого
 	if attack_t >= 0.0:
@@ -546,11 +565,115 @@ func attack() -> void:
 ## герой идёт медленно и не бьёт
 const BLOCK_REDUCE := 0.6     # без щита блок снимает 60% урона
 const BLOCK_ARC := 1.75       # спереди — в пределах ±100°
-const BLOCK_POSE := 0.7      # кадр удара, где меч поднят перед собой — стойка блока
+const BLOCK_POSE := 0.7
+const PARRY_WINDOW := 0.25    # блок, поднятый не раньше чем за 0,25 с до удара, — отбитие
+const PARRY_STUN := 1.2
+var _block_start := -99.0      # кадр удара, где меч поднят перед собой — стойка блока
 var blocking := false
 
 func block_reduce() -> float:
 	return minf(0.9, BLOCK_REDUCE + Game.block_bonus())
+
+## Приёмы меча: стойка со свечением клинка → приём → заминка (герой беззащитен)
+const ART_CHARGE := 0.3
+const ART_RECOVER := 0.5
+var _art_t := -1.0
+var _art := ""            # тип оружия приёма: sword / great / rapier / dagger
+var _art_hits := 0
+var _art_hit: Array = []
+var _art_dir := Vector3.FORWARD
+
+func art_id() -> String:
+	return "art_" + Items.ALL[Game.equip["weapon"]["id"]].get("wt", "sword") if Game.equip["weapon"] != null else ""
+
+func use_art() -> void:
+	var id := art_id()
+	if id == "" or Game.rank(id) == 0 or cd.get("art", 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0 or _spin_t >= 0.0:
+		return
+	attack_t = -1.0
+	_art = id.substr(4)
+	_art_t = 0.0
+	_art_hits = 0
+	_art_hit = []
+	cd["art"] = SkillDefs.art_cd(Game.rank(id))
+	var best := _nearest_enemy(6.0)
+	if best:
+		var v := _flat(best.global_position - global_position)
+		facing = atan2(v.x, v.z)
+	_art_dir = Vector3(sin(facing), 0, cos(facing))
+	_new_swing = true
+	_set_blade_glow(SkillDefs.ART_COLOR[_art])
+
+func _art_action_end() -> float:
+	return ART_CHARGE + {"sword": 0.25, "great": 0.3, "rapier": 0.6, "dagger": 0.15}[_art]
+
+func _nearest_enemy(r: float) -> Node3D:
+	var best: Node3D = null
+	var bd := r
+	for e in enemies.alive_near(global_position, r):
+		var d := _flat(e.global_position - global_position).length()
+		if d < bd:
+			bd = d
+			best = e
+	return best
+
+func _art_update(dt: float) -> Vector3:
+	var hv := Vector3.ZERO
+	_art_t += dt
+	var r := Game.rank("art_" + _art)
+	var t := _art_t - ART_CHARGE
+	if t >= 0.0:
+		match _art:
+			"sword":   # рывок вперёд, урон всем на пути
+				if t < 0.25:
+					hv = _art_dir * 20.0
+					_invuln = maxf(_invuln, 0.05)
+					for e in enemies.alive_near(global_position, 2.4):
+						if not _art_hit.has(e):
+							_art_hit.append(e)
+							_deal(e, SkillDefs.art_mult(2.2, r), _art_dir)
+			"great":   # удар сверху по площади, оглушение
+				if t >= 0.15 and _art_hits == 0:
+					_art_hits = 1
+					var c := global_position + _art_dir * 1.6
+					Fx.ring(c + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["great"], 2.6, 0.4)
+					for e in enemies.alive_near(c, 3.2):
+						_deal(e, SkillDefs.art_mult(2.8, r), _flat(e.global_position - global_position).normalized())
+						if not e.dead:
+							e.stun(1.0)
+			"rapier":  # пять уколов
+				var n := mini(5, int(t / 0.12) + 1)
+				while _art_hits < n:
+					_art_hits += 1
+					var e := _nearest_enemy(2.8 * _wt()["reach"])
+					if e:
+						_deal(e, SkillDefs.art_mult(0.75, r), Vector3.ZERO)   # уколы не отбрасывают — все пять попадают
+			"dagger":  # за спину ближайшего врага и крит
+				if _art_hits == 0:
+					_art_hits = 1
+					var e := _nearest_enemy(6.0)
+					if e:
+						var back: Vector3 = Vector3(sin(e.facing), 0, cos(e.facing))
+						global_position = Vector3(e.global_position.x, global_position.y, e.global_position.z) - back * 1.2
+						facing = atan2(back.x, back.z)
+						Fx.ring(global_position + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["dagger"], 1.5, 0.3)
+						var dmg := roundi((Game.dmg + randf() * 8.0) * SkillDefs.art_mult(3.0, r))
+						e.hit(dmg, back, true)
+	if _art_t >= _art_action_end() + ART_RECOVER:
+		_art_t = -1.0
+		_set_blade_glow(Color(0, 0, 0, 0))
+		update_look()
+	return hv
+
+## Свечение клинка (приём меча); прозрачный цвет — выключить
+func _set_blade_glow(c: Color) -> void:
+	for k in _blades:
+		var g: StandardMaterial3D = _blades[k]["glow"]
+		if c.a > 0.0 and (_blades[k]["node"] as Node3D).visible:
+			g.emission_enabled = true
+			g.emission = c
+			g.emission_energy_multiplier = 2.5
+			(_blades[k]["mesh"] as MeshInstance3D).material_override = g
 
 ## Комбо из трёх ударов: третий — выпад вперёд, сильнее и отбрасывает
 const COMBO_WINDOW := 0.5     # сколько ждать следующего нажатия после удара, с
@@ -579,12 +702,17 @@ func _start_swing() -> void:
 		_push += Vector3(sin(facing), 0, cos(facing)) * 9.0
 	_new_swing = true
 
+## Тип надетого оружия (скорость, урон, дальность, крит)
+func _wt() -> Dictionary:
+	return Items.wtype_of(Game.equip["weapon"])
+
 func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0, v.z)
 
 func _sword_hit() -> void:
 	var finisher := combo == 2
-	var reach := 2.9 if finisher else 2.3
+	var wt := _wt()
+	var reach: float = (2.9 if finisher else 2.3) * wt["reach"]
 	for e in enemies.alive_near(global_position, 4.5):
 		var v := _flat(e.global_position - global_position)
 		var d := maxf(0.01, v.length())
@@ -592,7 +720,8 @@ func _sword_hit() -> void:
 			continue
 		if absf(angle_difference(facing, atan2(v.x, v.z))) > (1.6 if finisher else 1.25) and d > e.T["r"] + 0.7:
 			continue
-		_deal(e, COMBO_MULT[combo], v / d)
+		_deal(e, COMBO_MULT[combo] * wt["dmg"], v / d)
+		Game.wear_weapon()
 		if finisher:
 			e.knock(2.2)   # третий удар отбрасывает далеко
 	if finisher:
@@ -601,7 +730,7 @@ func _sword_hit() -> void:
 ## Урон с учётом навыков «Критический удар» и «Вампиризм»
 func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 	var dmg := roundi((Game.dmg + randf() * 8.0) * mult)
-	var crit := randf() < Game.rank("crit") * 0.08 + Game.crit_bonus
+	var crit: bool = randf() < Game.rank("crit") * 0.08 + Game.crit_bonus + _wt()["crit"] + Game.stats["agi"] * Game.STAT_AGI_CRIT
 	if crit:
 		dmg *= 2
 	e.hit(dmg, dir, crit)
@@ -610,6 +739,9 @@ func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 		Game.hp = minf(Game.max_hp, Game.hp + dmg * vamp)
 
 func use_skill(id: String) -> void:
+	if id == "art":
+		use_art()
+		return
 	var r := Game.rank(id)
 	if r == 0 or cd[id] > 0.0 or dead or busy or _spin_t >= 0.0 or _dash_t >= 0.0:
 		return
@@ -637,6 +769,8 @@ func use_skill(id: String) -> void:
 			Fx.ring(global_position + Vector3(0, 0.1, 0), Color("#b9a8ff"), 2.0, 0.4, true)
 
 func cooldown_total(id: String) -> float:
+	if id == "art":
+		return SkillDefs.art_cd(Game.rank(art_id()))
 	var r := maxi(1, Game.rank(id))
 	return SkillDefs.whirl_cd(r) if id == "whirl" else SkillDefs.dash_stats(Game.skills)["cd"]
 
@@ -666,9 +800,20 @@ func _dash_hits() -> void:
 			side = 1.0
 		_deal(e, mult, Vector3(_dash_dir.z * side, 0, -_dash_dir.x * side))
 
-func take_damage(raw: int, from: Vector3) -> void:
+func take_damage(raw: int, from: Vector3, attacker: Node3D = null) -> void:
 	if _invuln > 0.0 or dead or busy:
 		return
+	# Отбитие: блок поднят в последний момент — урона нет, враг оглушён и уязвим
+	var fv := _flat(from - global_position)
+	if blocking and _time - _block_start < PARRY_WINDOW and fv.length() > 0.01 and absf(angle_difference(facing, atan2(fv.x, fv.z))) < BLOCK_ARC:
+		_invuln = 0.3
+		Fx.text("Отбито!", global_position, Color("#ffe060"), true)
+		Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#ffe060"), 1.4, 0.3)
+		if attacker and attacker.has_method("stun"):
+			attacker.stun(PARRY_STUN, true)
+		return
+	if _art_t >= 0.0 and _art_t > _art_action_end():
+		raw = roundi(raw * 1.2)   # заминка после приёма — герой беззащитен
 	var dmg := Game.reduce_damage(roundi(raw * DayNight.monster_mult()))   # ночью монстры бьют сильнее
 	var v := _flat(from - global_position)
 	var blocked := blocking and v.length() > 0.01 and absf(angle_difference(facing, atan2(v.x, v.z))) < BLOCK_ARC
@@ -728,7 +873,10 @@ func _physics_process(dt: float) -> void:
 		speed *= 0.5
 	if attack_t >= 0.0:
 		speed *= 0.45
-	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0
+	var was_blocking := blocking
+	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0
+	if blocking and not was_blocking:
+		_block_start = _time
 	if blocking:
 		speed *= 0.4
 	var hv := Vector3.ZERO
@@ -740,6 +888,9 @@ func _physics_process(dt: float) -> void:
 		_speed_now = lerpf(_speed_now, speed, minf(1.0, dt * 10.0))
 	else:
 		_speed_now = lerpf(_speed_now, 0.0, minf(1.0, dt * 10.0))
+	# Приём меча
+	if _art_t >= 0.0:
+		hv = _art_update(dt)
 	# Рывок: быстрое движение вперёд сквозь врагов, герой неуязвим
 	if _dash_t >= 0.0:
 		_dash_t += dt
@@ -801,7 +952,7 @@ func _animate(dt: float) -> void:
 	var sm := _slash.material_override as StandardMaterial3D
 	sm.albedo_color.a = 0.0
 	if attack_t >= 0.0:
-		attack_t += dt * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * (0.85 if combo == 2 else 1.0)
+		attack_t += dt * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED) * (0.85 if combo == 2 else 1.0)
 		var t := attack_t
 		var ax: float
 		var az: float

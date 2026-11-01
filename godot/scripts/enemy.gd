@@ -550,7 +550,7 @@ func _slam(dist: float) -> void:
 	var sl: Dictionary = T["slam"]
 	Fx.ring(global_position + Vector3(0, 0.15, 0), Color(0.85, 0.75, 0.6, 0.9), sl["radius"], 0.45)
 	if dist < sl["radius"] and absf(hero.global_position.y - global_position.y) < 2.0:
-		hero.take_damage(sl["dmg"], global_position)
+		hero.take_damage(sl["dmg"], global_position, self)
 
 ## Корона босса
 func _add_crown(y: float, at := Vector3.ZERO) -> void:
@@ -685,9 +685,27 @@ func _build_kobold() -> void:
 	_box(shield, Vector3(0.08, 0.2, 0.2), steel, Vector3(0, 0, 0))
 
 # ---------- Бой
+## Оглушение: монстр стоит и не бьёт; если отбит удар — ещё и получает двойной урон
+var _stun_len := 0.0
+var _vuln_t := 0.0
+func stun(t: float, vulnerable := false) -> void:
+	if dead:
+		return
+	st = "stun"
+	_t = 0.0
+	_stun_len = t
+	_extra_hits = []
+	if _moves:
+		_moves.cancel_attack()
+	if vulnerable:
+		_vuln_t = t + 0.4
+	Fx.ring(global_position + Vector3(0, T["bar"] - 0.4, 0), Color("#ffe060"), 0.6, 0.5)
+
 func hit(dmg: int, dir: Vector3, crit := false) -> void:
 	if dead:
 		return
+	if _vuln_t > 0.0:
+		dmg *= 2   # после отбитого удара — уязвим
 	hp -= dmg
 	_flash = 1.0
 	_kb = dir * 9.0
@@ -703,7 +721,7 @@ func hit(dmg: int, dir: Vector3, crit := false) -> void:
 			_moves.cancel_attack()
 	elif st == "idle" or st == "return":
 		st = "chase"
-	if _bunny and _dodge_t < 0.0 and randf() < 0.3:
+	if _bunny and _dodge_t < 0.0 and randf() < 0.3 and st != "stun":
 		_dodge()
 
 ## Замах: у кролика — следующая атака по очереди (джеб, прямой, крюк, комбо)
@@ -840,7 +858,7 @@ func _physics_process(dt: float) -> void:
 				if T.get("lunge", false):
 					_kb += Vector3(sin(facing), 0, cos(facing)) * 7.0
 				if can_see and dist < T["reach"] + 0.6 and absf(angle_difference(facing, atan2(to_hero.x, to_hero.z))) < 1.2:
-					hero.take_damage(T["dmg"], global_position)
+					hero.take_damage(T["dmg"], global_position, self)
 		"aim":
 			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 8.0)
 			var spec: Dictionary = _special()
@@ -861,7 +879,7 @@ func _physics_process(dt: float) -> void:
 			if _moves and _moves.leap_attack and not _leap_hit_done and _moves.leap_t >= _moves.LEAP_HIT:
 				_leap_hit_done = true
 				if can_see and dist < T["reach"] + 0.8:
-					hero.take_damage(T["dmg"], global_position)
+					hero.take_damage(T["dmg"], global_position, self)
 			if not _moves or not _moves.leaping():
 				if _moves and _moves.leap_attack:
 					st = "recover"
@@ -870,12 +888,15 @@ func _physics_process(dt: float) -> void:
 					_extra_hits = []
 				else:
 					st = "chase"
+		"stun":
+			if _t >= _stun_len:
+				st = "chase"
 		"recover":
 			# Следующие удары комбо
 			while not _extra_hits.is_empty() and _t >= _extra_hits[0]:
 				_extra_hits.pop_front()
 				if can_see and dist < T["reach"] + 0.6 and absf(angle_difference(facing, atan2(to_hero.x, to_hero.z))) < 1.2:
-					hero.take_damage(int(T["dmg"] * 0.6), global_position)
+					hero.take_damage(int(T["dmg"] * 0.6), global_position, self)
 			if _t >= _rec_len:
 				st = "chase" if can_see and dist < T["aggro"] * 3.5 else "return"
 		"return":
@@ -892,6 +913,7 @@ func _physics_process(dt: float) -> void:
 	_moving = sp > 0.1
 	_leap_cd -= dt
 	_spike_cd -= dt
+	_vuln_t -= dt
 	_speed_now = lerpf(_speed_now, sp, minf(1.0, dt * 8.0))
 	var hv := mv * sp
 	# Не заходим в воду
