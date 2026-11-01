@@ -75,7 +75,7 @@ func _ready() -> void:
 				await get_tree().process_frame
 				get_viewport().get_texture().get_image().save_png(out + "jump_%d.png" % k)
 				k += 1
-		_check("dash %s: long jump %.2f m high" % [SkillDefs.dash_form(sk), peak], peak > 0.8, "")
+		_check("dash %s: low jump %.2f m high" % [SkillDefs.dash_form(sk), peak], peak > 0.1 and peak < 0.5, "")
 		var dist := Vector2(h.global_position.x - p0.x, h.global_position.z - p0.z).length()
 		var want: float = h.DASH_SPEED * SkillDefs.dash_stats(sk)["speed"] * h.DASH_TIME
 		_check("dash %s: 20%% damage" % SkillDefs.dash_form(sk), absf((hp0 - gob.hp) - roundf(Game.dmg * 0.2)) <= 2.0, "hp %d → %d, dmg %d" % [hp0, gob.hp, Game.dmg])

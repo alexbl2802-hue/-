@@ -461,6 +461,8 @@ def hero_skills(skill_path, jump_path):
             if n == hips and pth == "translation":
                 v[:, 0] = v[0, 0]   # без перемещения таза вперёд и вбок
                 v[:, 2] = v[0, 2]
+                if name == "DashJump":   # прыжок рывка низкий: подъём тела — треть исходного
+                    v[:, 1] = v[0, 1] + (v[:, 1] - v[0, 1]) * 0.33
             out_tracks.append((n, pth, v))
         add_animation(j, bld, name, times[:end] - times[0], out_tracks)
     j["bufferViews"] = bld.views
