@@ -119,6 +119,10 @@ func _ready() -> void:
 		if k.in_dungeon:
 			k.T = k.T.duplicate()
 			k.T["aggro"] = 0.0
+	# Сундук стережёт босс — сначала побеждаем его
+	var boss: Node3D = main.enemies.boss_of(0)
+	if boss:
+		boss.hit(99999, Vector3.FORWARD)
 	main.hero.global_position = c + Vector3(0, 0.3, 1.6)
 	await _frames(10)
 	_check("chest action", hud.touch.act_text == "Открыть сундук", hud.touch.act_text)

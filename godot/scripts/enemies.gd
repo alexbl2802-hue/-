@@ -6,6 +6,7 @@ const ACTIVE_RANGE := 110.0
 var hero: Node3D
 var loot: Node3D
 var list: Array = []
+signal boss_killed(e: Node3D)
 var _check_t := 0.0
 
 func spawn_all() -> void:
@@ -28,8 +29,37 @@ func spawn_dungeon(d: Node3D) -> void:
 			en.in_dungeon = true
 			var off := Vector3(-0.9, 0, 0.5) if k == 0 else Vector3(0.9, 0, -0.5)
 			en.setup(sp[0], sp[1] + off + Vector3(0, 0.3, 0), hero)
+			en.dungeon_idx = d.index
 			add_child(en)
 			list.append(en)
+	# Босс стережёт сундук: стоит между сундуком и входом. Побеждённый больше не появляется
+	if d.def.has("boss") and not boss_beaten(d.index):
+		var c: Vector3 = d.chest["pos"]
+		var to_start: Vector3 = d.start_pos - c
+		to_start.y = 0.0
+		var b: CharacterBody3D = script.new()
+		b.in_dungeon = true
+		b.dungeon_idx = d.index
+		b.setup(d.def["boss"], c + to_start.normalized() * 3.5 + Vector3(0, 0.3, 0), hero)
+		add_child(b)
+		list.append(b)
+
+## Побеждён ли босс подземелья (у старых сохранений с открытым сундуком — тоже да)
+static func boss_beaten(idx: int) -> bool:
+	return Game.bosses.has(idx) or Game.chests.has(idx)
+
+## Живой босс подземелья или null
+func boss_of(idx: int) -> Node3D:
+	for e in list:
+		if e.T.get("boss", false) and e.dungeon_idx == idx and not e.dead:
+			return e
+	return null
+
+func on_boss_killed(e: Node3D) -> void:
+	if not Game.bosses.has(e.dungeon_idx):
+		Game.bosses.append(e.dungeon_idx)
+	Game.save_game()
+	boss_killed.emit(e)
 
 func _process(dt: float) -> void:
 	_check_t -= dt

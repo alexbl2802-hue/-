@@ -77,7 +77,9 @@ func roll(type: String, at: Vector3) -> void:
 		drop("gold", randi_range(g[1], g[2]), at)
 	if randf() < t["potion"]:
 		drop("potion", 1, at)
-	if randf() < t["item"]:
+	for _n in int(t.get("items", 1)):
+		if randf() >= t["item"]:
+			continue
 		# Эпические вещи выпадают реже
 		var pool: Array = t["pool"]
 		var w := []

@@ -12,11 +12,17 @@ const TYPES := {
 	# Шипастый волк-убийца: бьёт лапой вблизи, издалека поднимает хвост и стреляет шипами
 	"wolf": {"name": "Шипастый волк-убийца", "hp": 100, "dmg": 20, "speed": 6.4, "r": 0.55, "aggro": 18.0, "reach": 1.9, "cd": 0.9, "windup": 0.22, "bar": 1.7,
 		"spikes": {"near": 5.0, "far": 15.0, "cd": 3.0, "aim": 0.55, "count": 3, "speed": 24.0}},
+	# Боссы подземелий — стерегут сундук; побеждённый босс больше не появляется
+	"skeleton_king": {"name": "Король-скелет", "boss": true, "hp": 650, "dmg": 32, "speed": 3.8, "r": 0.85, "aggro": 16.0, "reach": 2.9, "cd": 1.3, "windup": 0.6, "bar": 4.1, "scale": 1.8,
+		"slam": {"radius": 5.0, "cd": 7.0, "aim": 1.0, "dmg": 40}},
+	"spider_queen": {"name": "Королева-паучиха", "boss": true, "hp": 550, "dmg": 28, "speed": 4.8, "r": 1.2, "aggro": 16.0, "reach": 2.9, "cd": 1.0, "windup": 0.4, "bar": 2.8, "scale": 2.0, "lunge": true,
+		"spit": {"near": 4.0, "far": 16.0, "cd": 4.0, "aim": 0.6, "count": 5, "speed": 16.0}},
 	"kobold": {"name": "Кобольд", "hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
 
 var type := "goblin"
+var dungeon_idx := -1       # номер подземелья (для босса — какой сундук он стережёт)
 var level := 1               # уровень монстра (пока у всех 1) — показывается над ним
 var in_dungeon := false
 var T: Dictionary
@@ -100,6 +106,17 @@ func _ready() -> void:
 		"rabbit": _build_rabbit()
 		"kobold": _build_kobold()
 		"wolf": _build_wolf()
+		"skeleton_king":
+			_build_humanoid(1.0, 0xd8d0b8, 0x7a1f2a, 0x2a1a14, 0xff4020, 2.2, 0.5, 0.14, false, true, "sword")
+			_add_crown(1.93)
+		"spider_queen":
+			_build_spider()
+			_add_crown(0.98, Vector3(0, 0, 0.18))
+	# Боссы крупнее обычных монстров
+	if T.has("scale"):
+		for c in _model.get_children():
+			c.scale *= T["scale"]
+			c.position *= T["scale"]
 	if type == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
 		_attach_goblin()
 	elif type == "rabbit" and ResourceLoader.exists(BUNNY_MODEL):
@@ -522,12 +539,41 @@ func _cone(parent: Node3D, r: float, h: float, m: Material, pos: Vector3) -> Mes
 	parent.add_child(mi)
 	return mi
 
+func _special() -> Dictionary:
+	for k in ["spikes", "slam", "spit"]:
+		if T.has(k):
+			return T[k]
+	return {}
+
+## Удар о землю: всё в радиусе получает урон
+func _slam(dist: float) -> void:
+	var sl: Dictionary = T["slam"]
+	Fx.ring(global_position + Vector3(0, 0.15, 0), Color(0.85, 0.75, 0.6, 0.9), sl["radius"], 0.45)
+	if dist < sl["radius"] and absf(hero.global_position.y - global_position.y) < 2.0:
+		hero.take_damage(sl["dmg"], global_position)
+
+## Корона босса
+func _add_crown(y: float, at := Vector3.ZERO) -> void:
+	var gold := _mat(0xe8b830, 0.35, 0xb08010, 0.6)
+	var crown := Node3D.new()
+	crown.position = Vector3(at.x, y, at.z)
+	_model.add_child(crown)
+	_box(crown, Vector3(0.36, 0.08, 0.36), gold, Vector3.ZERO)
+	for k in 6:
+		var a := TAU * k / 6.0
+		var tooth := _cone(crown, 0.05, 0.16, gold, Vector3(cos(a) * 0.15, 0.1, sin(a) * 0.15))
+		tooth.rotation.y = a
+	_box(crown, Vector3(0.07, 0.07, 0.07), _mat(0xe02040, 0.3, 0xff2050, 1.0), Vector3(0, 0.02, 0.19))
+
 ## Залп шипов из кончика хвоста — в грудь героя, с небольшим разбросом
 func _fire_spikes() -> void:
-	if not Fx.root or not _tail_tip:
+	if not Fx.root:
 		return
-	var sp: Dictionary = T["spikes"]
-	var from := _tail_tip.global_position
+	var spit := T.has("spit")
+	if not spit and not _tail_tip:
+		return
+	var sp: Dictionary = T["spit"] if spit else T["spikes"]
+	var from: Vector3 = _tail_tip.global_position if not spit else global_position + Vector3(sin(facing), 0, cos(facing)) * 1.6 + Vector3(0, 1.3, 0)
 	var target: Vector3 = hero.global_position + Vector3(0, 1.0, 0)
 	var dir := (target - from).normalized()
 	for i in int(sp["count"]):
@@ -536,6 +582,8 @@ func _fire_spikes() -> void:
 		s.velocity = dir.rotated(Vector3.UP, spread) * sp["speed"]
 		s.hero = hero
 		s.dmg = T["dmg"]
+		if spit:
+			s.poison = true
 		Fx.root.add_child(s)
 		s.global_position = from
 
@@ -684,6 +732,8 @@ func _die() -> void:
 	Game.kills += 1
 	Game.give_xp(Game.enemy_xp(type), global_position)
 	get_parent().on_enemy_killed(self)
+	if T.get("boss", false):
+		get_parent().on_boss_killed(self)
 
 func revive() -> void:
 	dead = false
@@ -761,6 +811,15 @@ func _physics_process(dt: float) -> void:
 				# Волк поднимает хвост и целится в героя
 				st = "aim"
 				_t = 0.0
+			elif T.has("slam") and _spike_cd <= 0.0 and dist < T["slam"]["radius"] * 0.8:
+				# Король-скелет поднимает меч для удара о землю — красное кольцо предупреждает
+				st = "aim"
+				_t = 0.0
+				Fx.ring(global_position + Vector3(0, 0.15, 0), Color(1, 0.25, 0.15, 0.8), T["slam"]["radius"] - 1.0, T["slam"]["aim"])
+			elif T.has("spit") and _spike_cd <= 0.0 and dist > T["spit"]["near"] and dist < T["spit"]["far"]:
+				# Королева-паучиха встаёт на задние лапы и плюётся ядом
+				st = "aim"
+				_t = 0.0
 			elif _moves and _leap_cd <= 0.0 and dist > 2.6 and dist < 6.5:
 				# Прыжок к герою: вблизи — удар в прыжке, подальше — просто сократить расстояние
 				st = "leap"
@@ -784,13 +843,17 @@ func _physics_process(dt: float) -> void:
 					hero.take_damage(T["dmg"], global_position)
 		"aim":
 			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 8.0)
-			if _t >= T["spikes"]["aim"]:
-				_fire_spikes()
+			var spec: Dictionary = _special()
+			if _t >= spec["aim"]:
+				if T.has("slam"):
+					_slam(dist)
+				else:
+					_fire_spikes()
 				st = "recover"
 				_t = 0.0
-				_rec_len = 0.45
+				_rec_len = 0.45 if not T.has("slam") else 0.9
 				_extra_hits = []
-				_spike_cd = T["spikes"]["cd"]
+				_spike_cd = spec["cd"]
 		"leap":
 			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 6.0)
 			mv = _leap_dir
@@ -892,12 +955,14 @@ func _animate(dt: float) -> void:
 				tail_up = 1.0 - smoothstep(0.0, 1.0, _t / 0.45)
 			_tail.rotation.x = lerpf(-0.45 + 0.15 * sin(_walk * 0.5), 2.35, tail_up)
 			_body.rotation.x = 0.12 * tail_up
-		"spider":
+		"spider", "spider_queen":
 			_walk += dt * (14.0 if _moving else 2.0)
 			var amp := 0.35 if _moving else 0.05
 			for l in _legs:
 				l[0].rotation.x = sin(_walk + l[1]) * amp
 			_body.rotation.x = -0.45 * minf(1.0, _t / T["windup"]) if st == "windup" else 0.0
+			if st == "aim":   # королева встаёт на дыбы перед плевком
+				_body.rotation.x = -0.6 * smoothstep(0.0, 1.0, _t / _special()["aim"])
 		_:
 			_walk += dt * _speed_now * 1.8
 			var amp := minf(1.0, _speed_now / 4.0) * 0.8 if _moving else 0.0
@@ -910,4 +975,10 @@ func _animate(dt: float) -> void:
 				ax = -2.6 * minf(1.0, _t / (T["windup"] * 0.8))
 			elif st == "recover" and _t < 0.25:
 				ax = lerpf(-2.6, 0.4, smoothstep(0.0, 1.0, _t / 0.15))
+			if st == "aim":   # замах обеими руками над головой
+				ax = -3.0 * smoothstep(0.0, 1.0, _t / _special()["aim"])
+				_arms[1].rotation.x = ax
+			elif st == "recover" and T.has("slam") and _t < 0.3:
+				ax = lerpf(-3.0, 0.6, smoothstep(0.0, 1.0, _t / 0.12))
+				_arms[1].rotation.x = ax
 			_arms[0].rotation.x = ax

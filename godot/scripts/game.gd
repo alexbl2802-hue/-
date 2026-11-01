@@ -8,7 +8,7 @@ signal message(text: String, color: Color, pos: Vector3)  # всплывающа
 
 const SAVE_PATH := "user://save.json"
 ## Опыт за монстра: случайно в пределах [от, до]
-const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74]}
+const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270]}
 
 static func enemy_xp(kind: String) -> int:
 	var r: Array = ENEMY_XP.get(kind, [10, 10])
@@ -17,6 +17,7 @@ static func enemy_xp(kind: String) -> int:
 var player_name := ""
 var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»
 var chests: Array = []  # номера подземелий, где сундук уже открыт
+var bosses: Array = []  # номера подземелий, где босс побеждён
 var level := 1
 var xp := 0
 var gold := 0
@@ -50,6 +51,7 @@ func new_game() -> void:
 	equip = {"weapon": Items.make("sword_rusty"), "armor": null, "helm": null, "amulet": null, "boots": null, "ring": null, "cloak": null, "shield": null}
 	skills = {}
 	chests = []
+	bosses = []
 	refresh()
 	hp = max_hp
 
@@ -325,7 +327,7 @@ func reset_skills() -> void:
 func save_game() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
+		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "bosses": bosses, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -337,6 +339,9 @@ func load_game() -> bool:
 	chests = []
 	for c in d.get("chests", []):
 		chests.append(int(c))
+	bosses = []
+	for c in d.get("bosses", []):
+		bosses.append(int(c))
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
 	gold = int(d.get("gold", 0))

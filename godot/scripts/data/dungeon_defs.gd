@@ -10,7 +10,7 @@ const WALL_H := 5.0
 const LIST := [
 	{
 		"name": "Древний склеп", "sub": "Холодный камень и забытые кости", "style": "crypt", "y": -300.0,
-		"monster": "skeleton", "chest_loot": ["sword_steel", "amulet_life"],
+		"monster": "skeleton", "boss": "skeleton_king", "chest_loot": ["sword_steel", "amulet_life"],
 		"map": [
 			"#####################",
 			"#S..#.......#.......#",
@@ -30,7 +30,7 @@ const LIST := [
 	},
 	{
 		"name": "Пещера кристаллов", "sub": "Глубоко под горами что-то мерцает", "style": "cave", "y": -600.0,
-		"monster": "spider", "chest_loot": ["sword_crystal", "armor_plate"],
+		"monster": "spider", "boss": "spider_queen", "chest_loot": ["sword_crystal", "armor_plate"],
 		"map": [
 			"########################",
 			"####S..######......#####",

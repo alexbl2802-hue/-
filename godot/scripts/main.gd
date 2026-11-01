@@ -98,6 +98,7 @@ func _ready() -> void:
 	hero.hurt.connect(func(_d): hud.flash_hurt())
 	hero.died.connect(_on_hero_died)
 	Game.leveled_up.connect(_on_level_up)
+	enemies.boss_killed.connect(func(e): hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт"))
 	Game.message.connect(func(t, c, p): Fx.text(t, p, c))
 
 	cl.queue_free()
@@ -276,6 +277,10 @@ func _process(_dt: float) -> void:
 				_act = exit_dungeon
 			var c: Vector3 = d.chest["pos"]
 			if not d.chest["opened"] and Vector2(p.x - c.x, p.z - c.z).length() < 2.2:
-				text = "Открыть сундук"
-				_act = open_chest.bind(mode)
+				var boss: Node3D = enemies.boss_of(mode)
+				if boss:
+					text = "🔒 Сундук стережёт " + boss.T["name"]
+				else:
+					text = "Открыть сундук"
+					_act = open_chest.bind(mode)
 	t.act_text = text

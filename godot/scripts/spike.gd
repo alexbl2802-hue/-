@@ -1,21 +1,31 @@
-## Шип из хвоста волка: летит прямо, ранит героя при попадании, пропадает в земле или через 2 с
+## Шип из хвоста волка или ядовитый шар королевы-паучихи: летит прямо, ранит героя при попадании, пропадает в земле или через 2 с
 extends Node3D
 
 var velocity := Vector3.ZERO
 var hero: Node3D
 var dmg := 20
+var poison := false   # ядовитый шар королевы-паучихи вместо шипа
 var _life := 0.0
 
 func _ready() -> void:
 	var mi := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.0
-	cm.bottom_radius = 0.05
-	cm.height = 0.45
-	cm.radial_segments = 4
-	mi.mesh = cm
-	mi.material_override = Mats.lp(0x2e3138, 0.35, 0.0, 0x803020, 0.6)
-	mi.rotation.x = -PI / 2.0   # остриём вперёд (по −Z узла)
+	if poison:
+		var sm := SphereMesh.new()
+		sm.radius = 0.2
+		sm.height = 0.4
+		sm.radial_segments = 8
+		sm.rings = 4
+		mi.mesh = sm
+		mi.material_override = Mats.lp(0x6ad040, 0.3, 0.0, 0x40ff30, 1.2)
+	else:
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.0
+		cm.bottom_radius = 0.05
+		cm.height = 0.45
+		cm.radial_segments = 4
+		mi.mesh = cm
+		mi.material_override = Mats.lp(0x2e3138, 0.35, 0.0, 0x803020, 0.6)
+		mi.rotation.x = -PI / 2.0   # остриём вперёд (по −Z узла)
 	add_child(mi)
 
 func _physics_process(dt: float) -> void:

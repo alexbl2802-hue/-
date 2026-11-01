@@ -36,6 +36,7 @@ func _ready() -> void:
 	_enemy_bars.draw.connect(_draw_enemy_bars)
 	_enemy_bars.draw.connect(_draw_floaters)
 	_enemy_bars.draw.connect(_draw_enemy_tags)
+	_enemy_bars.draw.connect(_draw_boss_bar)
 	root.add_child(_enemy_bars)
 	# Красная вспышка по краям экрана при уроне
 	var grad := Gradient.new()
@@ -260,13 +261,35 @@ func _tag(s: Vector2, title: String, level: int, color: Color) -> void:
 		_enemy_bars.draw_string(font, Vector2(x, s.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, part[1])
 		x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
+# ---------- Полоска здоровья босса вверху экрана, когда герой рядом с ним
+func _draw_boss_bar() -> void:
+	if not enemies or not hero or menu.visible:
+		return
+	var boss: Node3D = null
+	for e in enemies.list:
+		if e.T.get("boss", false) and not e.dead and e.is_physics_processing() and e.global_position.distance_to(hero.global_position) < 26.0:
+			boss = e
+	if not boss:
+		return
+	var font := _enemy_bars.get_theme_default_font()
+	var w := 380.0
+	var x := (_enemy_bars.size.x - w) / 2.0
+	var y := 78.0
+	var t: String = boss.T["name"]
+	_enemy_bars.draw_string_outline(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 15, 4, Color(0, 0, 0, 0.85))
+	_enemy_bars.draw_string(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 15, Color("#ffb070"))
+	var r := Rect2(x, y + 6, w, 11)
+	_enemy_bars.draw_rect(r.grow(2), Color(0, 0, 0, 0.6))
+	_enemy_bars.draw_rect(Rect2(r.position, Vector2(w * clampf(boss.hp / boss.T["hp"], 0, 1), r.size.y)), Color("#c8372c"))
+	_enemy_bars.draw_rect(r.grow(2), Color(1, 0.75, 0.4, 0.6), false, 1.5)
+
 # ---------- Название и уровень над монстрами
 func _draw_enemy_tags() -> void:
 	if not camera or not enemies or menu.visible:
 		return
 	for e in enemies.list:
-		if e.dead or not e.visible or not e.is_physics_processing():
-			continue
+		if e.dead or not e.visible or not e.is_physics_processing() or e.T.get("boss", false):
+			continue   # у босса — большая полоска с именем вверху экрана
 		var p: Vector3 = e.global_position + Vector3(0, e.T["bar"] + 0.3, 0)
 		if camera.is_position_behind(p) or camera.global_position.distance_to(p) > 30.0:
 			continue

@@ -72,6 +72,9 @@ const LOOT := {
 	"skeleton": {"gold": [0.6, 6, 14], "potion": 0.3, "item": 0.25, "pool": ["sword_iron", "sword_bone", "armor_chain", "helm_iron", "amulet_life", "sword_steel", "boots_iron", "ring_silver", "cloak_ranger", "shield_iron"], "shard": [0.45, 1, 2]},
 	"spider": {"gold": [0.5, 6, 14], "potion": 0.35, "item": 0.25, "pool": ["sword_steel", "armor_chain", "helm_iron", "amulet_life", "sword_crystal", "amulet_crystal", "armor_plate", "boots_wind", "ring_silver", "cloak_ranger", "shield_iron"], "shard": [0.45, 1, 2]},
 	"wolf": {"gold": [0.85, 10, 20], "potion": 0.3, "item": 0.3, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "boots_iron", "boots_wind", "ring_silver", "cloak_ranger", "cloak_shadow", "shield_iron"]},
+	# Боссы: много золота, два предмета, зелья и осколки
+	"skeleton_king": {"gold": [1.0, 90, 130], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_steel", "armor_plate", "helm_iron", "shield_tower", "ring_ruby", "cloak_shadow", "amulet_crystal"], "shard": [1.0, 4, 6]},
+	"spider_queen": {"gold": [1.0, 80, 120], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_crystal", "amulet_crystal", "boots_wind", "ring_ruby", "cloak_shadow", "shield_tower"], "shard": [1.0, 4, 6]},
 	"kobold": {"gold": [0.85, 12, 24], "potion": 0.35, "item": 0.35, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "amulet_crystal", "ring_ruby", "cloak_shadow", "shield_tower", "boots_wind"], "shard": [0.8, 2, 3]},
 }
 
