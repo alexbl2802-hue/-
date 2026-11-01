@@ -260,7 +260,7 @@ func _tag(s: Vector2, title: String, level: int, color: Color) -> void:
 		_enemy_bars.draw_string(font, Vector2(x, s.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, part[1])
 		x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
-# ---------- Название и уровень над монстрами (название пока есть только у кролика-оборотня)
+# ---------- Название и уровень над монстрами
 func _draw_enemy_tags() -> void:
 	if not camera or not enemies or menu.visible:
 		return

@@ -3,16 +3,16 @@
 extends CharacterBody3D
 
 const TYPES := {
-	"goblin": {"hp": 70, "dmg": 10, "speed": 4.6, "walk": 0.8, "r": 0.45, "aggro": 15.0, "reach": 1.7, "cd": 1.1, "windup": 0.4, "bar": 2.0},
-	"skeleton": {"hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
-	"spider": {"hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
+	"goblin": {"name": "Гоблин", "hp": 70, "dmg": 10, "speed": 4.6, "walk": 0.8, "r": 0.45, "aggro": 15.0, "reach": 1.7, "cd": 1.1, "windup": 0.4, "bar": 2.0},
+	"skeleton": {"name": "Скелет", "hp": 80, "dmg": 12, "speed": 3.9, "r": 0.45, "aggro": 13.0, "reach": 1.8, "cd": 1.2, "windup": 0.45, "bar": 2.4},
+	"spider": {"name": "Паук", "hp": 55, "dmg": 9, "speed": 5.2, "r": 0.7, "aggro": 12.0, "reach": 1.7, "cd": 0.9, "windup": 0.35, "bar": 1.4, "lunge": true},
 	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
 	"rabbit": {"name": "Кролик-оборотень", "hp": 85, "dmg": 16, "speed": 7.8, "walk": 0.9, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 2.0, "lunge": true, "roam": true},
 	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
 	# Шипастый волк-убийца: бьёт лапой вблизи, издалека поднимает хвост и стреляет шипами
-	"wolf": {"hp": 100, "dmg": 20, "speed": 6.4, "r": 0.55, "aggro": 18.0, "reach": 1.9, "cd": 0.9, "windup": 0.22, "bar": 1.7,
+	"wolf": {"name": "Шипастый волк-убийца", "hp": 100, "dmg": 20, "speed": 6.4, "r": 0.55, "aggro": 18.0, "reach": 1.9, "cd": 0.9, "windup": 0.22, "bar": 1.7,
 		"spikes": {"near": 5.0, "far": 15.0, "cd": 3.0, "aim": 0.55, "count": 3, "speed": 24.0}},
-	"kobold": {"hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
+	"kobold": {"name": "Кобольд", "hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
 
@@ -134,10 +134,13 @@ func _animate_bunny(dt: float) -> void:
 			_dodge_t = -1.0
 	if _dodge_t < 0.0:
 		# Стойка — одна неподвижная поза из анимации: петля по кадрам перескакивала и дёргала кролика
-		if _ap.current_animation != B_PUNCH or absf(_ap.current_animation_position - B_STANCE) > 0.01:
+		# Скорость 1 и возврат к кадру: при скорости 0 плавный переход (после кувырка) не завершается
+		if _ap.current_animation != B_PUNCH:
 			_ap.play(B_PUNCH, 0.15)
 			_ap.seek(B_STANCE, true)
-		_ap.speed_scale = 0.0
+		elif absf(_ap.current_animation_position - B_STANCE) > 0.005:
+			_ap.seek(B_STANCE, false)
+		_ap.speed_scale = 1.0
 	if _moves:
 		# Стойка с поднятыми кулаками — только в бою: рядом с героем, в ударе и в прыжке-атаке
 		var near := st == "chase" and hero.global_position.distance_to(global_position) < 5.0

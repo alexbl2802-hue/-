@@ -1,14 +1,15 @@
-## Инвентарь: характеристики героя, 4 слота снаряжения, 20 ячеек и описание выбранного предмета.
+## Инвентарь: характеристики героя, 8 слотов снаряжения, 20 ячеек и описание выбранного предмета.
 extends Control
 
 signal closed
 
-const SLOT_NAMES := {"weapon": ["Оружие", "🗡️"], "armor": ["Доспех", "🧥"], "helm": ["Шлем", "⛑️"], "amulet": ["Амулет", "📿"]}
+const SLOT_NAMES := {"weapon": ["Оружие", "🗡️"], "armor": ["Доспех", "🧥"], "helm": ["Шлем", "⛑️"], "amulet": ["Амулет", "📿"],
+	"boots": ["Сапоги", "👢"], "ring": ["Кольцо", "💍"], "cloak": ["Плащ", "🧣"], "shield": ["Щит", "🔰"]}
 
 var hero: Node   # для зелья (всплывающая надпись над героем)
 var _gold: Label
 var _stats: VBoxContainer
-var _equip: HBoxContainer
+var _equip: GridContainer
 var _grid: GridContainer
 var _info: VBoxContainer
 var _sel := {}   # {"i": номер ячейки} или {"eq": слот}
@@ -35,8 +36,10 @@ func _ready() -> void:
 	_stats = VBoxContainer.new()
 	_stats.add_theme_constant_override("separation", 1)
 	left.add_child(_stats)
-	_equip = HBoxContainer.new()
-	_equip.add_theme_constant_override("separation", 6)
+	_equip = GridContainer.new()
+	_equip.columns = 4
+	_equip.add_theme_constant_override("h_separation", 6)
+	_equip.add_theme_constant_override("v_separation", 6)
 	left.add_child(_equip)
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 8)

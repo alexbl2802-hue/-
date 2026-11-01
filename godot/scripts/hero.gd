@@ -153,7 +153,7 @@ const GRIP_PATH := "res://models/hero_grip.json"
 const SWORD_PATH := "res://models/longsword.glb"
 const RUST_TEX := "res://models/longsword_rust.jpg"
 const CHAR_SCALE := 1.05
-const SHOW_GEAR := false
+const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
@@ -221,6 +221,7 @@ func _attach_character() -> void:
 			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), hg.grip_point)
 	_sword.scale = Vector3.ONE / CHAR_SCALE
 	_attach_blades()
+	_build_gear(sk)
 	_setup_arms(sk)
 	_anim.play(A_IDLE if _has_idle else A_SLASH)
 	_anim.seek(0.0, true)
@@ -262,22 +263,27 @@ func _attach_blades() -> void:
 ## Броня и шлем — детали на костях модели, двигаются вместе с телом.
 ## Размеры подобраны по модели: торс ~0,4 м в ширину, голова ~0,2 м.
 func _build_gear(sk: Skeleton3D) -> void:
-	var on_bone := func(bone: String) -> BoneAttachment3D:
+	# Положение каждой накладки задаётся в системе скелета в позе покоя (T-поза, лицом к +Z,
+	# левая рука — к +X) и переводится в систему своей кости — так накладки не зависят от того,
+	# как повёрнуты оси костей у модели
+	var bone := func(suffix: String) -> int:
+		for i in sk.get_bone_count():
+			if sk.get_bone_name(i).ends_with(suffix):
+				return i
+		return -1
+	var rest := func(suffix: String) -> Transform3D: return sk.get_bone_global_rest(bone.call(suffix))
+	var put := func(suffix: String, mesh: Mesh, center: Vector3, size: Vector3, basis := Basis()) -> MeshInstance3D:
 		var att := BoneAttachment3D.new()
 		sk.add_child(att)
-		for i in sk.get_bone_count():
-			if sk.get_bone_name(i).ends_with(bone):
-				att.bone_name = sk.get_bone_name(i)
-				att.bone_idx = i
-		return att
-	var part := func(parent: Node3D, mesh: Mesh, pos: Vector3, scale := Vector3.ONE, rot := Vector3.ZERO) -> MeshInstance3D:
+		var b: int = bone.call(suffix)
+		att.bone_name = sk.get_bone_name(b)
+		att.bone_idx = b
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
-		mi.position = pos
-		mi.scale = scale
-		mi.rotation = rot
 		mi.material_override = StandardMaterial3D.new()
-		parent.add_child(mi)
+		att.add_child(mi)
+		var g: Transform3D = sk.get_bone_global_rest(b)
+		mi.transform = g.affine_inverse() * Transform3D(basis.scaled(size), center)
 		return mi
 	var tube := CylinderMesh.new()
 	tube.top_radius = 1.0
@@ -291,20 +297,45 @@ func _build_gear(sk: Skeleton3D) -> void:
 	dome.radial_segments = 16
 	dome.rings = 6
 	var box := BoxMesh.new()
-	# Нагрудник: овальный панцирь на позвоночнике, поверх — пояс
-	var chest: BoneAttachment3D = on_bone.call("Spine1")
-	_gear["cuirass"] = part.call(chest, tube, Vector3(0, 0.07, 0.0), Vector3(0.22, 0.36, 0.2))
-	_gear["chest_top"] = part.call(chest, dome, Vector3(0, 0.25, -0.01), Vector3(0.22, 0.08, 0.2))
-	_gear["belt"] = part.call(chest, tube, Vector3(0, -0.12, 0.005), Vector3(0.245, 0.06, 0.225))
+	var spine1: Vector3 = rest.call("Spine1").origin
+	var spine2: Vector3 = rest.call("Spine2").origin
+	var neck: Vector3 = rest.call("Neck").origin
+	var head: Vector3 = rest.call("Head").origin
+	# Нагрудник и пояс
+	_gear["cuirass"] = put.call("Spine1", tube, spine1 + Vector3(0, 0.1, 0.02), Vector3(0.17, 0.3, 0.13))
+	_gear["chest_top"] = put.call("Spine2", dome, Vector3(spine1.x, spine1.y + 0.25, spine1.z + 0.02), Vector3(0.17, 0.06, 0.13))
+	_gear["belt"] = put.call("Spine", tube, rest.call("Spine").origin + Vector3(0, -0.02, 0.01), Vector3(0.18, 0.05, 0.14))
 	# Наплечники
 	for side in ["Left", "Right"]:
-		var arm: BoneAttachment3D = on_bone.call(side + "Arm")
-		_gear["pauldron_" + side] = part.call(arm, dome, Vector3(0, 0.04, 0), Vector3(0.11, 0.09, 0.11), Vector3(0, 0, PI / 2 if side == "Left" else -PI / 2))
-	# Шлем: купол, обод и наносник
-	var head: BoneAttachment3D = on_bone.call("Head")
-	_gear["helm"] = part.call(head, dome, Vector3(0, 0.12, -0.015), Vector3(0.128, 0.13, 0.14))
-	_gear["helm_rim"] = part.call(head, tube, Vector3(0, 0.12, -0.015), Vector3(0.135, 0.02, 0.147))
-	_gear["helm_nose"] = part.call(head, box, Vector3(0, 0.07, 0.125), Vector3(0.025, 0.09, 0.02))
+		var sh: Vector3 = rest.call(side + "Arm").origin
+		var sx := 1.0 if side == "Left" else -1.0
+		_gear["pauldron_" + side] = put.call(side + "Arm", dome, sh + Vector3(sx * 0.03, 0.03, 0), Vector3(0.1, 0.08, 0.1), Basis(Vector3(0, 0, 1), -sx * 0.5))
+	# Шлем поверх капюшона
+	_gear["helm"] = put.call("Head", dome, head + Vector3(0, 0.1, -0.01), Vector3(0.13, 0.14, 0.145))
+	_gear["helm_rim"] = put.call("Head", tube, head + Vector3(0, 0.1, -0.01), Vector3(0.137, 0.02, 0.152))
+	_gear["helm_nose"] = put.call("Head", box, head + Vector3(0, 0.04, 0.14), Vector3(0.025, 0.1, 0.02))
+	# Сапоги: голенище на нижней части голени и носок
+	for side in ["Left", "Right"]:
+		var knee: Vector3 = rest.call(side + "Leg").origin
+		var ankle: Vector3 = rest.call(side + "Foot").origin
+		var toe: Vector3 = rest.call(side + "ToeBase").origin
+		var up := (knee - ankle).normalized()
+		var axis := Basis(up.cross(Vector3(0, 0, 1)).normalized(), up, up.cross(up.cross(Vector3(0, 0, 1))).normalized() * -1.0)
+		_gear["boot_" + side] = put.call(side + "Leg", tube, ankle + up * 0.13, Vector3(0.075, 0.26, 0.08), axis)
+		_gear["toe_" + side] = put.call(side + "Foot", box, (ankle + toe) / 2.0 + Vector3(0, -0.03, 0.02), Vector3(0.11, 0.09, 0.2))
+	# Плащ: полотно за спиной от плеч до колен, ворот
+	_gear["cloak"] = put.call("Spine2", box, Vector3(spine2.x, spine2.y - 0.32, spine2.z - 0.17), Vector3(0.42, 0.9, 0.025), Basis(Vector3(1, 0, 0), 0.1))
+	_gear["cloak_collar"] = put.call("Neck", tube, neck + Vector3(0, -0.03, -0.01), Vector3(0.14, 0.06, 0.12))
+	# Щит на тыльной стороне левого предплечья (в T-позе — сверху, когда рука опущена — снаружи)
+	var elbow: Vector3 = rest.call("LeftForeArm").origin
+	var wrist: Vector3 = rest.call("LeftHand").origin
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.0
+	disc.bottom_radius = 1.0
+	disc.height = 1.0
+	disc.radial_segments = 20
+	_gear["shield"] = put.call("LeftForeArm", disc, (elbow + wrist) / 2.0 + Vector3(0, 0.08, 0), Vector3(0.27, 0.035, 0.27))
+	_gear["shield_boss"] = put.call("LeftForeArm", dome, (elbow + wrist) / 2.0 + Vector3(0, 0.1, 0), Vector3(0.07, 0.05, 0.07))
 
 func _set_gear(names: Array, show: bool, color: Color, metal: bool) -> void:
 	for n in names:
@@ -327,6 +358,18 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 	var want := A_WALK
 	var speed := 1.0
 	var idle := false
+	if blocking:
+		want = A_SLASH
+		speed = 0.0
+		# Скорость 1 и возврат к кадру: при скорости 0 плавный переход в позу никогда не завершается
+		if _anim.current_animation != A_SLASH:
+			_anim.play(A_SLASH, 0.12)
+			_anim.seek(BLOCK_POSE, true)
+		elif absf(_anim.current_animation_position - BLOCK_POSE) > 0.005:
+			_anim.seek(BLOCK_POSE, false)
+		_anim.speed_scale = 1.0
+		_spread_arms(false)
+		return
 	if _spin_t >= 0.0 and _anim.has_animation(A_WHIRL):
 		want = A_WHIRL
 		speed = _anim.get_animation(A_WHIRL).length / WHIRL_TIME
@@ -475,13 +518,51 @@ func update_look() -> void:
 		var hm: bool = h.get("id", "") == "helm_iron" or (not h.is_empty() and h["color"] != 0x6a4626)
 		_set_gear(["helm"], not h.is_empty(), WorldGen.hex(h.get("color", 0)), hm)
 		_set_gear(["helm_rim", "helm_nose"], hm, WorldGen.hex(h.get("color", 0)).darkened(0.15), true)
+		for slot in ["boots", "cloak", "shield"]:
+			var e = Game.equip.get(slot)
+			var it: Dictionary = Items.get_item(e["id"]) if e != null else {}
+			var c: Color = WorldGen.hex(it.get("color", 0x444444))
+			var metal: bool = it.get("metal", false)
+			match slot:
+				"boots": _set_gear(["boot_Left", "boot_Right", "toe_Left", "toe_Right"], e != null, c, metal)
+				"cloak": _set_gear(["cloak", "cloak_collar"], e != null, c, false)
+				"shield":
+					_set_gear(["shield"], e != null, c, metal)
+					_set_gear(["shield_boss"], e != null, Color("#b8b0a0"), true)
 
 # ---------- Бой
 func attack() -> void:
-	if attack_t >= 0.0 or _spin_t >= 0.0 or _dash_t >= 0.0 or dead or busy:
+	if _spin_t >= 0.0 or _dash_t >= 0.0 or dead or busy or blocking:
 		return
+	# Комбо: нажатие во время удара — следующий удар сразу после этого
+	if attack_t >= 0.0:
+		if attack_t > 0.12 and combo < 2:
+			_combo_queued = true
+		return
+	combo = combo + 1 if _since_swing < COMBO_WINDOW and combo < 2 else 0
+	_start_swing()
+
+## Блок: пока кнопка удерживается, удары спереди наносят меньше урона (щит — ещё меньше),
+## герой идёт медленно и не бьёт
+const BLOCK_REDUCE := 0.6     # без щита блок снимает 60% урона
+const BLOCK_ARC := 1.75       # спереди — в пределах ±100°
+const BLOCK_POSE := 0.7      # кадр удара, где меч поднят перед собой — стойка блока
+var blocking := false
+
+func block_reduce() -> float:
+	return minf(0.9, BLOCK_REDUCE + Game.block_bonus())
+
+## Комбо из трёх ударов: третий — выпад вперёд, сильнее и отбрасывает
+const COMBO_WINDOW := 0.5     # сколько ждать следующего нажатия после удара, с
+const COMBO_MULT := [1.0, 1.1, 1.6]
+var combo := 0                # номер удара в комбо: 0, 1, 2
+var _combo_queued := false
+var _since_swing := 99.0
+
+func _start_swing() -> void:
 	attack_t = 0.0
 	_attack_hit = false
+	_combo_queued = false
 	# Автонаведение на ближайшего врага рядом — удобно на телефоне
 	var best: Node3D = null
 	var bd := 4.5
@@ -493,25 +574,34 @@ func attack() -> void:
 	if best:
 		var v := _flat(best.global_position - global_position)
 		facing = atan2(v.x, v.z)
+	if combo == 2:
+		# Выпад: рывок на пару метров вперёд
+		_push += Vector3(sin(facing), 0, cos(facing)) * 9.0
 	_new_swing = true
 
 func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0, v.z)
 
 func _sword_hit() -> void:
-	for e in enemies.alive_near(global_position, 4.0):
+	var finisher := combo == 2
+	var reach := 2.9 if finisher else 2.3
+	for e in enemies.alive_near(global_position, 4.5):
 		var v := _flat(e.global_position - global_position)
 		var d := maxf(0.01, v.length())
-		if d > 2.3 + e.T["r"] or absf(e.global_position.y - global_position.y) > 2.5:
+		if d > reach + e.T["r"] or absf(e.global_position.y - global_position.y) > 2.5:
 			continue
-		if absf(angle_difference(facing, atan2(v.x, v.z))) > 1.25 and d > e.T["r"] + 0.7:
+		if absf(angle_difference(facing, atan2(v.x, v.z))) > (1.6 if finisher else 1.25) and d > e.T["r"] + 0.7:
 			continue
-		_deal(e, 1.0, v / d)
+		_deal(e, COMBO_MULT[combo], v / d)
+		if finisher:
+			e.knock(2.2)   # третий удар отбрасывает далеко
+	if finisher:
+		Fx.ring(global_position + Vector3(sin(facing), 0.1, cos(facing)) * 1.4, Color("#ffd479"), 2.0, 0.35)
 
 ## Урон с учётом навыков «Критический удар» и «Вампиризм»
 func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 	var dmg := roundi((Game.dmg + randf() * 8.0) * mult)
-	var crit := randf() < Game.rank("crit") * 0.08
+	var crit := randf() < Game.rank("crit") * 0.08 + Game.crit_bonus
 	if crit:
 		dmg *= 2
 	e.hit(dmg, dir, crit)
@@ -580,11 +670,19 @@ func take_damage(raw: int, from: Vector3) -> void:
 	if _invuln > 0.0 or dead or busy:
 		return
 	var dmg := Game.reduce_damage(raw)
+	var v := _flat(from - global_position)
+	var blocked := blocking and v.length() > 0.01 and absf(angle_difference(facing, atan2(v.x, v.z))) < BLOCK_ARC
+	if blocked:
+		dmg = maxi(1, roundi(dmg * (1.0 - block_reduce())))
 	Game.hp = maxf(0.0, Game.hp - dmg)
 	_invuln = 0.5
 	_hurt_ago = 0.0
-	_push = _flat(global_position - from).normalized() * 10.0
-	Fx.text("−%d" % dmg, global_position, Color("#ff6a5a"))
+	_push = _flat(global_position - from).normalized() * (3.0 if blocked else 10.0)
+	if blocked:
+		Fx.text("Блок −%d" % dmg, global_position, Color("#cfe0ff"))
+		Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#cfe0ff"), 0.8, 0.25)
+	else:
+		Fx.text("−%d" % dmg, global_position, Color("#ff6a5a"))
 	Input.vibrate_handheld(60)
 	hurt.emit(dmg)
 	if Game.hp <= 0.0:
@@ -614,6 +712,7 @@ func drink_potion() -> void:
 # ---------- Движение
 func _physics_process(dt: float) -> void:
 	_time += dt
+	_since_swing += dt
 	for k in cd:
 		cd[k] = maxf(0.0, cd[k] - dt)
 	var mv: Vector2 = touch.move if touch and not dead and not busy else Vector2.ZERO
@@ -624,11 +723,14 @@ func _physics_process(dt: float) -> void:
 	var mag := minf(1.0, dir.length())
 	var swimming := not underground and global_position.y < WorldGen.WATER - 1.0
 	var speed := (RUN if touch and touch.run else WALK) * maxf(0.3, mag)
-	speed *= 1.0 + 0.08 * Game.rank("agility")
+	speed *= 1.0 + 0.08 * Game.rank("agility") + Game.speed_bonus
 	if swimming:
 		speed *= 0.5
 	if attack_t >= 0.0:
 		speed *= 0.45
+	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0
+	if blocking:
+		speed *= 0.4
 	var hv := Vector3.ZERO
 	if mag > 0.12:
 		dir = dir.normalized()
@@ -699,7 +801,7 @@ func _animate(dt: float) -> void:
 	var sm := _slash.material_override as StandardMaterial3D
 	sm.albedo_color.a = 0.0
 	if attack_t >= 0.0:
-		attack_t += dt * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED
+		attack_t += dt * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * (0.85 if combo == 2 else 1.0)
 		var t := attack_t
 		var ax: float
 		var az: float
@@ -723,6 +825,10 @@ func _animate(dt: float) -> void:
 			_sword_hit()
 		if t >= 0.48:
 			attack_t = -1.0
+			_since_swing = 0.0
+			if _combo_queued and combo < 2:
+				combo += 1
+				_start_swing()
 	# Вихрь: герой крутится с вытянутым мечом
 	var spin := 0.0
 	if _spin_t >= 0.0:

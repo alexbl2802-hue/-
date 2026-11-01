@@ -22,7 +22,9 @@ var xp := 0
 var gold := 0
 var kills := 0
 var inv: Array = []     # [{id, n, r, u}] — см. Items.make
-var equip := {"weapon": null, "armor": null, "helm": null, "amulet": null}   # слот → {id, n, r, u} или null
+var speed_bonus := 0.0   # от сапог: доля к скорости бега
+var crit_bonus := 0.0    # от колец: доля к шансу крита
+var equip := {"weapon": null, "armor": null, "helm": null, "amulet": null, "boots": null, "ring": null, "cloak": null, "shield": null}   # слот → {id, n, r, u} или null
 var skills := {}        # id → ранг
 
 # Боевые характеристики (пересчитываются из уровня, снаряжения и навыков)
@@ -45,7 +47,7 @@ func new_game() -> void:
 	gold = 0
 	kills = 0
 	inv = [Items.make("potion", 2)]
-	equip = {"weapon": Items.make("sword_rusty"), "armor": null, "helm": null, "amulet": null}
+	equip = {"weapon": Items.make("sword_rusty"), "armor": null, "helm": null, "amulet": null, "boots": null, "ring": null, "cloak": null, "shield": null}
 	skills = {}
 	chests = []
 	refresh()
@@ -201,6 +203,8 @@ func refresh() -> void:
 	var hp_b := 0
 	var dmg_b := 0
 	var arm := 0
+	var spd_b := 0
+	var crit_b := 0
 	for slot in Items.SLOTS:
 		var e = equip[slot]
 		if e == null:
@@ -208,11 +212,20 @@ func refresh() -> void:
 		hp_b += Items.stat(e, "hp")
 		dmg_b += Items.stat(e, "dmg")
 		arm += Items.stat(e, "armor")
+		spd_b += Items.stat(e, "speed")
+		crit_b += Items.stat(e, "crit")
 	max_hp = 100.0 + (level - 1) * 15 + hp_b + rank("vitality") * 20
 	dmg = 18 + (level - 1) * 4 + dmg_b + rank("strength") * 5
 	armor = arm
+	speed_bonus = spd_b / 100.0
+	crit_bonus = crit_b / 100.0
 	hp = minf(hp, max_hp)
 	changed.emit()
+
+## Щит усиливает блок (доля урона, которую он снимает сверх обычного блока)
+func block_bonus() -> float:
+	var sh = equip.get("shield")
+	return Items.stat(sh, "block") / 100.0 if sh != null else 0.0
 
 ## Урон по герою с учётом брони
 func reduce_damage(raw: int) -> int:

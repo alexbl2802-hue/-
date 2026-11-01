@@ -16,6 +16,7 @@ const R := 55.0
 var move := Vector2.ZERO
 var run := false
 var jump := false
+var block := false      # кнопка блока удерживается
 var act_text := ""
 var rig: Node3D
 
@@ -57,6 +58,7 @@ func _buttons() -> Array:
 		{"id": "potion", "rect": Rect2(72, 12, 52, 52), "label": "🧪", "fs": 27, "badge": str(potions), "dim": potions == 0},
 		{"id": "skills", "rect": Rect2(132, 12, 52, 52), "label": "👤", "fs": 27, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
 	]
+	list.append({"id": "block", "c": Vector2(s.x - 236, s.y - 140), "r": 30.0, "label": "🔰", "fs": 26, "border": Color(0.75, 0.8, 0.9, 0.7)})
 	if skill_ranks["whirl"] > 0:
 		list.append({"id": "whirl", "c": Vector2(s.x - 128 - 32, s.y - 98 - 32), "r": 32.0, "label": "🌀", "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
@@ -85,10 +87,13 @@ func _press(id: String, down: bool) -> void:
 	if not down:
 		if id == "jump":
 			jump = false
+		if id == "block":
+			block = false
 		return
 	match id:
 		"attack": attack_pressed.emit()
 		"jump": jump = true
+		"block": block = true
 		"run": run = not run
 		"act": act_pressed.emit()
 		"potion": potion_pressed.emit()
@@ -107,6 +112,7 @@ func release_all() -> void:
 	_pinch_id = -1
 	move = Vector2.ZERO
 	jump = false
+	block = false
 
 func _pinch_dist() -> float:
 	return maxf(1.0, (_pts[_cam_id] as Vector2).distance_to(_pts[_pinch_id]))
