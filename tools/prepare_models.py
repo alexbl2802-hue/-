@@ -20,6 +20,11 @@ warden — герой Shadowwarden без меча (его единственн�
 bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD_PUNCH.glb KICK.glb DODGE.glb
   (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
 
+hero_skills — анимации умений героя: python3 tools/prepare_models.py hero_skills SKILL_03.glb JUMP_OVER_OBSTACLE.glb
+  Skill_03 → «Whirl» (Вихрь: удар с разворотом, обрезается на полном обороте),
+  Jump_Over_Obstacle → «DashJump» (Рывок: длинный прыжок). Обе переносятся на скелет героя
+  (ретаргетинг), перемещение таза вперёд/вбок убирается — героя двигает сама игра.
+
 shadowclaw — кролик-оборотень Shadowclaw Rabbit без скелета (только сетка с текстурами):
   python3 tools/prepare_models.py shadowclaw RIGGED_BUNNY.glb SHADOWCLAW.glb
   сетка упрощается до ~40 тыс. треугольников, текстуры 1024/512; скелет и анимации берутся у
@@ -356,7 +361,12 @@ def retarget(tj, src_path):
             g = qmul(qmul(s_glob[nm], qinv(global_rest(sj, s_names[nm], s_parent))[None]), global_rest(tj, i, t_parent)[None])
             p = t_parent.get(i)
             pn = tj["nodes"][p].get("name", "").split(":")[-1] if p is not None else None
-            pg = t_glob[pn] if pn in t_glob else np.repeat(global_rest(tj, p, t_parent)[None], F, 0)
+            if pn in t_glob:
+                pg = t_glob[pn]
+            elif p is not None:
+                pg = np.repeat(global_rest(tj, p, t_parent)[None], F, 0)
+            else:   # корневая кость без родителя
+                pg = np.repeat(np.array([[0, 0, 0, 1.0]]), F, 0)
             local = qmul(qinv(pg), g)
             local /= np.linalg.norm(local, axis=1, keepdims=True)
             t_glob[nm] = g
@@ -419,6 +429,43 @@ def bunny(guard, kick, dodge):
     j["bufferViews"] = bld.views
     print("анимации:", [a["name"] for a in j["animations"]])
     write_glb(OUT / "bunny.glb", j, bld.blob)
+
+
+# ---------- Анимации умений героя (Вихрь, Рывок)
+def _hips_yaw(q):
+    x, y, z, w = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
+    return np.unwrap(np.arctan2(2 * (x * z + w * y), 1 - 2 * (x * x + y * y)))
+
+
+def hero_skills(skill_path, jump_path):
+    j, b = read_glb(OUT / "hero.glb")
+    bld = rebuild(j, b)
+    j["animations"] = [a for a in j["animations"] if a["name"] not in ("Whirl", "DashJump")]
+    names, _ = bone_tree(j)
+    hips = names["Hips"]
+    for path, name in ((skill_path, "Whirl"), (jump_path, "DashJump")):
+        _, times, tracks = retarget(j, path)[0]
+        end = len(times)
+        if name == "Whirl":
+            # Обрезаем на полном обороте, чтобы в конце герой смотрел туда же, откуда начал
+            rot = [v for n, pth, v in tracks if n == hips and pth == "rotation"][0]
+            yaw = _hips_yaw(rot)
+            turned = np.abs(yaw - yaw[0])
+            idx = np.nonzero(turned >= 2 * np.pi)[0]
+            if len(idx):
+                end = int(idx[0]) + 1
+            print("Вихрь: оборот %.0f° за %.2f с" % (np.degrees(turned[end - 1]), times[end - 1]))
+        out_tracks = []
+        for n, pth, v in tracks:
+            v = v[:end].copy()
+            if n == hips and pth == "translation":
+                v[:, 0] = v[0, 0]   # без перемещения таза вперёд и вбок
+                v[:, 2] = v[0, 2]
+            out_tracks.append((n, pth, v))
+        add_animation(j, bld, name, times[:end] - times[0], out_tracks)
+    j["bufferViews"] = bld.views
+    print("анимации:", [a["name"] for a in j["animations"]])
+    write_glb(OUT / "hero.glb", j, bld.blob)
 
 
 # ---------- Кролик-оборотень Shadowclaw: перенос скелета, весов и анимаций со старого кролика
@@ -600,5 +647,7 @@ if __name__ == "__main__":
         warden(*sys.argv[2:6])
     elif sys.argv[1] == "bunny":
         bunny(*sys.argv[2:5])
+    elif sys.argv[1] == "hero_skills":
+        hero_skills(*sys.argv[2:4])
     elif sys.argv[1] == "shadowclaw":
         shadowclaw(*sys.argv[2:4])

@@ -48,7 +48,7 @@ const ATTACK_SPEED := 0.8    # скорость удара мечом (−20%)
 # Рывок — длинный прыжок вперёд: летит дольше и по дуге, расстояние прежнее (28 м/с × 0,26 с)
 const DASH_TIME := 0.45
 const DASH_SPEED := 28.0 * 0.26 / DASH_TIME   # базовая скорость рывка, м/с
-const DASH_JUMP := 1.3                        # высота прыжка при рывке, м
+const DASH_JUMP := 0.9                        # высота дуги прыжка (плюс подъём в самой анимации), м
 const DASH_POSE := 0.2                        # кадр быстрого бега с самым широким шагом
 var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
@@ -158,6 +158,11 @@ const A_IDLE := "Idle"         # дыхание и осмотр (есть у Sha
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
+const A_WHIRL := "Whirl"        # удар с разворотом (Skill_03), ровно один оборот
+const A_DASH := "DashJump"      # прыжок через препятствие (Jump_Over_Obstacle)
+# Вихрь: длительность и момент удара — середина оборота в анимации
+const WHIRL_TIME := 0.75
+const WHIRL_HIT := 0.5
 const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
 const ARMS_OUT_WALK := 0.3     # насколько отводить руки от тела на бегу, рад
@@ -180,6 +185,9 @@ func _attach_character() -> void:
 	for n in [A_WALK, A_RUN]:
 		_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	_anim.get_animation(A_SLASH).loop_mode = Animation.LOOP_NONE
+	for n in [A_WHIRL, A_DASH]:
+		if _anim.has_animation(n):
+			_anim.get_animation(n).loop_mode = Animation.LOOP_NONE
 	_has_idle = _anim.has_animation(A_IDLE)
 	if _has_idle:
 		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
@@ -319,7 +327,13 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 	var want := A_WALK
 	var speed := 1.0
 	var idle := false
-	if attack_t >= 0.0 or _spin_t >= 0.0:
+	if _spin_t >= 0.0 and _anim.has_animation(A_WHIRL):
+		want = A_WHIRL
+		speed = _anim.get_animation(A_WHIRL).length / WHIRL_TIME
+	elif _dash_t >= 0.0 and _anim.has_animation(A_DASH):
+		want = A_DASH
+		speed = _anim.get_animation(A_DASH).length / DASH_TIME
+	elif attack_t >= 0.0 or _spin_t >= 0.0:
 		want = A_SLASH
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
 		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED
@@ -344,10 +358,10 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		want = A_SLASH
 		speed = 0.0
 		idle = true
-	var swing := want == A_SLASH and not idle
+	var swing := (want == A_SLASH and not idle) or want == A_WHIRL or want == A_DASH
 	if _anim.current_animation != want or (swing and _new_swing) or (idle and not _idle_pose):
 		_anim.play(want, 0.1 if swing else -1.0)
-		_anim.seek(0.08 if swing else 0.0, true)
+		_anim.seek(0.08 if want == A_SLASH and not idle else 0.0, true)
 		_new_swing = false
 	_idle_pose = idle
 	_anim.speed_scale = speed
@@ -713,13 +727,17 @@ func _animate(dt: float) -> void:
 	var spin := 0.0
 	if _spin_t >= 0.0:
 		_spin_t += dt
-		spin = minf(1.0, _spin_t / 0.45) * TAU
+		# С анимацией модели оборот делает сама анимация; у блочной модели — крутим её целиком
+		var whirl_anim := _anim != null and _anim.has_animation(A_WHIRL)
+		var total := WHIRL_TIME if whirl_anim else 0.45
+		if not whirl_anim:
+			spin = minf(1.0, _spin_t / total) * TAU
 		_arms[0].rotation = Vector3(0, 0, -1.4)
 		_arms[1].rotation = Vector3(0, 0, 1.2)
-		if not _spin_hit and _spin_t >= 0.2:
+		if not _spin_hit and _spin_t >= (WHIRL_HIT if whirl_anim else 0.2):
 			_spin_hit = true
 			_whirl_hit()
-		if _spin_t >= 0.45:
+		if _spin_t >= total:
 			_spin_t = -1.0
 	var bob := absf(cos(_walk)) * 0.08 if moving and on_floor else sin(_time * 1.7) * 0.015
 	if _char:
@@ -738,4 +756,6 @@ func _animate(dt: float) -> void:
 		_model.position.y = k * 0.25
 	else:
 		# В прыжке рывка: на взлёте корпус чуть назад, к приземлению — вперёд
-		_model.rotation.x = lerpf(-0.15, 0.3, clampf(_dash_t / DASH_TIME, 0.0, 1.0)) if _dash_t >= 0.0 else 0.0
+		# Наклон в прыжке рывка — только у блочной модели (у модели героя есть своя анимация прыжка)
+		var lean_jump := _dash_t >= 0.0 and not (_anim and _anim.has_animation(A_DASH))
+		_model.rotation.x = lerpf(-0.15, 0.3, clampf(_dash_t / DASH_TIME, 0.0, 1.0)) if lean_jump else 0.0
