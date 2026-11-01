@@ -167,6 +167,13 @@ const STRIDE_WALK := 4.8       # м/с, на которые уходит сто�
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
 const ARMS_OUT_WALK := 0.3     # насколько отводить руки от тела на бегу, рад
 const ARMS_OUT_RUN := 0.38
+var _sk: Skeleton3D
+var _ragdoll := Ragdoll.new()  # падение по физике при гибели
+var _feet: FootIK            # стопы встают на склон, когда герой стоит
+var _ha: HeroAnim            # дерево анимаций (если у модели есть все нужные анимации)
+const LOCO_WALK_FROM := 0.6    # м/с: с этой скорости — бег трусцой (Running)
+const LOCO_FAST_FROM := 6.5    # отсюда Running плавно переходит в быстрый бег
+const LOCO_FAST_FULL := 7.5
 var _arms_mod: PoseOffsets
 var _arm_axes := []
 var _arms_w := 0.0
@@ -225,6 +232,18 @@ func _attach_character() -> void:
 	_setup_arms(sk)
 	_anim.play(A_IDLE if _has_idle else A_SLASH)
 	_anim.seek(0.0, true)
+	# Дерево анимаций: плавные переходы и удар на бегу (только верх тела)
+	if _has_idle and _anim.has_animation(A_WHIRL) and _anim.has_animation(A_DASH):
+		_ha = HeroAnim.new()
+		add_child(_ha)
+		_ha.setup(_anim, sk, {"slash": A_SLASH, "whirl": A_WHIRL, "dash": A_DASH, "run": A_RUN},
+			[[A_IDLE, 0.0], [A_WALK, LOCO_WALK_FROM], [A_WALK, LOCO_FAST_FROM], [A_RUN, LOCO_FAST_FULL]], RUN)
+	_sk = sk
+	# Ноги на склонах
+	var feet := FootIK.new()
+	add_child(feet)
+	if feet.setup(self, sk):
+		_feet = feet
 	update_look()
 
 ## Модели клинков: у всех клинок по −Y, середина рукояти на y ≈ 0,65, ширина по X.
@@ -355,7 +374,46 @@ func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 	return Vector3.UP * 0.1
 
 ## Анимации модели: стойка, ходьба, бег, удар, вихрь, рывок, прыжок
+## Анимация через дерево: ходьба смешивается по скорости, действия накладываются поверх
+func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
+	# Темп шага — по длине шага модели, чтобы стопы не скользили
+	var fast := clampf((_speed_now - LOCO_FAST_FROM) / (LOCO_FAST_FULL - LOCO_FAST_FROM), 0.0, 1.0)
+	var stride_t := _speed_now / lerpf(STRIDE_WALK, STRIDE_RUN, fast)
+	_ha.locomotion(_speed_now, lerpf(1.0, stride_t, clampf(_speed_now / LOCO_WALK_FROM, 0.0, 1.0)))
+	var upper := on_floor and moving and _speed_now > 1.0
+	if blocking:
+		_ha.act("slash", BLOCK_POSE, 0.0, upper)
+	elif _art_t >= 0.0:
+		if _art_t < ART_CHARGE:   # стойка: меч отведён для удара
+			_ha.act("slash", 0.4, 0.0)
+		else:
+			var sp := 3.2 if _art == "rapier" else 2.2
+			if _ha.act_scale == 0.0:
+				_ha.act("slash", 0.4, sp)
+			elif _art == "rapier" and _ha.act_time > 1.1:
+				_ha.act("slash", 0.55, sp)   # уколы — повтор середины удара
+			else:
+				_ha.act("slash", -1.0, sp)
+	elif _spin_t >= 0.0:
+		_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
+	elif _dash_t >= 0.0:
+		_ha.act("dash", 0.0 if _ha.current() != "dash" else -1.0, _anim.get_animation(A_DASH).length / DASH_TIME)
+	elif attack_t >= 0.0:
+		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
+		var sp: float = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
+		_ha.act("slash", 0.08 if _new_swing or _ha.current() != "slash" else -1.0, sp, upper)
+	elif not on_floor:
+		_ha.act("run", DASH_POSE, 0.0)   # в прыжке — ноги в широком шаге
+	else:
+		_ha.stop()
+	_new_swing = false
+	_ha.update(dt)
+	_spread_arms(on_floor and moving and _ha.weight() < 0.5)
+
 func _animate_char(on_floor: bool, moving: bool) -> void:
+	if _ha:
+		_animate_tree(get_physics_process_delta_time(), on_floor, moving)
+		return
 	var want := A_WALK
 	var speed := 1.0
 	var idle := false
@@ -829,17 +887,53 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null) -> void:
 	else:
 		Fx.text("−%d" % dmg, global_position, Color("#ff6a5a"))
 	Input.vibrate_handheld(60)
+	_flinch(_flat(global_position - from).normalized(), 0.12 if blocked else 0.3)
 	hurt.emit(dmg)
 	if Game.hp <= 0.0:
 		dead = true
 		_dead_t = 0.0
+		# Тело падает по физике в сторону удара
+		if _sk and _ragdoll.start(_sk, _flat(global_position - from).normalized() * 2.5 + Vector3.UP * 1.5):
+			if _ha:
+				_ha.tree.active = false
 		attack_t = -1.0
 		_spin_t = -1.0
 		_dash_t = -1.0
 		died.emit()
 
+# ---------- Реакция на удар: корпус отшатывается от удара и пружиной возвращается
+var _flinch_dir := Vector3.ZERO     # куда толкнуло (в мире)
+var _flinch_a := 0.0                # угол наклона сейчас
+var _spines := []
+
+func _flinch(dir: Vector3, angle: float) -> void:
+	if dir.length() < 0.01:
+		return
+	_flinch_dir = dir
+	_flinch_a = angle
+
+func _update_flinch(dt: float) -> void:
+	if _arms_mod == null or _sk == null:
+		return
+	if _spines.is_empty():
+		for i in _sk.get_bone_count():
+			var n := _sk.get_bone_name(i)
+			if n.ends_with("Spine") or n.ends_with("Spine2"):
+				_spines.append(i)
+	_flinch_a = move_toward(_flinch_a, 0.0, dt * 1.2)
+	var axis := Vector3.RIGHT
+	if _flinch_dir.length() > 0.01:
+		# Ось наклона в системе скелета: вверх × направление толчка
+		var dl := (_sk.global_basis.orthonormalized().inverse() * _flinch_dir).normalized()
+		axis = Vector3.UP.cross(dl)
+	for b in _spines:
+		_arms_mod.set_angle(b, axis, _flinch_a * 0.5)
+
 func respawn(pos: Vector3) -> void:
 	dead = false
+	_ragdoll.stop()
+	if _ha:
+		_ha.tree.active = true
 	Game.hp = Game.max_hp
 	global_position = pos
 	velocity = Vector3.ZERO
@@ -1001,6 +1095,10 @@ func _animate(dt: float) -> void:
 		bob = 0.0
 		_animate_char(on_floor, moving)
 	_model.position.y = bob
+	_update_flinch(dt)
+	if _feet:
+		var calm := on_floor and _speed_now < 0.8 and not dead and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0
+		_model.position.y += _feet.update(dt, calm, facing)
 	if _dash_t >= 0.0:
 		# Длинный прыжок: тело летит по дуге над землёй
 		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)
@@ -1008,9 +1106,12 @@ func _animate(dt: float) -> void:
 	_model.rotation.y = facing + spin
 	if dead:
 		_dead_t += dt
-		var k := minf(1.0, _dead_t * 2.5)
-		_model.rotation.x = -k * 1.45
-		_model.position.y = k * 0.25
+		if _ragdoll.active():
+			_model.position.y = 0.0   # тело лежит само, модель не двигаем
+		else:
+			var k := minf(1.0, _dead_t * 2.5)
+			_model.rotation.x = -k * 1.45
+			_model.position.y = k * 0.25
 	else:
 		# В прыжке рывка: на взлёте корпус чуть назад, к приземлению — вперёд
 		# Наклон в прыжке рывка — только у блочной модели (у модели героя есть своя анимация прыжка)

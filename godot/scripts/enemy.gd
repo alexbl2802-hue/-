@@ -743,9 +743,16 @@ func stun(t: float, vulnerable := false) -> void:
 		_vuln_t = t + 0.4
 	Fx.ring(global_position + Vector3(0, T["bar"] - 0.4, 0), Color("#ffe060"), 0.6, 0.5)
 
+var _tilt := Vector2.ZERO    # наклон от удара: (вокруг X, вокруг Z) в системе монстра
+
 func hit(dmg: int, dir: Vector3, crit := false) -> void:
 	if dead:
 		return
+	# Отшатнуться от удара: верх уходит по направлению удара; крупных качает меньше
+	var ld := Vector3(dir.x, 0, dir.z).rotated(Vector3.UP, -facing)
+	if ld.length() > 0.01:
+		ld = ld.normalized() * (0.32 if crit else 0.22) / float(T.get("scale", 1.0))
+		_tilt += Vector2(ld.z, -ld.x)
 	if _vuln_t > 0.0:
 		dmg *= 2   # после отбитого удара — уязвим
 	hp -= dmg
@@ -784,9 +791,16 @@ func _start_attack() -> void:
 func knock(mult: float) -> void:
 	_kb *= mult
 
+var _ragdoll := Ragdoll.new()   # гоблин и кролик падают по физике
+
 func _die() -> void:
 	dead = true
 	_dead_t = 0.0
+	if _char:
+		var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
+		if _ragdoll.start(sk, _kb.normalized() * 2.5 + Vector3.UP * 1.5):
+			if _ap:
+				_ap.speed_scale = 0.0   # остальные кости замирают в позе
 	collision_layer = 0
 	collision_mask = 1
 	Game.kills += 1
@@ -797,6 +811,7 @@ func _die() -> void:
 
 func revive() -> void:
 	dead = false
+	_ragdoll.stop()
 	hp = T["hp"]
 	st = "idle"
 	_kb = Vector3.ZERO
@@ -826,10 +841,14 @@ func _physics_process(dt: float) -> void:
 	if dead:
 		_dead_t += dt
 		var k := minf(1.0, _dead_t / 0.4)
-		_model.rotation.z = k * 1.4
-		_model.scale = Vector3.ONE * maxf(0.001, 1.0 - maxf(0.0, _dead_t - 0.6) / 0.5)
-		if _dead_t > 1.1:
+		# С рэгдоллом тело падает само и лежит дольше; иначе — заваливается набок
+		var lie := 1.6 if _ragdoll.active() else 0.6
+		if not _ragdoll.active():
+			_model.rotation.z = k * 1.4
+		_model.scale = Vector3.ONE * maxf(0.001, 1.0 - maxf(0.0, _dead_t - lie) / 0.5)
+		if _dead_t > lie + 0.5:
 			visible = false
+			_ragdoll.stop()
 		if not in_dungeon and _dead_t > 30.0 and hero.global_position.distance_to(home) > 40.0:
 			revive()
 		return
@@ -971,6 +990,10 @@ func _physics_process(dt: float) -> void:
 	velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * dt
 	move_and_slide()
 	_model.rotation.y = facing
+	# Реакция на удар: корпус качнуло от удара, потом пружиной обратно
+	_tilt = _tilt.lerp(Vector2.ZERO, minf(1.0, dt * 9.0))
+	_model.rotation.x = _tilt.x
+	_model.rotation.z = _tilt.y
 	_animate(dt)
 	# Вспышка при попадании
 	if _flash > 0.0:
