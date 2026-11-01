@@ -9,6 +9,9 @@ const TYPES := {
 	# Кролик с длинными когтями: сильнее гоблина, бродит по всему миру
 	"rabbit": {"name": "Кролик-оборотень", "hp": 85, "dmg": 16, "speed": 7.8, "walk": 0.9, "r": 0.45, "aggro": 14.0, "reach": 1.7, "cd": 0.75, "windup": 0.06, "bar": 2.0, "lunge": true, "roam": true},
 	# Кобольд в броне с мечом: живёт в подземельях, крепкий и бьёт больно
+	# Шипастый волк-убийца: бьёт лапой вблизи, издалека поднимает хвост и стреляет шипами
+	"wolf": {"hp": 100, "dmg": 20, "speed": 6.4, "r": 0.55, "aggro": 18.0, "reach": 1.9, "cd": 0.9, "windup": 0.22, "bar": 1.7,
+		"spikes": {"near": 5.0, "far": 15.0, "cd": 3.0, "aim": 0.55, "count": 3, "speed": 24.0}},
 	"kobold": {"hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
@@ -61,6 +64,9 @@ var _extra_hits := []        # следующие удары комбо: вре�
 var _leap_dir := Vector3.ZERO
 var _leap_hit_done := false
 var _leap_cd := 2.0
+var _spike_cd := 1.0
+var _tail: Node3D          # хвост волка (поднимается при выстреле)
+var _tail_tip: Node3D      # откуда вылетают шипы
 
 var _bunny := false
 var _dodge_t := -1.0
@@ -93,6 +99,7 @@ func _ready() -> void:
 		"spider": _build_spider()
 		"rabbit": _build_rabbit()
 		"kobold": _build_kobold()
+		"wolf": _build_wolf()
 	if type == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
 		_attach_goblin()
 	elif type == "rabbit" and ResourceLoader.exists(BUNNY_MODEL):
@@ -433,6 +440,102 @@ func _build_rabbit() -> void:
 			ap.add_child(c)
 		_arms.append(ap)
 
+## Шипастый волк-убийца: серая шерсть, тёмные шипы вдоль спины и на хвосте, красные глаза
+func _build_wolf() -> void:
+	_body = Node3D.new()
+	_model.add_child(_body)
+	var fur := _mat(0x6c737b)
+	var fur_dark := _mat(0x40454c)
+	var spike_m := _mat(0x24272d, 0.35)
+	var claw := _mat(0x1e1e22, 0.3)
+	var eye := _mat(0xff3020, 0.4, 0xff2010, 1.6)
+	# Туловище: мощная грудь, поджарый зад
+	var torso := _box(_body, Vector3(0.52, 0.5, 1.25), fur, Vector3(0, 0.95, -0.05))
+	torso.rotation.x = 0.06
+	_box(_body, Vector3(0.6, 0.62, 0.5), fur, Vector3(0, 1.0, 0.38))
+	_box(_body, Vector3(0.42, 0.18, 0.9), fur_dark, Vector3(0, 0.72, -0.05))
+	# Голова с вытянутой мордой, уши, глаза, клыки
+	var head := Node3D.new()
+	head.position = Vector3(0, 1.28, 0.78)
+	_body.add_child(head)
+	_box(head, Vector3(0.4, 0.36, 0.38), fur, Vector3(0, 0, 0))
+	_box(head, Vector3(0.24, 0.2, 0.36), fur, Vector3(0, -0.07, 0.32))
+	_box(head, Vector3(0.1, 0.08, 0.06), _mat(0x18181c), Vector3(0, -0.02, 0.51))
+	for sx in [-1.0, 1.0]:
+		var ear := _box(head, Vector3(0.1, 0.24, 0.07), fur_dark, Vector3(sx * 0.13, 0.26, -0.06))
+		ear.rotation.z = -sx * 0.2
+		_box(head, Vector3(0.07, 0.05, 0.03), eye, Vector3(sx * 0.11, 0.06, 0.19))
+		var fang := _box(head, Vector3(0.035, 0.1, 0.035), _mat(0xf4f0e6, 0.3), Vector3(sx * 0.07, -0.2, 0.44))
+		fang.rotation.x = 0.2
+	# Шипы вдоль спины
+	for k in 7:
+		var sp := _cone(_body, 0.06, 0.32 - absf(k - 3) * 0.03, spike_m, Vector3(0, 1.22, 0.45 - k * 0.17))
+		sp.rotation.x = -0.35
+	# Лапы: [опора, фаза шага]; правая передняя ещё и бьёт
+	for leg in [[-1.0, 0.42, 0.0], [1.0, 0.42, PI], [-1.0, -0.5, PI], [1.0, -0.5, 0.0]]:
+		var pv := Node3D.new()
+		pv.position = Vector3(leg[0] * 0.2, 0.9, leg[1])
+		_body.add_child(pv)
+		_box(pv, Vector3(0.15, 0.5, 0.17), fur, Vector3(0, -0.22, 0))
+		_box(pv, Vector3(0.11, 0.42, 0.12), fur_dark, Vector3(0, -0.62, 0.03))
+		_box(pv, Vector3(0.15, 0.08, 0.2), fur_dark, Vector3(0, -0.86, 0.07))
+		for c in 3:
+			var cl := _cone(pv, 0.025, 0.12, claw, Vector3((c - 1) * 0.045, -0.88, 0.2))
+			cl.rotation.x = 1.4
+		_legs.append([pv, leg[2]])
+	_arms = [_legs[1][0]]
+	# Хвост: несколько звеньев с шипами; кончик — откуда вылетают шипы
+	_tail = Node3D.new()
+	_tail.position = Vector3(0, 1.05, -0.68)
+	_tail.rotation.x = -0.45
+	_body.add_child(_tail)
+	var seg_parent: Node3D = _tail
+	for k in 4:
+		var seg := Node3D.new()
+		seg.position = Vector3(0, 0, -0.0 if k == 0 else -0.22)
+		seg.rotation.x = 0.12
+		seg_parent.add_child(seg)
+		_box(seg, Vector3(0.16 - k * 0.025, 0.16 - k * 0.025, 0.24), fur, Vector3(0, 0, -0.11))
+		for sx in [-1.0, 1.0]:
+			var ts := _cone(seg, 0.035, 0.2, spike_m, Vector3(sx * 0.08, 0.05, -0.1))
+			ts.rotation = Vector3(-0.4, 0, -sx * 0.9)
+		seg_parent = seg
+	var tip := _cone(seg_parent, 0.07, 0.36, spike_m, Vector3(0, 0, -0.38))
+	tip.rotation.x = -PI / 2.0
+	_tail_tip = Node3D.new()
+	_tail_tip.position = Vector3(0, 0, -0.55)
+	seg_parent.add_child(_tail_tip)
+
+func _cone(parent: Node3D, r: float, h: float, m: Material, pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.0
+	cm.bottom_radius = r
+	cm.height = h
+	cm.radial_segments = 4
+	mi.mesh = cm
+	mi.material_override = m
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+## Залп шипов из кончика хвоста — в грудь героя, с небольшим разбросом
+func _fire_spikes() -> void:
+	if not Fx.root or not _tail_tip:
+		return
+	var sp: Dictionary = T["spikes"]
+	var from := _tail_tip.global_position
+	var target: Vector3 = hero.global_position + Vector3(0, 1.0, 0)
+	var dir := (target - from).normalized()
+	for i in int(sp["count"]):
+		var s: Node3D = preload("res://scripts/spike.gd").new()
+		var spread: float = (i - (float(sp["count"]) - 1.0) / 2.0) * 0.07
+		s.velocity = dir.rotated(Vector3.UP, spread) * sp["speed"]
+		s.hero = hero
+		s.dmg = T["dmg"]
+		Fx.root.add_child(s)
+		s.global_position = from
+
 ## Кобольд-оборотень: собачья голова, шерсть, ноги коленями назад, чешуйчатый нагрудник, меч и щит
 func _build_kobold() -> void:
 	var inner := Node3D.new()
@@ -576,7 +679,7 @@ func _die() -> void:
 	collision_layer = 0
 	collision_mask = 1
 	Game.kills += 1
-	Game.give_xp(Game.ENEMY_XP[type], global_position)
+	Game.give_xp(Game.enemy_xp(type), global_position)
 	get_parent().on_enemy_killed(self)
 
 func revive() -> void:
@@ -651,6 +754,10 @@ func _physics_process(dt: float) -> void:
 				st = "return"
 			elif dist < T["reach"]:
 				_start_attack()
+			elif T.has("spikes") and _spike_cd <= 0.0 and dist > T["spikes"]["near"] and dist < T["spikes"]["far"]:
+				# Волк поднимает хвост и целится в героя
+				st = "aim"
+				_t = 0.0
 			elif _moves and _leap_cd <= 0.0 and dist > 2.6 and dist < 6.5:
 				# Прыжок к герою: вблизи — удар в прыжке, подальше — просто сократить расстояние
 				st = "leap"
@@ -672,6 +779,15 @@ func _physics_process(dt: float) -> void:
 					_kb += Vector3(sin(facing), 0, cos(facing)) * 7.0
 				if can_see and dist < T["reach"] + 0.6 and absf(angle_difference(facing, atan2(to_hero.x, to_hero.z))) < 1.2:
 					hero.take_damage(T["dmg"], global_position)
+		"aim":
+			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 8.0)
+			if _t >= T["spikes"]["aim"]:
+				_fire_spikes()
+				st = "recover"
+				_t = 0.0
+				_rec_len = 0.45
+				_extra_hits = []
+				_spike_cd = T["spikes"]["cd"]
 		"leap":
 			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 6.0)
 			mv = _leap_dir
@@ -709,6 +825,7 @@ func _physics_process(dt: float) -> void:
 		facing += angle_difference(facing, atan2(mv.x, mv.z)) * minf(1.0, dt * 8.0)
 	_moving = sp > 0.1
 	_leap_cd -= dt
+	_spike_cd -= dt
 	_speed_now = lerpf(_speed_now, sp, minf(1.0, dt * 8.0))
 	var hv := mv * sp
 	# Не заходим в воду
@@ -754,6 +871,24 @@ func _animate(dt: float) -> void:
 				ax = lerpf(-2.0, 0.8, smoothstep(0.0, 1.0, _t / 0.12))
 			for a in _arms:
 				a.rotation.x = ax
+		"wolf":
+			# Рысь: диагональные пары лап вместе; лапа бьёт сверху вниз; хвост поднимается при прицеливании
+			_walk += dt * (2.0 + _speed_now * 1.9)
+			var amp := minf(1.0, _speed_now / 3.0) * 0.6 if _moving else 0.0
+			for l in _legs:
+				l[0].rotation.x = sin(_walk + l[1]) * amp
+			_body.position.y = absf(sin(_walk)) * 0.05 * minf(1.0, _speed_now / 3.0)
+			if st == "windup":
+				_arms[0].rotation.x = -1.7 * minf(1.0, _t / T["windup"])
+			elif st == "recover" and _t < 0.22 and _rec_len > 0.5:
+				_arms[0].rotation.x = lerpf(-1.7, 0.7, smoothstep(0.0, 1.0, _t / 0.12))
+			var tail_up := 0.0
+			if st == "aim":
+				tail_up = smoothstep(0.0, 1.0, _t / T["spikes"]["aim"])
+			elif st == "recover" and _rec_len <= 0.5:
+				tail_up = 1.0 - smoothstep(0.0, 1.0, _t / 0.45)
+			_tail.rotation.x = lerpf(-0.45 + 0.15 * sin(_walk * 0.5), 2.35, tail_up)
+			_body.rotation.x = 0.12 * tail_up
 		"spider":
 			_walk += dt * (14.0 if _moving else 2.0)
 			var amp := 0.35 if _moving else 0.05

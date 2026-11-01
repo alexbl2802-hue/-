@@ -55,6 +55,7 @@ const LOOT := {
 	"rabbit": {"gold": [0.65, 5, 12], "potion": 0.25, "item": 0.16, "pool": ["sword_iron", "armor_leather", "helm_leather", "helm_iron", "armor_chain"]},
 	"skeleton": {"gold": [0.6, 6, 14], "potion": 0.3, "item": 0.25, "pool": ["sword_iron", "sword_bone", "armor_chain", "helm_iron", "amulet_life", "sword_steel"], "shard": [0.45, 1, 2]},
 	"spider": {"gold": [0.5, 6, 14], "potion": 0.35, "item": 0.25, "pool": ["sword_steel", "armor_chain", "helm_iron", "amulet_life", "sword_crystal", "amulet_crystal", "armor_plate"], "shard": [0.45, 1, 2]},
+	"wolf": {"gold": [0.85, 10, 20], "potion": 0.3, "item": 0.3, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life"]},
 	"kobold": {"gold": [0.85, 12, 24], "potion": 0.35, "item": 0.35, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "amulet_crystal"], "shard": [0.8, 2, 3]},
 }
 

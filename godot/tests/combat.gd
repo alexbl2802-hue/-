@@ -40,7 +40,7 @@ func _ready() -> void:
 		await _frames(25)
 		Game.hp = Game.max_hp
 	_check("goblin killed by ⚔", gob.dead and Game.kills == kills0 + 1, "kills %d, xp %d → %d" % [Game.kills, xp0, Game.xp])
-	_check("xp for goblin", Game.xp == xp0 + 20 or Game.level > 1, "xp %d" % Game.xp)
+	_check("xp for goblin 27–30", (Game.xp - xp0 >= 27 and Game.xp - xp0 <= 30) or Game.level > 1, "xp %d" % Game.xp)
 	# 3. Добыча: гарантируем выпадение и подбираем
 	var gold0 := Game.gold
 	main.loot.drop("gold", 7, hero.global_position + Vector3(2, 0, 0))

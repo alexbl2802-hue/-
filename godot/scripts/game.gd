@@ -7,7 +7,12 @@ signal leveled_up(level: int)
 signal message(text: String, color: Color, pos: Vector3)  # всплывающая надпись над точкой
 
 const SAVE_PATH := "user://save.json"
-const ENEMY_XP := {"goblin": 20, "rabbit": 26, "skeleton": 30, "spider": 28, "kobold": 45}
+## Опыт за монстра: случайно в пределах [от, до]
+const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74]}
+
+static func enemy_xp(kind: String) -> int:
+	var r: Array = ENEMY_XP.get(kind, [10, 10])
+	return randi_range(r[0], r[1])
 
 var player_name := ""
 var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»
