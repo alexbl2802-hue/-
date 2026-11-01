@@ -135,7 +135,7 @@ func _texture(kind: String) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 func _build_shell(floors: Array, walls: Array) -> void:
-	var floor_tex := _texture("rock" if cave else "tile")
+	var floor_tex: Texture2D = _texture("rock") if cave else Mats.tile_texture()
 	var floor_mat := Mats.tiled(floor_tex, 0x9a92a6 if cave else 0xbbb2a6, 0.25)
 	var ceil_mat := Mats.tiled(_texture("rock") if cave else Mats.brick_texture(), 0x4a4450 if cave else 0x6a625a, 0.25)
 	var wall_mat: Material
@@ -148,8 +148,8 @@ func _build_shell(floors: Array, walls: Array) -> void:
 		ceil_mat = Mats.tiled(Mats.brick_texture(), Color(WorldGen.hex(def["wall"])).darkened(0.45).to_rgba32() >> 8, 0.25)
 	else:
 		wall_mat = Mats.tiled(Mats.brick_texture(), 0xb0a698, 0.25)
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(CELL, CELL)
+	for m in [floor_mat, ceil_mat]:
+		(m as StandardMaterial3D).vertex_color_use_as_albedo = true
 	var ceil_h := WALL_H + (0.6 if cave else 0.0)
 	# Раскладываем клетки по блокам
 	var fb := {}
@@ -160,14 +160,8 @@ func _build_shell(floors: Array, walls: Array) -> void:
 		fb[key].append(f)
 	for key in fb:
 		var cells: Array = fb[key]
-		var mm := _mm(plane, cells.size(), false)
-		var mc := _mm(plane, cells.size(), false)
-		for k in cells.size():
-			var c := cell_center(cells[k].x, cells[k].y)
-			mm.set_instance_transform(k, Transform3D(Basis(), Vector3(c.x, Y, c.z)))
-			mc.set_instance_transform(k, Transform3D(Basis(Vector3.RIGHT, PI), Vector3(c.x, Y + ceil_h, c.z)))
-		_mmi(mm, floor_mat, false)
-		_mmi(mc, ceil_mat, false)
+		_mi(_floor_mesh(cells, Y, false), floor_mat)
+		_mi(_floor_mesh(cells, Y + ceil_h, true), ceil_mat)
 	var wb := {}
 	for w in walls:
 		var key := Vector2i(w.x / BLOCK, w.y / BLOCK)
@@ -183,9 +177,8 @@ func _build_shell(floors: Array, walls: Array) -> void:
 		sp.rings = 4
 		wall_mesh = sp
 	else:
-		var bx := BoxMesh.new()
-		bx.size = Vector3(CELL, WALL_H, CELL)
-		wall_mesh = bx
+		wall_mesh = _wall_mesh()
+		(wall_mat as StandardMaterial3D).vertex_color_use_as_albedo = true
 	for key in wb:
 		var cells: Array = wb[key]
 		var mm := _mm(wall_mesh, cells.size() * (2 if cave else 1), cave)
@@ -209,6 +202,59 @@ func _build_shell(floors: Array, walls: Array) -> void:
 	var size := Vector3(cols * CELL, 1.0, rows * CELL)
 	_col_box(Vector3(0, Y - 0.5, 0), size)
 	_col_box(Vector3(0, Y + ceil_h + 0.5, 0), size)
+
+# ---------- Затенение углов: пол и свод темнее у стен, стены темнее у пола и под сводом
+## Насколько светло в углу клетки (i, j): чем больше стен вокруг угла, тем темнее
+func _corner_light(i: int, j: int) -> float:
+	var n := 0
+	for c in [Vector2i(i - 1, j - 1), Vector2i(i, j - 1), Vector2i(i - 1, j), Vector2i(i, j)]:
+		if solid(c.x, c.y):
+			n += 1
+	return 1.0 - 0.2 * n
+
+## Пол (или свод) блока клеток одной сеткой; яркость — в цвете вершин по углам
+func _floor_mesh(cells: Array, y: float, ceiling: bool) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.DOWN if ceiling else Vector3.UP)
+	for cl in cells:
+		var c := cell_center(cl.x, cl.y)
+		var h := CELL / 2.0
+		var pts := [Vector3(c.x - h, y, c.z - h), Vector3(c.x + h, y, c.z - h), Vector3(c.x + h, y, c.z + h), Vector3(c.x - h, y, c.z + h)]
+		var lit := [_corner_light(cl.x, cl.y), _corner_light(cl.x + 1, cl.y), _corner_light(cl.x + 1, cl.y + 1), _corner_light(cl.x, cl.y + 1)]
+		var order := [0, 2, 1, 0, 3, 2] if ceiling else [0, 1, 2, 0, 2, 3]
+		for k in order:
+			var v: float = lit[k]
+			st.set_color(Color(v, v, v))
+			st.add_vertex(pts[k])
+	return st.commit()
+
+## Блок стены: темнее у пола и под сводом
+func _wall_mesh() -> ArrayMesh:
+	var bx := BoxMesh.new()
+	bx.size = Vector3(CELL, WALL_H, CELL)
+	bx.subdivide_height = 6
+	var st := SurfaceTool.new()
+	st.create_from(bx, 0)
+	var arr := st.commit_to_arrays()
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var cols := PackedColorArray()
+	cols.resize(verts.size())
+	for k in verts.size():
+		var yy := verts[k].y + WALL_H / 2.0
+		var v := lerpf(0.5, 1.0, smoothstep(0.0, 1.6, yy)) * lerpf(1.0, 0.72, smoothstep(WALL_H - 1.2, WALL_H, yy))
+		cols[k] = Color(v, v, v)
+	arr[Mesh.ARRAY_COLOR] = cols
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
+
+func _mi(mesh: Mesh, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
 
 func _mm(mesh: Mesh, n: int, colors: bool) -> MultiMesh:
 	var mm := MultiMesh.new()

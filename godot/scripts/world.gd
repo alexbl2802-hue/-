@@ -161,7 +161,7 @@ func _build_vegetation() -> void:
 	var p: Dictionary = WorldGen.props
 	var white := Mats.lp(0xffffff)
 	var bark := Mats.lp(0xffffff, 0.95, 0.0, -1, 0.0, 0.45, 3.0)   # кора: шероховатая фактура
-	var leaves := Mats.lp(0xffffff, 0.9, 0.0, -1, 0.0, 0.28, 1.2)
+	var leaves: ShaderMaterial = Mats.lp(0xffffff, 0.9, 0.0, -1, 0.0, 0.28, 1.2).duplicate()
 	var trunk_c := WorldGen.hex(0x6b4a2b)
 	var trunk := _cyl(0.22, 0.32, 1.0, 6)
 	var body := StaticBody3D.new()
@@ -202,8 +202,38 @@ func _build_vegetation() -> void:
 	var tufts := []
 	for t in p["tufts"]:
 		var s: float = t[3]
-		tufts.append([Vector3(t[0], t[2] + 0.35 * s, t[1]), t[4], Vector3(s, s, s), WorldGen.hex(int(t[5]))])
-	_multimesh(_cyl(0.0, 0.25, 0.8, 3), white, tufts, false)
+		tufts.append([Vector3(t[0], t[2] - 0.05, t[1]), t[4], Vector3(s, s, s) * 1.15, WorldGen.hex(int(t[5]))])
+	var grass := ShaderMaterial.new()
+	grass.shader = load("res://shaders/grass.gdshader")
+	_multimesh(_grass_mesh(), grass, tufts, false)
+	# Кроны слегка качаются на ветру
+	leaves.set_shader_parameter("wind", 0.05)
+
+## Пучок травы: семь тонких изогнутых травинок разной высоты, расходятся в стороны
+func _grass_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r := RandomNumberGenerator.new()
+	r.seed = 5
+	for k in 7:
+		var a := TAU * k / 7.0 + r.randf() * 0.5
+		var h := 0.55 + r.randf() * 0.3
+		var lean := Vector3(cos(a), 0, sin(a)) * (0.12 + r.randf() * 0.15)
+		var side := Vector3(-sin(a), 0, cos(a)) * 0.035
+		var base := Vector3(cos(a), 0, sin(a)) * 0.06
+		var mid := base + lean * 0.4 + Vector3(0, h * 0.55, 0)
+		var top := base + lean + Vector3(0, h, 0)
+		st.add_vertex(base - side)
+		st.add_vertex(base + side)
+		st.add_vertex(mid + side * 0.6)
+		st.add_vertex(base - side)
+		st.add_vertex(mid + side * 0.6)
+		st.add_vertex(mid - side * 0.6)
+		st.add_vertex(mid - side * 0.6)
+		st.add_vertex(mid + side * 0.6)
+		st.add_vertex(top)
+	st.generate_normals()
+	return st.commit()
 
 ## Сетка модели и её положение внутри файла (для MultiMesh и столкновений)
 func _model_mesh(path: String) -> Dictionary:

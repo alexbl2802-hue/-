@@ -13,7 +13,7 @@ const SKY_DUSK := 0xf0a060
 
 var env: Environment
 var sun: DirectionalLight3D
-var sky: ProceduralSkyMaterial
+var sky: ShaderMaterial
 var moon: DirectionalLight3D
 var hero_light: OmniLight3D          # фонарь героя ночью
 var hud: Node
@@ -25,10 +25,11 @@ func setup(e: Environment, s: DirectionalLight3D, rig: Node3D, h: Node) -> void:
 	env = e
 	sun = s
 	hud = h
-	sky = env.sky.sky_material as ProceduralSkyMaterial
+	sky = env.sky.sky_material as ShaderMaterial
 	moon = DirectionalLight3D.new()
 	moon.light_color = WorldGen.hex(0x8fa8ff)
 	moon.shadow_enabled = false
+	moon.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY   # на небе рисуется только солнце
 	moon.light_energy = 0.0
 	add_child(moon)
 	moon.look_at_from_position(Vector3(-60, 120, -40), Vector3.ZERO)
@@ -79,9 +80,11 @@ func apply() -> void:
 	# Небо и туман
 	var top := WorldGen.hex(SKY_NIGHT[0]).lerp(WorldGen.hex(SKY_DAY[0]), d)
 	var hor := WorldGen.hex(SKY_NIGHT[1]).lerp(WorldGen.hex(SKY_DAY[1]), d).lerp(WorldGen.hex(SKY_DUSK), dusk * 0.6)
-	sky.sky_top_color = top
-	sky.sky_horizon_color = hor
-	sky.ground_horizon_color = hor
+	sky.set_shader_parameter("sky_top_color", top)
+	sky.set_shader_parameter("sky_horizon_color", hor)
+	sky.set_shader_parameter("ground_horizon_color", hor)
+	sky.set_shader_parameter("daylight", d)
+	sky.set_shader_parameter("sun_color", sun.light_color)
 	env.ambient_light_energy = lerpf(0.45, 0.9, d)
 	env.fog_light_color = hor.lerp(WorldGen.hex(0xb9d3e6), d * 0.5)
 	# Ночью — свет в окнах, фонари и фонарь у героя

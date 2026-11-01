@@ -43,6 +43,10 @@ static func noise_texture(kind: String) -> NoiseTexture2D:
 			n.frequency = 0.02
 			n.fractal_octaves = 3
 			size = 128
+		"clouds":
+			n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+			n.frequency = 0.012
+			n.fractal_octaves = 5
 		"rock":
 			n.noise_type = FastNoiseLite.TYPE_CELLULAR
 			n.frequency = 0.04
@@ -79,6 +83,10 @@ static func tiled(tex: Texture2D, tint: int, scale := 0.25, rough := 0.95) -> St
 	m.uv1_scale = Vector3(scale, scale, scale)
 	m.roughness = rough
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if tex.has_meta("normal"):
+		m.normal_enabled = true
+		m.normal_texture = tex.get_meta("normal")
+		m.normal_scale = 0.9
 	return m
 
 static func _rng() -> RandomNumberGenerator:
@@ -86,50 +94,140 @@ static func _rng() -> RandomNumberGenerator:
 	r.seed = 77
 	return r
 
-## Кирпичная кладка
+## Кирпичная кладка: кирпичи разного оттенка со сколами по краям, шов вглубь;
+## к текстуре приложена карта нормалей (meta "normal") — кладка выглядит объёмной.
 static func brick_texture() -> ImageTexture:
 	if _cache.has("brick"):
 		return _cache["brick"]
 	var r := _rng()
-	var s := 128
+	var s := 256
 	var img := Image.create(s, s, false, Image.FORMAT_RGB8)
-	img.fill(Color8(43, 38, 34))
-	var bh := s / 8
+	var hm := Image.create(s, s, false, Image.FORMAT_RGB8)
+	img.fill(Color8(40, 36, 32))
+	hm.fill(Color(0.15, 0.15, 0.15))
+	var rows := 8
+	var bh := s / rows
 	var bw := s / 4
-	for row in 8:
+	for row in rows:
 		for col in range(-1, 5):
 			var off := bw / 2 if row % 2 == 1 else 0
-			var l := 0.5 + r.randf() * 0.3
-			var c := Color.from_hsv(30.0 / 360.0, 0.12, l)
-			img.fill_rect(Rect2i(col * bw + off + 2, row * bh + 2, bw - 4, bh - 4), c)
-	_speckle(img, r, 900, 0.15)
+			var c := Color.from_hsv((26.0 + r.randf() * 10.0) / 360.0, 0.1 + r.randf() * 0.08, 0.48 + r.randf() * 0.3)
+			_block(img, hm, Rect2i(col * bw + off + 2, row * bh + 2, bw - 4, bh - 4), c, r, 5.0)
+	_grain(img, hm, r, 5000, 0.12)
 	var t := ImageTexture.create_from_image(_mip(img))
+	t.set_meta("normal", _normal_map(hm, 6.0))
 	_cache["brick"] = t
 	return t
 
-## Брусчатка
+## Брусчатка: округлые камни, выпуклые к середине, тёмные швы
 static func cobble_texture() -> ImageTexture:
 	if _cache.has("cobble"):
 		return _cache["cobble"]
 	var r := _rng()
-	var s := 128
+	var s := 256
 	var img := Image.create(s, s, false, Image.FORMAT_RGB8)
-	img.fill(Color8(111, 102, 88))
+	var hm := Image.create(s, s, false, Image.FORMAT_RGB8)
+	img.fill(Color8(92, 84, 72))
+	hm.fill(Color(0.1, 0.1, 0.1))
 	var cell := s / 8.0
 	for yy in 8:
 		for xx in 8:
-			var c := Color.from_hsv(35.0 / 360.0, 0.12, 0.5 + r.randf() * 0.2)
-			var cx := xx * cell + cell / 2.0 + (cell / 2.0 if yy % 2 == 1 else 0.0)
+			var c := Color.from_hsv((30.0 + r.randf() * 12.0) / 360.0, 0.1 + r.randf() * 0.06, 0.5 + r.randf() * 0.22)
+			var cx := xx * cell + cell / 2.0 + (cell / 2.0 if yy % 2 == 1 else 0.0) + r.randf_range(-1.5, 1.5)
 			var cy := yy * cell + cell / 2.0
+			var rx := cell * r.randf_range(0.42, 0.48)
+			var ry := cell * r.randf_range(0.38, 0.44)
 			for py in range(int(cy - cell / 2), int(cy + cell / 2)):
-				for px in range(int(cx - cell / 2), int(cx + cell / 2)):
-					var dx := (px - cx) / (cell * 0.44)
-					var dy := (py - cy) / (cell * 0.4)
-					if dx * dx + dy * dy <= 1.0:
-						img.set_pixel(posmod(px, s), posmod(py, s), c)
+				for px in range(int(cx - cell / 2) - 1, int(cx + cell / 2) + 1):
+					var dx := (px - cx) / rx
+					var dy := (py - cy) / ry
+					var d := dx * dx + dy * dy
+					if d <= 1.0:
+						var dome := sqrt(1.0 - d)
+						# Свет сверху-слева: верхний край камня светлее
+						var shade := 1.0 + (-dx - dy) * 0.12 * (1.0 - dome) + dome * 0.08
+						img.set_pixel(posmod(px, s), posmod(py, s), c * shade)
+						hm.set_pixel(posmod(px, s), posmod(py, s), Color(0.3 + dome * 0.7, 0, 0))
+	_grain(img, hm, r, 5000, 0.12)
 	var t := ImageTexture.create_from_image(_mip(img))
+	t.set_meta("normal", _normal_map(hm, 5.0))
 	_cache["cobble"] = t
 	return t
+
+## Плитка пола подземелий: крупные каменные плиты со сколами и трещинами
+static func tile_texture() -> ImageTexture:
+	if _cache.has("tile"):
+		return _cache["tile"]
+	var r := _rng()
+	var s := 256
+	var img := Image.create(s, s, false, Image.FORMAT_RGB8)
+	var hm := Image.create(s, s, false, Image.FORMAT_RGB8)
+	img.fill(Color8(30, 28, 26))
+	hm.fill(Color(0.1, 0.1, 0.1))
+	for a in 2:
+		for b in 2:
+			var c := Color.from_hsv((32.0 + r.randf() * 8.0) / 360.0, 0.1, 0.42 + r.randf() * 0.16)
+			_block(img, hm, Rect2i(a * s / 2 + 4, b * s / 2 + 4, s / 2 - 8, s / 2 - 8), c, r, 7.0)
+	# Трещины
+	for k in 6:
+		var p := Vector2(r.randf() * s, r.randf() * s)
+		var d := Vector2.from_angle(r.randf() * TAU)
+		for step in 40:
+			d = d.rotated(r.randf_range(-0.5, 0.5))
+			p += d * 1.5
+			var x := posmod(int(p.x), s)
+			var y := posmod(int(p.y), s)
+			img.set_pixel(x, y, img.get_pixel(x, y).darkened(0.45))
+			hm.set_pixel(x, y, Color(0.35, 0, 0))
+	_grain(img, hm, r, 6000, 0.12)
+	var t := ImageTexture.create_from_image(_mip(img))
+	t.set_meta("normal", _normal_map(hm, 5.0))
+	_cache["tile"] = t
+	return t
+
+## Блок (кирпич, плита): цвет с пятнами, края скошены — светлый верх-лево, тёмный низ-право
+static func _block(img: Image, hm: Image, rc: Rect2i, c: Color, r: RandomNumberGenerator, bevel: float) -> void:
+	var s := img.get_width()
+	var spot := Vector2(r.randf(), r.randf())
+	for py in rc.size.y:
+		for px in rc.size.x:
+			var ex := minf(px, rc.size.x - 1 - px)
+			var ey := minf(py, rc.size.y - 1 - py)
+			var e := clampf(minf(ex, ey) / bevel, 0.0, 1.0)
+			var shade := 1.0
+			if e < 1.0:
+				var lit := 0.0
+				if py < bevel and py <= ex: lit = 1.0
+				elif px < bevel and px <= ey: lit = 0.7
+				elif rc.size.y - 1 - py < bevel: lit = -1.0
+				elif rc.size.x - 1 - px < bevel: lit = -0.7
+				shade += lit * 0.18 * (1.0 - e)
+			var u := float(px) / rc.size.x - spot.x
+			var v := float(py) / rc.size.y - spot.y
+			shade *= 1.0 - 0.12 * exp(-(u * u + v * v) * 8.0)   # пятно потемнее
+			var x := posmod(rc.position.x + px, s)
+			var y := posmod(rc.position.y + py, s)
+			img.set_pixel(x, y, c * shade)
+			hm.set_pixel(x, y, Color(0.35 + 0.65 * e, 0, 0))
+
+## Зернистость: мелкие светлые и тёмные точки в цвете и рельефе
+static func _grain(img: Image, hm: Image, r: RandomNumberGenerator, n: int, a: float) -> void:
+	var s := img.get_width()
+	for i in n:
+		var x := r.randi() % s
+		var y := r.randi() % s
+		var v := r.randf()
+		img.set_pixel(x, y, img.get_pixel(x, y).lerp(Color(v, v, v), a))
+		var h := hm.get_pixel(x, y).r
+		hm.set_pixel(x, y, Color(clampf(h + (v - 0.5) * 0.15, 0.0, 1.0), 0, 0))
+
+## Карта нормалей из карты высот (канал R)
+static func _normal_map(hm: Image, strength: float) -> ImageTexture:
+	var n := hm.duplicate() as Image
+	n.convert(Image.FORMAT_RGBA8)
+	n.bump_map_to_normal_map(strength)
+	n.generate_mipmaps()
+	return ImageTexture.create_from_image(n)
 
 static func _speckle(img: Image, r: RandomNumberGenerator, n: int, a: float) -> void:
 	var s := img.get_width()

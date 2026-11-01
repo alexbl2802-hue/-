@@ -122,19 +122,36 @@ func _on_started(first: bool) -> void:
 
 func _build_environment() -> void:
 	_env = Environment.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = WorldGen.hex(0x3d7fd1)
-	sky_mat.sky_horizon_color = WorldGen.hex(0xcfe2ee)
-	sky_mat.ground_horizon_color = WorldGen.hex(0xcfe2ee)
-	sky_mat.ground_bottom_color = WorldGen.hex(0x6b5a3a)
+	# Небо с облаками и звёздами (shaders/sky.gdshader)
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://shaders/sky.gdshader")
+	sky_mat.set_shader_parameter("sky_top_color", WorldGen.hex(0x3d7fd1))
+	sky_mat.set_shader_parameter("sky_horizon_color", WorldGen.hex(0xcfe2ee))
+	sky_mat.set_shader_parameter("ground_horizon_color", WorldGen.hex(0xcfe2ee))
+	sky_mat.set_shader_parameter("ground_bottom_color", WorldGen.hex(0x6b5a3a))
+	sky_mat.set_shader_parameter("clouds", Mats.noise_texture("clouds"))
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
+	# Облака движутся — отражения неба обновляем понемногу и в малом размере, чтобы не тратить кадры
+	sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
+	sky.radiance_size = Sky.RADIANCE_SIZE_32
 	_env.sky = sky
 	_env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	_env.fog_enabled = true
 	_env.fog_mode = Environment.FOG_MODE_DEPTH
 	_env.fog_density = 1.0
 	_env.fog_sky_affect = 0.0
+	# Обработка кадра (цвет и виньетка) — под интерфейсом
+	var post := CanvasLayer.new()
+	post.layer = -1
+	var pr := ColorRect.new()
+	pr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pm := ShaderMaterial.new()
+	pm.shader = load("res://shaders/post.gdshader")
+	pr.material = pm
+	post.add_child(pr)
+	add_child(post)
 	var we := WorldEnvironment.new()
 	we.environment = _env
 	add_child(we)

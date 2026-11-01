@@ -12,10 +12,16 @@ uniform float metallic = 0.0;
 uniform float detail = 0.0;
 uniform float detail_scale = 0.8;
 uniform sampler2D detail_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform float wind = 0.0;     // > 0 — качается на ветру (кроны деревьев)
 
 varying vec3 world_pos;
 
 void vertex() {
+	if (wind > 0.0) {
+		vec3 o = MODEL_MATRIX[3].xyz;
+		float w = sin(TIME * 1.3 + o.x * 0.11 + o.z * 0.07) + 0.4 * sin(TIME * 2.9 + o.z * 0.5);
+		VERTEX.xz += vec2(0.8, 0.6) * w * wind * (VERTEX.y + 1.0);
+	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
