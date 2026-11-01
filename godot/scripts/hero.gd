@@ -44,7 +44,12 @@ var _dash_t := -1.0
 var _dash_dir := Vector3.FORWARD
 var _dash_hit: Array = []
 var _dash_speed := 1.0       # во сколько раз быстрее базовой (растёт с уровнем и эволюцией)
-const DASH_SPEED := 28.0     # базовая скорость рывка, м/с
+const ATTACK_SPEED := 0.8    # скорость удара мечом (−20%)
+# Рывок — длинный прыжок вперёд: летит дольше и по дуге, расстояние прежнее (28 м/с × 0,26 с)
+const DASH_TIME := 0.45
+const DASH_SPEED := 28.0 * 0.26 / DASH_TIME   # базовая скорость рывка, м/с
+const DASH_JUMP := 1.3                        # высота прыжка при рывке, м
+const DASH_POSE := 0.2                        # кадр быстрого бега с самым широким шагом
 var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
 var _anim: AnimationPlayer
@@ -317,10 +322,17 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 	if attack_t >= 0.0 or _spin_t >= 0.0:
 		want = A_SLASH
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
-		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility"))
-	elif _dash_t >= 0.0 or not on_floor:
+		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED
+	elif _dash_t >= 0.0:
+		# Прыжок рывка: ноги в широком шаге, как в полёте
 		want = A_RUN
-		speed = 1.6 if _dash_t >= 0.0 else 0.0
+		speed = 0.0
+		if _anim.current_animation != want or absf(_anim.current_animation_position - DASH_POSE) > 0.01:
+			_anim.play(want, 0.08)
+			_anim.seek(DASH_POSE, true)
+	elif not on_floor:
+		want = A_RUN
+		speed = 0.0
 	elif moving:
 		want = A_RUN if _speed_now > 7.0 else A_WALK
 		# Скорость анимации — по длине шага модели, чтобы стопы не скользили по земле
@@ -620,7 +632,7 @@ func _physics_process(dt: float) -> void:
 		# Мерцание: герой исчезает на время рывка и появляется со вспышкой
 		var blink := SkillDefs.dash_form(Game.skills) == "blink"
 		_model.visible = not (blink and _dash_t > 0.03)
-		if _dash_t >= 0.26:
+		if _dash_t >= DASH_TIME:
 			_dash_t = -1.0
 			_model.visible = true
 			if blink:
@@ -673,7 +685,7 @@ func _animate(dt: float) -> void:
 	var sm := _slash.material_override as StandardMaterial3D
 	sm.albedo_color.a = 0.0
 	if attack_t >= 0.0:
-		attack_t += dt * (1.0 + 0.1 * Game.rank("agility"))
+		attack_t += dt * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED
 		var t := attack_t
 		var ax: float
 		var az: float
@@ -714,6 +726,10 @@ func _animate(dt: float) -> void:
 		bob = 0.0
 		_animate_char(on_floor, moving)
 	_model.position.y = bob
+	if _dash_t >= 0.0:
+		# Длинный прыжок: тело летит по дуге над землёй
+		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)
+		_model.position.y += 4.0 * DASH_JUMP * u * (1.0 - u)
 	_model.rotation.y = facing + spin
 	if dead:
 		_dead_t += dt
@@ -721,4 +737,5 @@ func _animate(dt: float) -> void:
 		_model.rotation.x = -k * 1.45
 		_model.position.y = k * 0.25
 	else:
-		_model.rotation.x = 0.35 if _dash_t >= 0.0 else 0.0
+		# В прыжке рывка: на взлёте корпус чуть назад, к приземлению — вперёд
+		_model.rotation.x = lerpf(-0.15, 0.3, clampf(_dash_t / DASH_TIME, 0.0, 1.0)) if _dash_t >= 0.0 else 0.0

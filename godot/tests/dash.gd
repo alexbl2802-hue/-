@@ -63,10 +63,21 @@ func _ready() -> void:
 		var hp0: float = gob.hp
 		var p0: Vector3 = h.global_position
 		h.use_skill("dash")
+		var peak := 0.0
+		var k := 0
 		for i in 40:
 			await get_tree().physics_frame
+			peak = maxf(peak, h._model.position.y)
+			if SkillDefs.dash_form(sk) == "dash" and i % 6 == 2 and k < 4:
+				main.rig.yaw = PI * 0.5
+				main.rig.pitch = 0.1
+				main.rig.dist = 7.0
+				await get_tree().process_frame
+				get_viewport().get_texture().get_image().save_png(out + "jump_%d.png" % k)
+				k += 1
+		_check("dash %s: long jump %.2f m high" % [SkillDefs.dash_form(sk), peak], peak > 1.0, "")
 		var dist := Vector2(h.global_position.x - p0.x, h.global_position.z - p0.z).length()
-		var want: float = h.DASH_SPEED * SkillDefs.dash_stats(sk)["speed"] * 0.26
+		var want: float = h.DASH_SPEED * SkillDefs.dash_stats(sk)["speed"] * h.DASH_TIME
 		_check("dash %s: 20%% damage" % SkillDefs.dash_form(sk), absf((hp0 - gob.hp) - roundf(Game.dmg * 0.2)) <= 2.0, "hp %d → %d, dmg %d" % [hp0, gob.hp, Game.dmg])
 		_check("dash %s: distance %.1f m (≈%.1f)" % [SkillDefs.dash_form(sk), dist, want], absf(dist - want) < want * 0.25, "")
 		_check("dash %s: cooldown %.1f" % [SkillDefs.dash_form(sk), h.cd["dash"] + 40.0 / 60.0], absf(h.cooldown_total("dash") - SkillDefs.dash_stats(sk)["cd"]) < 0.01, "")
