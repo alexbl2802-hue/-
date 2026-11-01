@@ -77,6 +77,10 @@ func _draw() -> void:
 		var p := _to_map(e["x"], e["z"])
 		draw_circle(p, 5.0, Color.BLACK)
 		draw_circle(p, 4.0, Color("#e04a3a"))
+	if world.tower.has("pos"):
+		var tp := _to_map(world.tower["pos"].x, world.tower["pos"].z)
+		draw_rect(Rect2(tp - Vector2(4, 4), Vector2(8, 8)), Color.BLACK)
+		draw_rect(Rect2(tp - Vector2(3, 3), Vector2(6, 6)), Color("#9ad0ff"))
 	draw_circle(_to_map(world.campfire.position.x, world.campfire.position.z), 2.0, Color("#ffb040"))
 	if enemies:
 		for en in enemies.list:
@@ -103,7 +107,11 @@ func _draw_dungeon() -> void:
 	var to_map := func(p: Vector3) -> Vector2:
 		return o + Vector2(p.x / DungeonDefs.CELL + d.cols / 2.0, p.z / DungeonDefs.CELL + d.rows / 2.0) * cs
 	draw_circle(to_map.call(d.start_pos), 3.0, Color("#7fd8ff"))
-	if not d.chest.get("opened", false):
+	for g in d.gate_cells:
+		draw_rect(Rect2(o + Vector2(g.x, g.y) * cs, Vector2(cs, cs)), Color("#e04a3a") if d.gate_closed else Color("#b08a40"))
+	if d.stairs_open:
+		draw_circle(to_map.call(d.stairs_pos), 3.0, Color("#ffd060"))
+	if d.chest.has("pos") and not d.chest.get("opened", false):
 		draw_circle(to_map.call(d.chest["pos"]), 3.0, Color("#ffd34d"))
 	if enemies:
 		for en in enemies.list:

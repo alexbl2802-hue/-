@@ -7,6 +7,8 @@ const TREE_SCALE := 1.2  # деревья крупнее, чем в веб-ве�
 var entrances: Array = []   # [{name, door: Vector3, dir: Vector3}]
 var town_map: Array = []    # прямоугольники построек для миникарты
 var campfire: Node3D
+var tower := {}             # башня этажей: {door, dir, pos}
+const TOWER_POS := Vector2(-8.0, 66.0)   # к югу от городских ворот, на ровном месте
 var _fire_light: OmniLight3D
 var _fire_flame: MeshInstance3D
 var _time := 0.0
@@ -31,6 +33,7 @@ func build() -> void:
 	_build_rocks()
 	_build_campfire()
 	_build_entrances()
+	_build_tower()
 	town_map = Town.build(self)
 
 func _process(dt: float) -> void:
@@ -364,6 +367,102 @@ func _build_entrances() -> void:
 			_tree_collider(body, g.position + basis * Vector3(x, 0, 0), 0.7)
 		_tree_collider(body, g.position + basis * Vector3(0, 0, -5.2), 4.8)
 		entrances.append({"name": s["name"], "door": g.position + dir * 1.0, "dir": dir, "x": s["x"], "z": s["z"]})
+
+# ---------- Башня этажей: высокая каменная башня, дверь смотрит на город
+func _build_tower() -> void:
+	var x := TOWER_POS.x
+	var z := TOWER_POS.y
+	var base := 99.0
+	for a in 12:
+		var ang := TAU * a / 12.0
+		base = minf(base, WorldGen.ground_at(x + cos(ang) * 8.0, z + sin(ang) * 8.0))
+	var g := Node3D.new()
+	g.position = Vector3(x, base - 0.5, z)
+	add_child(g)
+	var stone := Mats.tiled(Mats.brick_texture(), 0x9a9288)
+	var dark_stone := Mats.lp(0x5a544c)
+	var R := 7.0
+	var H := 38.0
+	var body := MeshInstance3D.new()
+	body.mesh = _cyl(R * 0.9, R, H, 16)
+	body.material_override = stone
+	body.position.y = H / 2.0
+	g.add_child(body)
+	# Пояса и зубцы наверху
+	for yy in [10.0, 20.0, 30.0]:
+		var belt := MeshInstance3D.new()
+		belt.mesh = _cyl(R * (1.0 - yy / H * 0.1) + 0.3, R * (1.0 - yy / H * 0.1) + 0.3, 0.6, 16)
+		belt.material_override = dark_stone
+		belt.position.y = yy
+		g.add_child(belt)
+	var top := MeshInstance3D.new()
+	top.mesh = _cyl(R * 0.95 + 0.6, R * 0.9, 1.6, 16)
+	top.material_override = stone
+	top.position.y = H + 0.8
+	g.add_child(top)
+	for k in 12:
+		var a := TAU * k / 12.0
+		_box(g, Vector3(1.4, 1.4, 0.8), stone, Vector3(cos(a) * (R * 0.95 + 0.2), H + 2.3, sin(a) * (R * 0.95 + 0.2))).rotation.y = -a + PI / 2.0
+	var roof := MeshInstance3D.new()
+	roof.mesh = _cyl(0.0, R * 0.8, 9.0, 16)
+	roof.material_override = Mats.lp(0x3a4a6a)
+	roof.position.y = H + 5.5
+	g.add_child(roof)
+	# Окна светятся тёплым светом
+	var win := Mats.glow(0xffb860)
+	for k in 8:
+		var a := TAU * k / 8.0 + 0.4
+		var yy := 8.0 + (k % 4) * 7.5
+		var rr := R * (1.0 - yy / H * 0.1) + 0.02
+		var w := _box(g, Vector3(0.9, 1.6, 0.1), win, Vector3(sin(a) * rr, yy, cos(a) * rr))
+		w.rotation.y = a
+	# Дверь со стороны города (на север, к −z), ступени и факелы
+	var dir := Vector3(0, 0, -1)
+	var door_pos := Vector3(0, 0, -R)
+	var arch := Node3D.new()
+	arch.position = door_pos
+	arch.rotation.y = PI
+	g.add_child(arch)
+	for sx in [-1.7, 1.7]:
+		_box(arch, Vector3(0.8, 4.4, 1.2), dark_stone, Vector3(sx, 2.2 + 0.5, 0.2))
+	_box(arch, Vector3(4.2, 0.9, 1.3), dark_stone, Vector3(0, 5.1, 0.2))
+	var dark := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(2.6, 4.0)
+	dark.mesh = q
+	dark.material_override = Mats.glow(0x000000)
+	dark.position = Vector3(0, 2.5, 0.75)
+	arch.add_child(dark)
+	for i in 3:
+		_box(arch, Vector3(3.4, 0.3, 0.7), dark_stone, Vector3(0, 0.35 - i * 0.2, 1.1 + i * 0.6))
+	for sx in [-2.5, 2.5]:
+		var post := MeshInstance3D.new()
+		post.mesh = _cyl(0.08, 0.1, 2.0, 5)
+		post.material_override = Mats.lp(0x4a3220)
+		post.position = Vector3(sx, 1.5, 1.3)
+		arch.add_child(post)
+		var fl := MeshInstance3D.new()
+		fl.mesh = _cyl(0.0, 0.17, 0.45, 5)
+		fl.material_override = Mats.glow(0xffb040)
+		fl.position = Vector3(sx, 2.7, 1.3)
+		arch.add_child(fl)
+	var light := OmniLight3D.new()
+	light.light_color = WorldGen.hex(0xff9a3c)
+	light.light_energy = 1.5
+	light.omni_range = 10.0
+	light.position = Vector3(0, 3.5, 2.5)
+	arch.add_child(light)
+	var sb := StaticBody3D.new()
+	add_child(sb)
+	var sh := CylinderShape3D.new()
+	sh.radius = R
+	sh.height = H
+	var cs := CollisionShape3D.new()
+	cs.shape = sh
+	cs.position = g.position + Vector3(0, H / 2.0, 0)
+	sb.add_child(cs)
+	var door := g.position + door_pos + dir * 1.2
+	tower = {"door": Vector3(door.x, WorldGen.ground_at(door.x, door.z), door.z), "dir": dir, "pos": g.position}
 
 func _box(parent: Node3D, size: Vector3, mat: Material, pos: Vector3) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

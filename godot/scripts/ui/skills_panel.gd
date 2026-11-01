@@ -34,7 +34,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.55)
+	dim.color = Color(0.0, 0.02, 0.05, 0.45)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: close())
 	add_child(dim)
@@ -43,13 +43,7 @@ func _ready() -> void:
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	var panel := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.11, 0.086, 0.063, 0.97)
-	sb.border_color = Color(1, 0.86, 0.63, 0.4)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(12)
-	sb.set_content_margin_all(10)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.add_theme_stylebox_override("panel", UiKit.window_box())
 	panel.custom_minimum_size = Vector2(700, 320)
 	center.add_child(panel)
 	var vb := VBoxContainer.new()
@@ -59,9 +53,9 @@ func _ready() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
 	vb.add_child(head)
-	_title = _lbl("", 18, Color("#ffd479"))
+	_title = _lbl("", 18, UiKit.GOLD)
 	head.add_child(_title)
-	_points = _lbl("", 13, Color("#ffe7b0"))
+	_points = _lbl("", 13, UiKit.CREAM)
 	_points.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for t in [["skills", "Навыки"], ["stats", "Характеристики"]]:
 		var tb := _btn(t[1], false)
@@ -99,9 +93,9 @@ func _ready() -> void:
 	var info := PanelContainer.new()
 	var ib := StyleBoxFlat.new()
 	ib.bg_color = Color(1, 1, 1, 0.05)
-	ib.border_color = Color(1, 1, 1, 0.12)
+	ib.border_color = Color(0.45, 0.85, 1.0, 0.3)
 	ib.set_border_width_all(1)
-	ib.set_corner_radius_all(10)
+	ib.set_corner_radius_all(UiKit.RADIUS)
 	ib.set_content_margin_all(10)
 	info.add_theme_stylebox_override("panel", ib)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -110,11 +104,11 @@ func _ready() -> void:
 	var dv := VBoxContainer.new()
 	dv.add_theme_constant_override("separation", 5)
 	info.add_child(dv)
-	_d_name = _lbl("", 18, Color("#ffe7b0"))
+	_d_name = _lbl("", 18, UiKit.CREAM)
 	dv.add_child(_d_name)
 	_d_kind = _lbl("", 11, Color("#8fd8ff"))
 	dv.add_child(_d_kind)
-	_d_rank = _lbl("", 14, Color("#ffd479"))
+	_d_rank = _lbl("", 14, UiKit.GOLD)
 	dv.add_child(_d_rank)
 	_d_now = _wrap(_lbl("", 13, Color(1, 1, 1, 0.9)))
 	dv.add_child(_d_now)
@@ -157,29 +151,7 @@ func _lbl(t: String, fs: int, c: Color) -> Label:
 	return l
 
 func _btn(t: String, primary: bool) -> Button:
-	var b := Button.new()
-	b.text = t
-	b.add_theme_font_size_override("font_size", 13)
-	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var s := StyleBoxFlat.new()
-		s.bg_color = Color("#ffd479") if primary else Color("#3a2d1c")
-		if state == "pressed":
-			s.bg_color = s.bg_color.darkened(0.2)
-		if state == "disabled":
-			s.bg_color = s.bg_color.darkened(0.55)
-		s.border_color = Color(1, 0.86, 0.63, 0.5)
-		s.set_border_width_all(1)
-		s.set_corner_radius_all(8)
-		s.content_margin_left = 10
-		s.content_margin_right = 10
-		s.content_margin_top = 4
-		s.content_margin_bottom = 4
-		b.add_theme_stylebox_override(state, s)
-	var fc := Color("#2a1d08") if primary else Color("#ffe7b0")
-	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		b.add_theme_color_override(k, fc)
-	b.add_theme_color_override("font_disabled_color", fc.darkened(0.3))
-	return b
+	return UiKit.button(t, primary)
 
 func open() -> void:
 	_reset_armed = false
@@ -235,10 +207,10 @@ func _render() -> void:
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:
 			var st := StyleBoxFlat.new()
-			st.bg_color = Color(1, 0.83, 0.47, 0.22) if id == _sel else Color(1, 1, 1, 0.05)
-			st.border_color = Color("#ffd479") if id == _sel else Color(1, 1, 1, 0.12)
+			st.bg_color = Color(1, 0.72, 0.29, 0.2) if id == _sel else Color(0.45, 0.85, 1.0, 0.06)
+			st.border_color = UiKit.GOLD if id == _sel else Color(0.45, 0.85, 1.0, 0.3)
 			st.set_border_width_all(2 if id == _sel else 1)
-			st.set_corner_radius_all(8)
+			st.set_corner_radius_all(UiKit.RADIUS)
 			st.content_margin_left = 10
 			row.add_theme_stylebox_override(state, st)
 		var fc := Color(1, 0.91, 0.69, 0.45 if locked else 1.0)
@@ -263,10 +235,10 @@ func _render_stats() -> void:
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:
 			var sb := StyleBoxFlat.new()
-			sb.bg_color = Color(1, 0.83, 0.47, 0.22) if id == _sel_stat else Color(1, 1, 1, 0.05)
-			sb.border_color = Color("#ffd479") if id == _sel_stat else Color(1, 1, 1, 0.12)
+			sb.bg_color = Color(1, 0.72, 0.29, 0.2) if id == _sel_stat else Color(0.45, 0.85, 1.0, 0.06)
+			sb.border_color = UiKit.GOLD if id == _sel_stat else Color(0.45, 0.85, 1.0, 0.3)
 			sb.set_border_width_all(2 if id == _sel_stat else 1)
-			sb.set_corner_radius_all(8)
+			sb.set_corner_radius_all(UiKit.RADIUS)
 			sb.content_margin_left = 10
 			row.add_theme_stylebox_override(state, sb)
 		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:

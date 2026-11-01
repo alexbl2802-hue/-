@@ -35,10 +35,11 @@ func _ready() -> void:
 	add_child(world)
 	world.build()
 	Fx.root = self
-	for i in DungeonDefs.LIST.size():
+	var defs := DungeonDefs.all()
+	for i in defs.size():
 		var d: Node3D = preload("res://scripts/dungeon.gd").new()
 		add_child(d)
-		d.build(DungeonDefs.LIST[i], i)
+		d.build(defs[i], i)
 		d.visible = false
 		if Game.chests.has(i):
 			d.open_chest(true)
@@ -99,7 +100,7 @@ func _ready() -> void:
 	hero.hurt.connect(func(_d): hud.flash_hurt())
 	hero.died.connect(_on_hero_died)
 	Game.leveled_up.connect(_on_level_up)
-	enemies.boss_killed.connect(func(e): hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт"))
+	enemies.boss_killed.connect(_on_boss_killed)
 	Game.message.connect(func(t, c, p): Fx.text(t, hero.global_position if p == Vector3.ZERO else p, c, p == Vector3.ZERO))
 
 	# Настройки: при изменении в окне сразу применяются
@@ -158,12 +159,18 @@ func _apply_env(m: int) -> void:
 		_env.fog_depth_end = Settings.VIEW[Settings.view]["fog"]
 		_sun.visible = true
 	else:
-		var cave: bool = DungeonDefs.LIST[m]["style"] == "cave"
+		var def: Dictionary = dungeons[m].def
+		var cave: bool = def["style"] == "cave"
 		_env.background_mode = Environment.BG_COLOR
 		_env.background_color = WorldGen.hex(0x0b0d18 if cave else 0x050407)
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		_env.ambient_light_color = WorldGen.hex(0x8c9ad6 if cave else 0x6a6a90)
 		_env.ambient_light_energy = 0.75 if cave else 0.3
+		if def["style"] == "tower":
+			# Этаж башни: свет и туман в цветах темы этажа
+			_env.background_color = WorldGen.hex(def["fog"])
+			_env.ambient_light_color = WorldGen.hex(def["light"])
+			_env.ambient_light_energy = 0.75
 		_env.fog_light_color = _env.background_color
 		_env.fog_depth_begin = 10.0 if cave else 6.0
 		_env.fog_depth_end = 60.0 if cave else 42.0
@@ -209,12 +216,15 @@ func enter_dungeon(i: int) -> void:
 		rig.dist = minf(rig.dist, 6.0)
 		rig.snap()
 		enemies.reset_all()
+		if d.tower:
+			d.set_gate(false)
+			d.set_stairs(enemies.boss_beaten(i) and d.def["floor"] < DungeonDefs.TOWER.size())
 		hero.busy = false
 		hud.banner(d.def["name"], d.def["sub"]))
 
 func exit_dungeon() -> void:
 	hero.busy = true
-	var e: Dictionary = world.entrances[mode]
+	var e: Dictionary = world.tower if dungeons[mode].tower else world.entrances[mode]
 	hud.fade(func():
 		_set_mode(-1)
 		var p: Vector3 = e["door"] + e["dir"] * 4.0
@@ -225,6 +235,22 @@ func exit_dungeon() -> void:
 		rig.snap()
 		hero.busy = false
 		hud.banner("Долина", "Снова под открытым небом"))
+
+## Этаж башни (с 1): вход снизу или подъём по лестнице с предыдущего этажа
+func enter_floor(f: int) -> void:
+	enter_dungeon(DungeonDefs.floor_index(f))
+
+func _on_boss_killed(e: Node3D) -> void:
+	var d: Node3D = dungeons[e.dungeon_idx]
+	if d.tower:
+		d.set_gate(false)
+		d.set_stairs(d.def["floor"] < DungeonDefs.TOWER.size())
+		if d.def["floor"] < DungeonDefs.TOWER.size():
+			hud.banner("%s повержен!" % e.T["name"], "Ворота открыты · путь на этаж %d свободен" % (d.def["floor"] + 1))
+		else:
+			hud.banner("%s повержен!" % e.T["name"], "Башня покорена! Ты — Покоритель башни")
+	else:
+		hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт")
 
 func open_chest(i: int) -> void:
 	var d: Node3D = dungeons[i]
@@ -238,7 +264,7 @@ func open_chest(i: int) -> void:
 		loot.drop(id, 1, c)
 	Game.save_game()
 	var n := Game.chests.size()
-	hud.banner("Сокровище найдено!", "Все сокровища собраны — ты настоящий искатель приключений!" if n >= dungeons.size() else "Осталось ещё одно подземелье")
+	hud.banner("Сокровище найдено!", "Все сокровища собраны — ты настоящий искатель приключений!" if n >= DungeonDefs.LIST.size() else "Осталось ещё одно подземелье")
 
 func _on_level_up(level: int) -> void:
 	var sub := "Здоровье +15 · Урон +4 · +1 очко навыка"
@@ -298,13 +324,29 @@ func _process(_dt: float) -> void:
 				if Vector2(p.x - door.x, p.z - door.z).length() < 3.2:
 					text = "Войти: " + world.entrances[i]["name"]
 					_act = enter_dungeon.bind(i)
+			var td: Vector3 = world.tower["door"]
+			if Vector2(p.x - td.x, p.z - td.z).length() < 3.2:
+				var f: int = Game.tower_unlocked()
+				text = "Войти в башню: этаж %d" % f
+				_act = enter_floor.bind(f)
 		else:
 			var d: Node3D = dungeons[mode]
 			if Vector2(p.x - d.start_pos.x, p.z - d.start_pos.z).length() < 1.8:
-				text = "Подняться на поверхность"
+				text = "Выйти из башни" if d.tower else "Подняться на поверхность"
 				_act = exit_dungeon
-			var c: Vector3 = d.chest["pos"]
-			if not d.chest["opened"] and Vector2(p.x - c.x, p.z - c.z).length() < 2.2:
+			if d.tower:
+				_tower_update(d, p)
+				var boss: Node3D = enemies.boss_of(mode)
+				if boss and not d.gate_closed:
+					for g in d.gate_cells:
+						var gc: Vector3 = d.cell_center(g.x, g.y)
+						if Vector2(p.x - gc.x, p.z - gc.z).length() < 7.0:
+							text = "⚔ Страж этажа: %s · Ур. %d" % [boss.T["name"], boss.level]
+				if d.stairs_open and Vector2(p.x - d.stairs_front.x, p.z - d.stairs_front.z).length() < 2.4:
+					text = "Подняться на этаж %d" % (d.def["floor"] + 1)
+					_act = enter_floor.bind(d.def["floor"] + 1)
+			var c: Vector3 = d.chest.get("pos", Vector3.INF)
+			if d.chest.has("pos") and not d.chest["opened"] and Vector2(p.x - c.x, p.z - c.z).length() < 2.2:
 				var boss: Node3D = enemies.boss_of(mode)
 				if boss:
 					text = "🔒 Сундук стережёт " + boss.T["name"]
@@ -312,3 +354,13 @@ func _process(_dt: float) -> void:
 					text = "Открыть сундук"
 					_act = open_chest.bind(mode)
 	t.act_text = text
+
+## Комната стража: вошёл — ворота опускаются за спиной и не откроются, пока страж жив
+func _tower_update(d: Node3D, p: Vector3) -> void:
+	var boss: Node3D = enemies.boss_of(mode)
+	var inside: bool = d.in_room(p)
+	if boss and inside and not d.gate_closed:
+		d.set_gate(true)
+		hud.banner("Страж этажа: %s" % boss.T["name"], "Ур. %d · Ворота закрылись — назад пути нет" % boss.level)
+	elif d.gate_closed and not boss:
+		d.set_gate(false)

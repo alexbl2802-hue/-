@@ -8,7 +8,8 @@ signal message(text: String, color: Color, pos: Vector3)  # всплывающа
 
 const SAVE_PATH := "user://save.json"
 ## Опыт за монстра: случайно в пределах [от, до]
-const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270]}
+const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270],
+	"alpha_wolf": [180, 200], "goblin_chief": [190, 210], "sand_scorpion": [200, 220], "frost_king": [210, 230], "kobold_warlord": [230, 250]}
 
 static func enemy_xp(kind: String) -> int:
 	var r: Array = ENEMY_XP.get(kind, [10, 10])
@@ -18,6 +19,12 @@ var player_name := ""
 var has_save := false   # игру уже начинали (есть сохранение) — в меню «Продолжить»
 var chests: Array = []  # номера подземелий, где сундук уже открыт
 var bosses: Array = []  # номера подземелий, где босс побеждён
+## Сколько этажей башни открыто: первый — сразу, каждый побеждённый страж открывает следующий
+func tower_unlocked() -> int:
+	var n := 1
+	while n < DungeonDefs.TOWER.size() and bosses.has(DungeonDefs.floor_index(n)):
+		n += 1
+	return n
 var stats := {"str": 0, "agi": 0, "vit": 0}   # очки характеристик: Сила, Ловкость, Выносливость
 var time_of_day := 0.33 # время суток: 0 — полночь, 0,25 — рассвет, 0,5 — полдень, 0,75 — закат
 var is_night := false

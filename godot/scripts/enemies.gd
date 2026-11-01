@@ -23,17 +23,29 @@ func spawn_all() -> void:
 ## Монстры подземелья: скелеты/пауки и кобольды — по двое на каждом месте появления
 func spawn_dungeon(d: Node3D) -> void:
 	var script := preload("res://scripts/enemy.gd")
+	var lvl: int = d.def.get("level", 1)
 	for sp in d.spawns:
-		for k in 2:
+		for k in (1 if d.tower else 2):   # на этажах башни — по одному, зато сильнее
 			var en: CharacterBody3D = script.new()
 			en.in_dungeon = true
 			var off := Vector3(-0.9, 0, 0.5) if k == 0 else Vector3(0.9, 0, -0.5)
-			en.setup(sp[0], sp[1] + off + Vector3(0, 0.3, 0), hero)
+			if d.tower:
+				off = Vector3.ZERO
+			en.setup(sp[0], sp[1] + off + Vector3(0, 0.3, 0), hero, lvl)
 			en.dungeon_idx = d.index
 			add_child(en)
 			list.append(en)
 	# Босс стережёт сундук: стоит между сундуком и входом. Побеждённый больше не появляется
-	if d.def.has("boss") and not boss_beaten(d.index):
+	if d.tower and not boss_beaten(d.index):
+		# Страж этажа ждёт в своей комнате за воротами
+		var g: CharacterBody3D = script.new()
+		g.in_dungeon = true
+		g.dungeon_idx = d.index
+		g.setup(d.def["boss"], d.boss_pos + Vector3(0, 0.3, 0), hero, lvl + 2)
+		g.guard_room = d
+		add_child(g)
+		list.append(g)
+	elif d.def.has("boss") and not boss_beaten(d.index):
 		var c: Vector3 = d.chest["pos"]
 		var to_start: Vector3 = d.start_pos - c
 		to_start.y = 0.0

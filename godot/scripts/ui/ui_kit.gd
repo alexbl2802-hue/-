@@ -1,22 +1,36 @@
-## Общие элементы окон: рамки, подписи, кнопки и ячейки предметов в одном стиле.
+## Общие элементы окон в стиле игровых меню из аниме: полупрозрачные тёмные окна,
+## острые углы, светящиеся голубые рамки; главное действие — оранжевое.
 class_name UiKit
 extends RefCounted
 
-const GOLD := Color("#ffd479")
-const CREAM := Color("#ffe7b0")
-const TEXT := Color("#f4ecd8")
+const GOLD := Color("#ffb84a")      # акцент: заголовки, выбранное, главная кнопка
+const CREAM := Color("#d6f1ff")     # текст на кнопках
+const TEXT := Color("#eef7ff")
+const GLOW := Color(0.45, 0.85, 1.0)        # светящаяся рамка
+const WIN_BG := Color(0.03, 0.07, 0.12, 0.9)
+const BTN_BG := Color(0.07, 0.16, 0.24, 0.88)
+const RADIUS := 2                    # острые углы
 
-static func box(bg: Color, border: Color, radius := 10, margin := 8, width := 2) -> StyleBoxFlat:
+static func box(bg: Color, border: Color, radius := RADIUS, margin := 8, width := 2) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
 	s.border_color = border
 	s.set_border_width_all(width)
-	s.set_corner_radius_all(radius)
+	s.set_corner_radius_all(mini(radius, RADIUS))
 	s.set_content_margin_all(margin)
 	return s
 
+## Светящаяся рамка: мягкое голубое свечение вокруг окна
+static func glow(s: StyleBoxFlat, size := 10, a := 0.35) -> StyleBoxFlat:
+	s.shadow_color = Color(GLOW.r, GLOW.g, GLOW.b, a)
+	s.shadow_size = size
+	return s
+
 static func window_box() -> StyleBoxFlat:
-	return box(Color(0.11, 0.086, 0.063, 0.97), Color(1, 0.86, 0.63, 0.4), 12, 10)
+	var s := glow(box(WIN_BG, Color(GLOW.r, GLOW.g, GLOW.b, 0.85), RADIUS, 10, 1))
+	s.border_width_top = 3     # яркая полоса сверху, как у окон-голограмм
+	s.border_blend = false
+	return s
 
 static func label(t: String, fs := 13, c := TEXT) -> Label:
 	var l := Label.new()
@@ -30,7 +44,9 @@ static func button(t: String, primary := false, fs := 13) -> Button:
 	b.text = t
 	b.add_theme_font_size_override("font_size", fs)
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var s := box(GOLD if primary else Color("#3a2d1c"), Color(1, 0.86, 0.63, 0.5), 8, 0, 1)
+		var s := box(GOLD if primary else BTN_BG, Color(1, 0.9, 0.7, 0.9) if primary else Color(GLOW.r, GLOW.g, GLOW.b, 0.7), RADIUS, 0, 1)
+		if state == "hover" or state == "pressed":
+			glow(s, 6, 0.5)
 		s.content_margin_left = 12
 		s.content_margin_right = 12
 		s.content_margin_top = 5
@@ -40,7 +56,7 @@ static func button(t: String, primary := false, fs := 13) -> Button:
 		if state == "disabled":
 			s.bg_color = s.bg_color.darkened(0.55)
 		b.add_theme_stylebox_override(state, s)
-	var fc := Color("#2a1d08") if primary else CREAM
+	var fc := Color("#1a1006") if primary else CREAM
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, fc)
 	b.add_theme_color_override("font_disabled_color", fc.darkened(0.3))
@@ -53,7 +69,10 @@ static func slot(icon: String, border: Color, count := "", caption := "", size :
 	b.custom_minimum_size = Vector2(size, size)
 	b.add_theme_font_size_override("font_size", int(size * 0.5))
 	for state in ["normal", "hover", "pressed", "focus"]:
-		var s := box(Color(1, 0.83, 0.47, 0.18) if selected else Color(1, 1, 1, 0.06), GOLD if selected else border, 8, 0, 2)
+		var s := box(Color(1, 0.72, 0.29, 0.2) if selected else Color(0.45, 0.85, 1.0, 0.07), GOLD if selected else border, RADIUS, 0, 2)
+		if selected:
+			s.shadow_color = Color(GOLD.r, GOLD.g, GOLD.b, 0.45)
+			s.shadow_size = 6
 		b.add_theme_stylebox_override(state, s)
 	if count != "":
 		var n := label(count, 11, Color.WHITE)
@@ -86,7 +105,7 @@ static func modal(owner: Control, on_backdrop: Callable) -> VBoxContainer:
 	owner.visible = false
 	owner.process_mode = Node.PROCESS_MODE_ALWAYS
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.55)
+	dim.color = Color(0.0, 0.02, 0.05, 0.45)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: on_backdrop.call())
 	owner.add_child(dim)

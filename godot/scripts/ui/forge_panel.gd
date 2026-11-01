@@ -82,7 +82,7 @@ func _ready() -> void:
 
 func _card(title: String, content: Control, w: float) -> Control:
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiKit.box(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.12), 10, 9))
+	panel.add_theme_stylebox_override("panel", UiKit.box(Color(0.45, 0.85, 1.0, 0.05), Color(0.45, 0.85, 1.0, 0.3), 2, 9))
 	panel.custom_minimum_size = Vector2(w, 0)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 6)

@@ -40,7 +40,7 @@ func _ready() -> void:
 	_name.max_length = 16
 	_name.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.add_theme_font_size_override("font_size", 18)
-	_name.add_theme_stylebox_override("normal", UiKit.box(Color(0, 0, 0, 0.5), Color(1, 0.86, 0.63, 0.5), 10, 9))
+	_name.add_theme_stylebox_override("normal", UiKit.box(Color(0, 0.04, 0.08, 0.6), Color(0.45, 0.85, 1.0, 0.6), 2, 9))
 	_name.add_theme_stylebox_override("focus", UiKit.box(Color(0, 0, 0, 0.5), UiKit.GOLD, 10, 9))
 	_name.add_theme_color_override("font_color", Color("#fff3d8"))
 	_name.text_submitted.connect(func(_t): _name.release_focus())

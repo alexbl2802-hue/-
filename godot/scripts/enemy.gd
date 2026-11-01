@@ -17,13 +17,26 @@ const TYPES := {
 		"slam": {"radius": 5.0, "cd": 7.0, "aim": 1.0, "dmg": 40}},
 	"spider_queen": {"name": "Королева-паучиха", "boss": true, "hp": 550, "dmg": 28, "speed": 4.8, "r": 1.2, "aggro": 16.0, "reach": 2.9, "cd": 1.0, "windup": 0.4, "bar": 2.8, "scale": 2.0, "lunge": true,
 		"spit": {"near": 4.0, "far": 16.0, "cd": 4.0, "aim": 0.6, "count": 5, "speed": 16.0}},
+	# Стражи этажей башни: модель обычного монстра ("model"), свой цвет ("tint"), корона и размер
+	"alpha_wolf": {"name": "Альфа-волк", "model": "wolf", "tint": 0x8a8090, "boss": true, "hp": 520, "dmg": 24, "speed": 6.8, "r": 0.9, "aggro": 18.0, "reach": 2.8, "cd": 0.9, "windup": 0.3, "bar": 2.9, "scale": 1.7,
+		"spikes": {"near": 5.0, "far": 16.0, "cd": 3.5, "aim": 0.6, "count": 5, "speed": 24.0}},
+	"goblin_chief": {"name": "Вождь гоблинов", "model": "goblin", "boss": true, "hp": 600, "dmg": 26, "speed": 4.4, "r": 0.8, "aggro": 16.0, "reach": 2.7, "cd": 1.1, "windup": 0.5, "bar": 3.3, "scale": 1.7,
+		"slam": {"radius": 5.0, "cd": 6.5, "aim": 0.9, "dmg": 30}},
+	"sand_scorpion": {"name": "Песчаный скорпион", "model": "spider", "tint": 0xd8a860, "boss": true, "hp": 620, "dmg": 26, "speed": 5.0, "r": 1.2, "aggro": 16.0, "reach": 2.9, "cd": 0.95, "windup": 0.4, "bar": 2.8, "scale": 2.1, "lunge": true,
+		"spit": {"near": 4.0, "far": 16.0, "cd": 3.5, "aim": 0.6, "count": 5, "speed": 17.0}},
+	"frost_king": {"name": "Ледяной король", "model": "skeleton_king", "tint": 0x9ad0ff, "boss": true, "hp": 700, "dmg": 30, "speed": 3.9, "r": 0.85, "aggro": 16.0, "reach": 2.9, "cd": 1.2, "windup": 0.55, "bar": 4.1, "scale": 1.9,
+		"slam": {"radius": 5.5, "cd": 6.0, "aim": 0.9, "dmg": 36}},
+	"kobold_warlord": {"name": "Полководец кобольдов", "model": "kobold", "tint": 0xb07050, "boss": true, "hp": 800, "dmg": 32, "speed": 4.4, "r": 0.8, "aggro": 16.0, "reach": 2.9, "cd": 0.9, "windup": 0.35, "bar": 3.6, "scale": 1.7,
+		"slam": {"radius": 5.5, "cd": 6.0, "aim": 0.8, "dmg": 40}},
 	"kobold": {"name": "Кобольд", "hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
 
 var type := "goblin"
 var dungeon_idx := -1       # номер подземелья (для босса — какой сундук он стережёт)
-var level := 1               # уровень монстра (пока у всех 1) — показывается над ним
+var level := 1               # уровень монстра — показывается над ним; в башне растёт от этажа к этажу
+var guard_room: Node3D = null   # этаж башни, если это страж (не покидает комнату)
+var model := ""              # чья модель (у стражей башни — обычного монстра)
 var in_dungeon := false
 var T: Dictionary
 var hero: Node3D
@@ -77,9 +90,24 @@ var _tail_tip: Node3D      # откуда вылетают шипы
 var _bunny := false
 var _dodge_t := -1.0
 
-func setup(kind: String, pos: Vector3, h: Node3D) -> void:
+## Сила монстра по уровню: здоровье +35%, урон +20% за каждый уровень выше первого
+static func scaled(kind: String, lvl: int) -> Dictionary:
+	var t: Dictionary = TYPES[kind].duplicate(true)
+	if lvl > 1:
+		var hp_k := 1.0 + 0.35 * (lvl - 1)
+		var dmg_k := 1.0 + 0.2 * (lvl - 1)
+		t["hp"] = roundi(t["hp"] * hp_k)
+		t["dmg"] = roundi(t["dmg"] * dmg_k)
+		for k in ["slam"]:
+			if t.has(k):
+				t[k]["dmg"] = roundi(t[k]["dmg"] * dmg_k)
+	return t
+
+func setup(kind: String, pos: Vector3, h: Node3D, lvl := 1) -> void:
 	type = kind
-	T = TYPES[kind]
+	level = lvl
+	T = scaled(kind, lvl) if lvl > 1 else TYPES[kind]
+	model = T.get("model", kind)
 	hero = h
 	home = pos
 	hp = T["hp"]
@@ -99,7 +127,7 @@ func _ready() -> void:
 	add_child(_shape)
 	_model = Node3D.new()
 	add_child(_model)
-	match type:
+	match model:
 		"goblin": _build_humanoid(0.82, 0x6aa84f, 0x6b4a2b, 0x3d2a18, 0xffd400, 0.6, 0.56, 0.2, true, false, "club")
 		"skeleton": _build_humanoid(1.0, 0xe6dfc8, 0xd8d0b8, 0x3a3228, 0x6fd0ff, 1.5, 0.46, 0.13, false, true, "sword")
 		"spider": _build_spider()
@@ -112,15 +140,29 @@ func _ready() -> void:
 		"spider_queen":
 			_build_spider()
 			_add_crown(0.98, Vector3(0, 0, 0.18))
+	# Цвет стража этажа
+	if T.has("tint"):
+		var tint := WorldGen.hex(T["tint"])
+		for m in _mats:
+			m.set_shader_parameter("albedo", (m.get_shader_parameter("albedo") as Color) * tint)
+	# Корона у стражей башни (у королей она уже есть)
+	if T.has("model") and model != "skeleton_king" and model != "goblin":
+		_add_crown(_crown_at().y, _crown_at())
 	# Боссы крупнее обычных монстров
 	if T.has("scale"):
 		for c in _model.get_children():
 			c.scale *= T["scale"]
 			c.position *= T["scale"]
-	if type == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
+	if model == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
 		_attach_goblin()
-	elif type == "rabbit" and ResourceLoader.exists(BUNNY_MODEL):
+	elif model == "rabbit" and ResourceLoader.exists(BUNNY_MODEL):
 		_attach_bunny()
+	if _char and T.has("scale"):
+		_char.scale *= T["scale"]
+	# Корона у гоблина-вождя — поверх модели, в размер вождя
+	if type == "goblin_chief":
+		_add_crown(1.62 * T["scale"])
+		_model.get_child(_model.get_child_count() - 1).scale = Vector3.ONE * T["scale"] * 0.8
 	global_position = home
 
 # ---------- Боевой кролик: в лапах свои когти, оружие не нужно
@@ -748,7 +790,7 @@ func _die() -> void:
 	collision_layer = 0
 	collision_mask = 1
 	Game.kills += 1
-	Game.give_xp(Game.enemy_xp(type), global_position)
+	Game.give_xp(roundi(Game.enemy_xp(type) * (1.0 + 0.3 * (level - 1))), global_position)
 	get_parent().on_enemy_killed(self)
 	if T.get("boss", false):
 		get_parent().on_boss_killed(self)
@@ -795,6 +837,8 @@ func _physics_process(dt: float) -> void:
 	to_hero.y = 0
 	var dist := maxf(0.01, to_hero.length())
 	var can_see: bool = not hero.dead and not hero.busy and absf(hero.global_position.y - global_position.y) < 4.0
+	if guard_room and not guard_room.in_room(hero.global_position):
+		can_see = false   # страж этажа не выходит из своей комнаты
 	var to_home := home - global_position
 	to_home.y = 0
 	var home_d := to_home.length()
@@ -937,6 +981,14 @@ func _physics_process(dt: float) -> void:
 			m.set_shader_parameter("emission", (m.get_meta("emit") as Color).lerp(Color.WHITE, _flash))
 			m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, _flash))
 
+## Где корона стража (до увеличения): над головой его модели
+func _crown_at() -> Vector3:
+	match model:
+		"wolf": return Vector3(0, 1.5, 0.74)
+		"spider": return Vector3(0, 0.98, 0.18)
+		"kobold": return Vector3(0, 2.0, 0.3)
+	return Vector3(0, 1.93, 0)
+
 func _animate(dt: float) -> void:
 	if _bunny:
 		_animate_bunny(dt)
@@ -944,7 +996,7 @@ func _animate(dt: float) -> void:
 	if _char:
 		_animate_char()
 		return
-	match type:
+	match model:
 		"rabbit":
 			_hop += dt * (9.0 if _moving else 2.0)
 			var k := absf(sin(_hop))

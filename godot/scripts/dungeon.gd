@@ -18,6 +18,17 @@ var start_pos := Vector3.ZERO
 var start_yaw := 0.0
 var spawns: Array = []          # [[тип, позиция]]
 var chest := {}
+var tower := false              # этаж башни
+var gate_cells: Array = []      # клетки ворот комнаты стража
+var boss_pos := Vector3.ZERO    # где стоит страж этажа
+var stairs_pos := Vector3.ZERO  # лестница на следующий этаж
+var room := {}                  # клетки комнаты стража (Vector2i → true)
+var gate_closed := false
+var _gate_bars: Array = []      # [узел решётки, высота поднятой]
+var _gate_shapes: Array = []
+var _gate_t := 0.0              # 0 — открыты, 1 — закрыты
+var _stairs_glow: Array = []
+var stairs_open := false
 var _flickers: Array = []
 var _exit_ring: MeshInstance3D
 var _body: StaticBody3D
@@ -32,6 +43,7 @@ func build(d: Dictionary, idx: int) -> void:
 	cols = (map[0] as String).length()
 	Y = d["y"]
 	cave = d["style"] == "cave"
+	tower = d["style"] == "tower"
 	pad = 0.55 if cave else 0.0
 	_rng.seed = 77 + idx
 	name = "Dungeon%d" % idx
@@ -67,7 +79,10 @@ func build(d: Dictionary, idx: int) -> void:
 				"P": pillars.append(Vector2i(i, j))
 				"K": crystals.append(Vector2i(i, j))
 				"E": spawns.append([d["monster"], cell_center(i, j)])
-				"O": spawns.append(["kobold", cell_center(i, j)])
+				"O": spawns.append([d.get("monster2", "kobold"), cell_center(i, j)])
+				"G": gate_cells.append(Vector2i(i, j))
+				"B": boss_pos = cell_center(i, j)
+				"U": stairs_pos = cell_center(i, j)
 	_build_shell(floors, walls)
 	for p in pillars:
 		_build_pillar(cell_center(p.x, p.y))
@@ -77,6 +92,12 @@ func build(d: Dictionary, idx: int) -> void:
 		_build_crystals(floors, crystals)
 	_build_decor(floors)
 	_build_exit()
+	if tower:
+		_find_room()
+		for g in gate_cells:
+			_build_gate(g)
+		if stairs_pos != Vector3.ZERO:
+			_build_stairs(stairs_pos)
 
 func ch(i: int, j: int) -> String:
 	if i < 0 or j < 0 or i >= cols or j >= rows:
@@ -120,6 +141,11 @@ func _build_shell(floors: Array, walls: Array) -> void:
 	var wall_mat: Material
 	if cave:
 		wall_mat = Mats.lp(0xffffff, 1.0)
+	elif tower:
+		# Этаж башни: стены и пол в цветах темы этажа
+		wall_mat = Mats.tiled(Mats.brick_texture(), def["wall"], 0.25)
+		floor_mat = Mats.tiled(floor_tex, Color(WorldGen.hex(def["floor"])).lightened(0.5).to_rgba32() >> 8, 0.25)
+		ceil_mat = Mats.tiled(Mats.brick_texture(), Color(WorldGen.hex(def["wall"])).darkened(0.45).to_rgba32() >> 8, 0.25)
 	else:
 		wall_mat = Mats.tiled(Mats.brick_texture(), 0xb0a698, 0.25)
 	var plane := PlaneMesh.new()
@@ -500,6 +526,117 @@ func _build_chest(c: Vector3) -> void:
 	_col_cyl(c, 0.75, 1.0)
 	chest = {"pos": c, "lid": lid, "light": light, "opened": false, "t": 0.0}
 
+# ---------- Комната стража этажа: ворота и лестница
+## Клетки комнаты — всё, куда можно дойти от места стража, не проходя ворота
+func _find_room() -> void:
+	room = {}
+	if boss_pos == Vector3.ZERO:
+		return
+	var start := cell_of(boss_pos)
+	var stack := [start]
+	room[start] = true
+	while not stack.is_empty():
+		var c: Vector2i = stack.pop_back()
+		for dv in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + dv
+			if room.has(n) or solid(n.x, n.y) or ch(n.x, n.y) == "G":
+				continue
+			room[n] = true
+			stack.append(n)
+
+func in_room(p: Vector3) -> bool:
+	return absf(p.y - Y) < 6.0 and room.has(cell_of(p))
+
+## Ворота: каменная арка и железная решётка, которая опускается, когда начинается бой
+func _build_gate(g: Vector2i) -> void:
+	var c := cell_center(g.x, g.y)
+	# Решётка поперёк прохода: проход идёт вдоль той оси, где стен нет
+	var across_x := solid(g.x, g.y - 1) == false and solid(g.x, g.y + 1) == false
+	var iron := Mats.lp(0x3a3634, 0.5, 0.7)
+	var stone := Mats.tiled(Mats.brick_texture(), Color(WorldGen.hex(def["wall"])).darkened(0.2).to_rgba32() >> 8, 0.25)
+	var arch := Node3D.new()
+	arch.position = c
+	if not across_x:
+		arch.rotation.y = PI / 2.0
+	add_child(arch)
+	# Арка сверху (над решёткой)
+	_box(Vector3(CELL, 1.0, 0.6), stone, Vector3(0, WALL_H - 0.5, 0), arch)
+	var bars := Node3D.new()
+	arch.add_child(bars)
+	for k in 9:
+		_box(Vector3(0.09, WALL_H - 1.0, 0.09), iron, Vector3(-CELL / 2.0 + 0.25 + k * (CELL - 0.5) / 8.0, (WALL_H - 1.0) / 2.0, 0), bars)
+	for yy in [0.5, 2.0, 3.4]:
+		_box(Vector3(CELL - 0.2, 0.1, 0.12), iron, Vector3(0, yy, 0), bars)
+	# Красные огни по бокам — видно, что за воротами страж
+	for side in [-1.0, 1.0]:
+		var gem := MeshInstance3D.new()
+		gem.mesh = _cyl(0.0, 0.12, 0.3, 4)
+		gem.material_override = Mats.glow(0xff3020)
+		arch.add_child(gem)
+		gem.position = Vector3(side * (CELL / 2.0 - 0.15), WALL_H - 1.4, 0.32)
+	_gate_bars.append([bars, WALL_H - 1.1])
+	bars.position.y = WALL_H - 1.1
+	var sh := BoxShape3D.new()
+	sh.size = Vector3(CELL, WALL_H, 0.5) if across_x else Vector3(0.5, WALL_H, CELL)
+	var cs := CollisionShape3D.new()
+	cs.shape = sh
+	cs.position = Vector3(c.x, Y + WALL_H / 2.0, c.z)
+	cs.disabled = true
+	_body.add_child(cs)
+	_gate_shapes.append(cs)
+
+func set_gate(closed: bool) -> void:
+	if closed == gate_closed:
+		return
+	gate_closed = closed
+	for cs in _gate_shapes:
+		(cs as CollisionShape3D).set_deferred("disabled", not closed)
+
+## Лестница наверх: каменные ступени к люку в потолке; светится, когда страж побеждён
+func _build_stairs(p: Vector3) -> void:
+	var stone := Mats.tiled(Mats.brick_texture(), Color(WorldGen.hex(def["wall"])).lightened(0.1).to_rgba32() >> 8, 0.25)
+	# Ступени поднимаются к стене, низ — со стороны свободной клетки
+	var cc := cell_of(p)
+	var front := Vector2i(0, 1)
+	for dv in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		if not solid(cc.x + dv.x, cc.y + dv.y):
+			front = dv
+	var root := Node3D.new()
+	root.position = Vector3(p.x, Y, p.z)
+	root.rotation.y = atan2(front.x, front.y)
+	add_child(root)
+	for k in 6:
+		_box(Vector3(2.4, 0.35 * (k + 1), 0.5), stone, Vector3(0, 0.175 * (k + 1), 1.2 - k * 0.5), root)
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.7
+	ring.outer_radius = 1.0
+	ring.rings = 20
+	ring.ring_segments = 4
+	var glow := MeshInstance3D.new()
+	glow.mesh = ring
+	glow.material_override = Mats.glow(0xffd060)
+	root.add_child(glow)
+	glow.position = Vector3(0, 0.06, 2.6)
+	glow.scale = Vector3(1, 0.06, 1)
+	var light := OmniLight3D.new()
+	light.light_color = WorldGen.hex(0xffd060)
+	light.omni_range = 7.0
+	light.position = Vector3(0, 2.0, 1.5)
+	root.add_child(light)
+	_stairs_glow = [glow, light]
+	stairs_front = p + Vector3(front.x, 0, front.y) * 2.6
+	_col_box(Vector3(p.x, Y + 1.0, p.z), Vector3(2.4, 2.0, 2.4))
+	set_stairs(false)
+
+var stairs_front := Vector3.ZERO   # где стоять, чтобы подняться
+
+func set_stairs(on: bool) -> void:
+	stairs_open = on
+	if _stairs_glow.is_empty():
+		return
+	(_stairs_glow[0] as Node3D).visible = on
+	(_stairs_glow[1] as OmniLight3D).light_energy = 1.4 if on else 0.0
+
 ## Открытый сундук: крышка откидывается, внутри загорается золото
 func open_chest(instant := false) -> void:
 	chest["opened"] = true
@@ -522,6 +659,10 @@ func _process(dt: float) -> void:
 		if f.has("flame"):
 			f["flame"].scale.y = 0.8 + 0.3 * s
 	_exit_ring.rotation.y = _time
+	if not _gate_bars.is_empty():
+		_gate_t = move_toward(_gate_t, 1.0 if gate_closed else 0.0, dt * (3.0 if gate_closed else 1.0))
+		for gb in _gate_bars:
+			(gb[0] as Node3D).position.y = gb[1] * (1.0 - _gate_t)
 	if chest.get("opened", false) and chest["t"] < 1.0:
 		chest["t"] = minf(1.0, chest["t"] + dt * 1.5)
 		(chest["lid"] as Node3D).rotation.x = -1.9 * (1.0 - pow(1.0 - chest["t"], 3))

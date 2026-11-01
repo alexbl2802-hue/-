@@ -50,7 +50,7 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 5)
 	right.add_child(_grid)
 	var info_panel := PanelContainer.new()
-	info_panel.add_theme_stylebox_override("panel", UiKit.box(Color(1, 1, 1, 0.04), Color(1, 1, 1, 0.08), 8, 8, 1))
+	info_panel.add_theme_stylebox_override("panel", UiKit.box(Color(0.45, 0.85, 1.0, 0.05), Color(0.45, 0.85, 1.0, 0.3), 2, 8, 1))
 	info_panel.custom_minimum_size = Vector2(0, 86)
 	right.add_child(info_panel)
 	_info = VBoxContainer.new()
