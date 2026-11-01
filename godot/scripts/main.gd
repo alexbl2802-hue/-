@@ -102,6 +102,10 @@ func _ready() -> void:
 	enemies.boss_killed.connect(func(e): hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт"))
 	Game.message.connect(func(t, c, p): Fx.text(t, p, c))
 
+	# Настройки: при изменении в окне сразу применяются
+	Settings.load_settings()
+	hud.menu.settings.changed.connect(apply_settings)
+	apply_settings()
 	# Смена дня и ночи
 	day_night = DayNight.new()
 	add_child(day_night)
@@ -151,7 +155,7 @@ func _apply_env(m: int) -> void:
 		_env.ambient_light_energy = 0.9
 		_env.fog_light_color = WorldGen.hex(0xb9d3e6)
 		_env.fog_depth_begin = 90.0
-		_env.fog_depth_end = 420.0
+		_env.fog_depth_end = Settings.VIEW[Settings.view]["fog"]
 		_sun.visible = true
 	else:
 		var cave: bool = DungeonDefs.LIST[m]["style"] == "cave"
@@ -166,6 +170,18 @@ func _apply_env(m: int) -> void:
 		_sun.visible = false
 	if _hero_light:
 		_hero_light.visible = m >= 0
+
+## Применить настройки: дальность прорисовки, тени, счётчик кадров
+func apply_settings() -> void:
+	var v: Dictionary = Settings.VIEW[Settings.view]
+	rig.camera.far = v["far"]
+	world.set_rock_view(v["rocks"])
+	if mode < 0:
+		_env.fog_depth_end = v["fog"]
+	_sun.shadow_enabled = Settings.shadows
+	if day_night:
+		day_night.apply()
+	hud.show_fps(Settings.show_fps)
 
 func _set_mode(m: int) -> void:
 	mode = m

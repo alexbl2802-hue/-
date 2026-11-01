@@ -74,7 +74,7 @@ func apply() -> void:
 	var dusk := (1.0 - smoothstep(0.0, 0.35, absf(el))) * d   # низкое солнце — тёплый свет
 	sun.light_energy = 1.3 * d
 	sun.light_color = WorldGen.hex(0xfff1d6).lerp(WorldGen.hex(0xffa860), dusk)
-	sun.shadow_enabled = d > 0.2
+	sun.shadow_enabled = d > 0.2 and Settings.shadows
 	moon.light_energy = 0.55 * (1.0 - d)
 	# Небо и туман
 	var top := WorldGen.hex(SKY_NIGHT[0]).lerp(WorldGen.hex(SKY_DAY[0]), d)

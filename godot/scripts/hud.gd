@@ -144,6 +144,20 @@ func _process(dt: float) -> void:
 	Fx.update(dt)
 	_bars.queue_redraw()
 	_enemy_bars.queue_redraw()
+	if _fps_lbl and _fps_lbl.visible:
+		_fps_lbl.text = "%d кадр/с" % Engine.get_frames_per_second()
+
+## Счётчик кадров в секунду (настройка)
+var _fps_lbl: Label
+func show_fps(on: bool) -> void:
+	if not _fps_lbl:
+		_fps_lbl = Label.new()
+		_fps_lbl.add_theme_font_size_override("font_size", 12)
+		_fps_lbl.add_theme_color_override("font_color", Color("#9fff9f"))
+		_fps_lbl.position = Vector2(14, 70)
+		_fps_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_fps_lbl)
+	_fps_lbl.visible = on
 
 func set_status(text: String) -> void:
 	_status.text = text

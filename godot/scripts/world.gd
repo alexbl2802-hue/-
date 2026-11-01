@@ -10,6 +10,12 @@ var campfire: Node3D
 var _fire_light: OmniLight3D
 var _fire_flame: MeshInstance3D
 var _time := 0.0
+var _rock_nodes: Array = []
+
+## Дальность видимости камней (настройка «Дальность прорисовки»)
+func set_rock_view(d: float) -> void:
+	for n in _rock_nodes:
+		(n as GeometryInstance3D).visibility_range_end = d
 
 ## Камни и горы — модели Meshy (tools/prepare_models.py env)
 const ROCK_SMALL := "res://models/rock_small.glb"                                  # Mossy Stone Outcrop
@@ -256,6 +262,7 @@ func _build_rocks() -> void:
 		mmi.multimesh = mm
 		mmi.visibility_range_end = ROCK_VIEW
 		add_child(mmi)
+		_rock_nodes.append(mmi)
 
 func _tree_collider(body: StaticBody3D, pos: Vector3, r: float) -> void:
 	var shape := CylinderShape3D.new()

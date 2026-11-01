@@ -169,8 +169,8 @@ func _input(e: InputEvent) -> void:
 				rig.dist = clampf(rig.dist * _pinch_d / nd, 3.0, 16.0)
 				_pinch_d = nd
 			else:
-				rig.yaw -= (e.position.x - prev.x) * 0.0065
-				rig.pitch = clampf(rig.pitch + (e.position.y - prev.y) * 0.005, -0.25, 1.25)
+				rig.yaw -= (e.position.x - prev.x) * 0.0065 * Settings.cam_sens
+				rig.pitch = clampf(rig.pitch + (e.position.y - prev.y) * 0.005 * Settings.cam_sens, -0.25, 1.25)
 		get_viewport().set_input_as_handled()
 
 func _draw() -> void:

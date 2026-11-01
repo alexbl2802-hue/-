@@ -5,6 +5,7 @@ extends Control
 signal started(first: bool)
 
 var _name: LineEdit
+var settings: Control   # окно настроек (открывается из меню)
 var _main: Button
 var _new: Button
 var _info: Label
@@ -51,9 +52,15 @@ func _ready() -> void:
 	_new = UiKit.button("Новая игра", false, 15)
 	_new.pressed.connect(_on_new)
 	vb.add_child(_new)
+	var st := UiKit.button("⚙ Настройки", false, 15)
+	st.pressed.connect(func(): settings.open())
+	vb.add_child(st)
 	_info = UiKit.label("", 12, Color(1, 1, 1, 0.7))
 	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(_info)
+	settings = preload("res://scripts/ui/settings_panel.gd").new()
+	settings.visible = false
+	add_child(settings)
 	# Номер версии в углу — чтобы видеть, какая сборка установлена (его прописывает сборка APK)
 	var ver := UiKit.label("Версия " + str(ProjectSettings.get_setting("application/config/version", "dev")), 12, Color(1, 1, 1, 0.55))
 	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
