@@ -67,8 +67,13 @@ function rawHeight(x, z) {
   return h;
 }
 for (const s of SITES) s.h = Math.max(2, rawHeight(s.x, s.z));
+// Горы как у модели (Mossy Stone Peak): выше 45 м склоны круче и вершины острее
+function sharpen(h) {
+  const e = Math.max(0, h - 45);
+  return h + e * e / 60;
+}
 function heightFn(x, z) {
-  let h = rawHeight(x, z);
+  let h = sharpen(rawHeight(x, z));
   for (const s of SITES) {
     const w = 1 - smoothstep(s.r * 0.5, s.r, Math.hypot(x - s.x, z - s.z));
     if (w > 0) h = lerp(h, s.h, w);
@@ -112,7 +117,7 @@ function hsl(h, s, l) {
 const colors = new Uint8Array(N * N * 3);
 {
   const sand = hex(0xd8c88f), grassA = hex(0x5f9a3c), grassB = hex(0x3f7a2e), dirt = hex(0x7d6a45),
-    rock = hex(0x7c776f), rockDark = hex(0x5b5650), snow = hex(0xf4f7fb);
+    rock = hex(0x7c776f), rockDark = hex(0x5b5650);
   for (let j = 0; j <= SEG; j++) for (let i = 0; i <= SEG; i++) {
     const k = j * N + i, h = heights[k], x = -HALF + i * STEP, z = -HALF + j * STEP;
     const ny = normalYAt(x, z), n = fbm(x * 0.05, z * 0.05, 3);
@@ -121,7 +126,6 @@ const colors = new Uint8Array(N * N * 3);
     c = mix(c, sand, 1 - smoothstep(0.6, 1.6, h));
     const rockT = 1 - smoothstep(0.72, 0.86, ny);
     c = mix(c, mix(rock, rockDark, (n + 1) / 2), Math.max(rockT, smoothstep(30, 45, h) * 0.9));
-    c = mix(c, snow, smoothstep(52, 62, h + n * 6) * smoothstep(0.55, 0.75, ny));
     for (const s of SITES) c = mix(c, dirt, (1 - smoothstep(4, 9, Math.hypot(x - s.x, z - s.z))) * 0.7);
     if (Math.abs(x) < 3.5 && Math.abs(z) > 30 && Math.abs(z) < 90) c = mix(c, dirt, 0.75);
     colors[k * 3] = toByte(c[0]); colors[k * 3 + 1] = toByte(c[1]); colors[k * 3 + 2] = toByte(c[2]);
@@ -205,27 +209,6 @@ const enemies = [];
     enemies.push(['goblin', r3(en.door[0] + en.dir[0] * 8 + en.dir[1] * side * 3.5), r3(en.door[1] + en.dir[1] * 8 - en.dir[0] * side * 3.5)]);
 }
 
-// ---------- Вершины гор: сюда ставится модель горы (Mossy Stone Peak)
-const peaks = [];
-{
-  const R = 10, cand = [];
-  for (let j = R; j < N - R; j++)
-    for (let i = R; i < N - R; i++) {
-      const v = heights[j * N + i];
-      if (v < 35) continue;
-      let top = true;
-      for (let b = -R; b <= R && top; b++)
-        for (let a = -R; a <= R; a++)
-          if (heights[(j + b) * N + i + a] > v) { top = false; break; }
-      if (top) cand.push([v, -HALF + i * STEP, -HALF + j * STEP]);
-    }
-  cand.sort((a, b) => b[0] - a[0]);
-  const pr = mulberry32(777);
-  for (const [v, x, z] of cand)
-    if (peaks.every(p => Math.hypot(p[0] - x, p[1] - z) > 55))
-      peaks.push([r3(x), r3(z), r3(v), r3(pr() * Math.PI * 2)]);
-}
-
 // ---------- Запись
 mkdirSync(OUT, { recursive: true });
 const head = new Int32Array([SEG]);
@@ -239,7 +222,6 @@ const props = {
   rocks: pack(rocks, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), t.c]),
   tufts: pack(tufts, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), t.c]),
   enemies,
-  peaks,
 };
 writeFileSync(join(OUT, 'props.json'), JSON.stringify(props));
-console.log(`world.bin: ${N}×${N}, pines ${pines.length}, oaks ${oaks.length}, rocks ${rocks.length}, tufts ${tufts.length}, enemies ${enemies.length}, peaks ${peaks.length}`);
+console.log(`world.bin: ${N}×${N}, pines ${pines.length}, oaks ${oaks.length}, rocks ${rocks.length}, tufts ${tufts.length}, enemies ${enemies.length}`);

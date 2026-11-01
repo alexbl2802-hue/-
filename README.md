@@ -134,7 +134,7 @@ APK собирается **по команде**: вкладка **Actions** →
 
 ## Камни, горы и вода
 - **Камни** — модели Meshy: маленькие — Mossy Stone Outcrop (`rock_small.glb`), большие — Mossclad Monolith и Mossbound Stone Steps по очереди (`rock_big1.glb`, `rock_big2.glb`); ~2 тыс. треугольников каждый. Камни собраны по участкам 120×120 м и видны до 200 м — телефон не рисует все сразу.
-- **Горы** — модель Mossy Stone Peak (`mountain.glb`) на каждой из 25 вершин рельефа выше 35 м (вершины ищет `tools/bake_world.mjs`, поле `peaks` в `props.json`): гора вырастает из склона, у неё есть столкновения, видна до 450 м.
+- **Горы** — как модель Mossy Stone Peak: склоны всех гор (выше ~18 м и крутые) покрыты её камнем со мхом (`godot/textures/mountain_rock.jpg`, наложение с трёх сторон в `shaders/terrain.gdshader`), вершины выше 45 м заострены (`sharpen` в `tools/bake_world.mjs`), снега нет.
 - **Вода** — шейдеры из `godot/shaders/water/`: на озёрах `water_mobile.gdshader` (волны и блики; `water_realistic` читает глубину сцены, которой нет в режиме GL Compatibility, а `waterfall` — для водопадов, их пока нет в мире).
 - Модели готовит `python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb`. Кадры — `godot --path godot res://tests/env.tscn -- <папка>`.
 

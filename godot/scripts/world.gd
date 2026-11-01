@@ -14,10 +14,8 @@ var _time := 0.0
 ## Камни и горы — модели Meshy (tools/prepare_models.py env)
 const ROCK_SMALL := "res://models/rock_small.glb"                                  # Mossy Stone Outcrop
 const ROCK_BIG := ["res://models/rock_big1.glb", "res://models/rock_big2.glb"]    # Mossclad Monolith, Mossbound Stone Steps
-const MOUNTAIN := "res://models/mountain.glb"                                      # Mossy Stone Peak
 const ROCK_CHUNK := 120.0       # камни собраны по участкам — далёкие участки не рисуются
 const ROCK_VIEW := 200.0
-const MOUNTAIN_VIEW := 450.0
 const WATER_SHADER := "res://shaders/water/water_mobile.gdshader"   # реалистичный читает глубину сцены — в GL Compatibility она недоступна
 
 func build() -> void:
@@ -25,7 +23,6 @@ func build() -> void:
 	_build_water()
 	_build_vegetation()
 	_build_rocks()
-	_build_mountains()
 	_build_campfire()
 	_build_entrances()
 	town_map = Town.build(self)
@@ -48,6 +45,8 @@ func _build_terrain() -> void:
 	mat.set_shader_parameter("detail", Mats.noise_texture("grain"))
 	mat.set_shader_parameter("macro", Mats.noise_texture("macro"))
 	mat.set_shader_parameter("rock", Mats.noise_texture("rock"))
+	# Склоны гор — камень со мхом с модели Mossy Stone Peak
+	mat.set_shader_parameter("mountain", load("res://textures/mountain_rock.jpg"))
 	for cj in range(0, seg, CHUNK):
 		for ci in range(0, seg, CHUNK):
 			var w := mini(CHUNK, seg - ci) + 1
@@ -257,36 +256,6 @@ func _build_rocks() -> void:
 		mmi.multimesh = mm
 		mmi.visibility_range_end = ROCK_VIEW
 		add_child(mmi)
-
-## Горы: модель горы на каждой вершине рельефа выше 35 м — вырастает из склона,
-## высота модели ~60% высоты вершины; столкновения — выпуклая оболочка модели
-func _build_mountains() -> void:
-	var md := _model_mesh(MOUNTAIN)
-	var box: AABB = md["aabb"]
-	var hull: PackedVector3Array = (md["mesh"] as Mesh).create_convex_shape(true, true).points
-	var body := StaticBody3D.new()
-	body.name = "Mountains"
-	add_child(body)
-	for pk in WorldGen.props.get("peaks", []):
-		var top: float = pk[2]
-		var h := clampf(top * 0.62, 24.0, 55.0)
-		var k := h / box.size.y
-		var bottom := top - h * 0.55
-		var tr := Transform3D(Basis(Vector3.UP, pk[3]).scaled(Vector3.ONE * k), Vector3(pk[0], bottom - box.position.y * k, pk[1])) * (md["local"] as Transform3D)
-		var mi := MeshInstance3D.new()
-		mi.mesh = md["mesh"]
-		mi.transform = tr
-		mi.visibility_range_end = MOUNTAIN_VIEW
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mi)
-		var pts := PackedVector3Array()
-		for v in hull:
-			pts.append(tr * v)
-		var shape := ConvexPolygonShape3D.new()
-		shape.points = pts
-		var cs := CollisionShape3D.new()
-		cs.shape = shape
-		body.add_child(cs)
 
 func _tree_collider(body: StaticBody3D, pos: Vector3, r: float) -> void:
 	var shape := CylinderShape3D.new()

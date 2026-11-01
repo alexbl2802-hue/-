@@ -21,7 +21,8 @@ bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD
   (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
 
 env — камни и горы: python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb
-  Mossy_Stone_Peak → mountain.glb (~12 тыс. треугольников, текстура 2048), большие камни
+  Mossy_Stone_Peak → godot/textures/mountain_rock.jpg — бесшовная текстура склонов всех гор
+  (из цветовой текстуры модели, края сведены со сдвинутой копией), большие камни
   Mossclad_Monolith → rock_big1.glb и Mossbound_Stone_Steps → rock_big2.glb, маленький
   Mossy_Stone_Outcrop → rock_small.glb (по ~2 тыс. треугольников, текстуры 1024/512).
 
@@ -451,8 +452,25 @@ def env_model(src, out_name, ratio, color, other, aggressive):
     write_glb(OUT / out_name, j, bld.blob)
 
 
+def mountain_texture(peak):
+    """Склоны гор как у модели горы: её цветовая текстура → бесшовная плитка 1024."""
+    j, b = read_glb(peak)
+    k = [i for i, r in image_roles(j).items() if r == "color"][0]
+    im = Image.open(io.BytesIO(view_bytes(j, b, j["images"][k]["bufferView"]))).convert("RGB")
+    a = np.asarray(im.resize((1024, 1024), Image.LANCZOS)).astype(np.float32)
+    n = a.shape[0]
+    y, x = np.mgrid[0:n, 0:n] / (n - 1)
+    w = np.clip(np.minimum(np.minimum(x, 1 - x), np.minimum(y, 1 - y)) / 0.18, 0, 1)[..., None]
+    w = w * w * (3 - 2 * w)
+    shifted = np.roll(np.roll(a, n // 2, 0), n // 2, 1)
+    out = ROOT / "godot/textures/mountain_rock.jpg"
+    out.parent.mkdir(exist_ok=True)
+    Image.fromarray((a * w + shifted * (1 - w)).clip(0, 255).astype(np.uint8)).save(out, quality=88)
+    print("→", out.relative_to(ROOT))
+
+
 def env(peak, monolith, steps, outcrop):
-    env_model(peak, "mountain.glb", 0.012, 2048, 1024, False)
+    mountain_texture(peak)
     env_model(monolith, "rock_big1.glb", 0.0009, 1024, 512, True)
     env_model(steps, "rock_big2.glb", 0.0012, 1024, 512, True)
     env_model(outcrop, "rock_small.glb", 0.0009, 1024, 512, True)

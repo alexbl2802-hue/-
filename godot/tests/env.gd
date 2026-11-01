@@ -38,7 +38,7 @@ func _ready() -> void:
 	cam.global_position = c2 + Vector3(0, 12, 0)
 	cam.look_at(c2 + Vector3(30, 0, -30))
 	await _shot(out + "rocks_field.png")
-	# Горы: с равнины на массив
+	# Горы: с равнины на массив и кольцо гор
 	for v in [[Vector3(40, 0, -150), Vector3(102, 60, -315), "mountains_1"], [Vector3(-250, 0, 150), Vector3(-392, 60, 182), "mountains_2"], [Vector3(0, 0, 60), Vector3(0, 40, 400), "mountains_3"]]:
 		var p: Vector3 = v[0]
 		p.y = maxf(WorldGen.ground_at(p.x, p.z), 0.0) + 6.0
@@ -46,6 +46,13 @@ func _ready() -> void:
 		cam.global_position = p
 		cam.look_at(v[1])
 		await _shot(out + v[2] + ".png")
+	# Склон горы вблизи
+	var sp := Vector3(60, 0, -250)
+	sp.y = WorldGen.ground_at(sp.x, sp.z) + 4.0
+	main.hero.global_position = sp
+	cam.global_position = sp
+	cam.look_at(Vector3(102, 70, -315))
+	await _shot(out + "mountain_slope.png")
 	# Вода: ищем озеро
 	var lake := Vector3.ZERO
 	for i in 4000:
