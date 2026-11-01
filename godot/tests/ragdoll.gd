@@ -67,7 +67,7 @@ func _ready() -> void:
 	g.hit(9999, Vector3(0, 0, 1))
 	_check("goblin ragdoll", g._ragdoll.active(), "")
 	var k := 0
-	for t in [6, 20, 50]:
+	for t in [6, 20, 50, 90]:
 		while k < t:
 			await get_tree().physics_frame
 			focus = hips.global_position - Vector3(0, 0.4, 0)
