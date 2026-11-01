@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+/godot/models/mountain_[0-9]*
+/godot/models/rock_big1_[0-9]*
+/godot/models/rock_big2_[0-9]*
+/godot/models/rock_small_[0-9]*

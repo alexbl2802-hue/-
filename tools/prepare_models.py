@@ -20,6 +20,11 @@ warden — герой Shadowwarden без меча (его единственн�
 bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD_PUNCH.glb KICK.glb DODGE.glb
   (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
 
+env — камни и горы: python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb
+  Mossy_Stone_Peak → mountain.glb (~12 тыс. треугольников, текстура 2048), большие камни
+  Mossclad_Monolith → rock_big1.glb и Mossbound_Stone_Steps → rock_big2.glb, маленький
+  Mossy_Stone_Outcrop → rock_small.glb (по ~2 тыс. треугольников, текстуры 1024/512).
+
 hero_skills — анимации умений героя: python3 tools/prepare_models.py hero_skills SKILL_03.glb JUMP_OVER_OBSTACLE.glb
   Skill_03 → «Whirl» (Вихрь: удар с разворотом, обрезается на полном обороте),
   Jump_Over_Obstacle → «DashJump» (Рывок: длинный прыжок). Обе переносятся на скелет героя
@@ -431,6 +436,28 @@ def bunny(guard, kick, dodge):
     write_glb(OUT / "bunny.glb", j, bld.blob)
 
 
+# ---------- Камни и горы (Meshy, статичные модели)
+def env_model(src, out_name, ratio, color, other, aggressive):
+    tmp = ROOT / ("tools/_" + out_name)
+    cmd = ["npx", "--yes", "gltfpack@0.22.0", "-i", str(src), "-o", str(tmp), "-si", str(ratio), "-noq", "-kn"]
+    if aggressive:
+        cmd.insert(-2, "-sa")   # швы текстуры не мешают упрощать — камню хватит ~2 тыс. треугольников
+    subprocess.run(cmd, check=True)
+    j, b = read_glb(tmp)
+    tmp.unlink()
+    imgs = shrink_textures(j, b, {"color": color, "attrib": other, "normal": other})
+    bld = rebuild(j, b, replace_image=imgs)
+    j["bufferViews"] = bld.views
+    write_glb(OUT / out_name, j, bld.blob)
+
+
+def env(peak, monolith, steps, outcrop):
+    env_model(peak, "mountain.glb", 0.012, 2048, 1024, False)
+    env_model(monolith, "rock_big1.glb", 0.0009, 1024, 512, True)
+    env_model(steps, "rock_big2.glb", 0.0012, 1024, 512, True)
+    env_model(outcrop, "rock_small.glb", 0.0009, 1024, 512, True)
+
+
 # ---------- Анимации умений героя (Вихрь, Рывок)
 def _hips_yaw(q):
     x, y, z, w = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
@@ -649,6 +676,8 @@ if __name__ == "__main__":
         warden(*sys.argv[2:6])
     elif sys.argv[1] == "bunny":
         bunny(*sys.argv[2:5])
+    elif sys.argv[1] == "env":
+        env(*sys.argv[2:6])
     elif sys.argv[1] == "hero_skills":
         hero_skills(*sys.argv[2:4])
     elif sys.argv[1] == "shadowclaw":

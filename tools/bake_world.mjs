@@ -205,6 +205,27 @@ const enemies = [];
     enemies.push(['goblin', r3(en.door[0] + en.dir[0] * 8 + en.dir[1] * side * 3.5), r3(en.door[1] + en.dir[1] * 8 - en.dir[0] * side * 3.5)]);
 }
 
+// ---------- Вершины гор: сюда ставится модель горы (Mossy Stone Peak)
+const peaks = [];
+{
+  const R = 10, cand = [];
+  for (let j = R; j < N - R; j++)
+    for (let i = R; i < N - R; i++) {
+      const v = heights[j * N + i];
+      if (v < 35) continue;
+      let top = true;
+      for (let b = -R; b <= R && top; b++)
+        for (let a = -R; a <= R; a++)
+          if (heights[(j + b) * N + i + a] > v) { top = false; break; }
+      if (top) cand.push([v, -HALF + i * STEP, -HALF + j * STEP]);
+    }
+  cand.sort((a, b) => b[0] - a[0]);
+  const pr = mulberry32(777);
+  for (const [v, x, z] of cand)
+    if (peaks.every(p => Math.hypot(p[0] - x, p[1] - z) > 55))
+      peaks.push([r3(x), r3(z), r3(v), r3(pr() * Math.PI * 2)]);
+}
+
 // ---------- Запись
 mkdirSync(OUT, { recursive: true });
 const head = new Int32Array([SEG]);
@@ -218,6 +239,7 @@ const props = {
   rocks: pack(rocks, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), t.c]),
   tufts: pack(tufts, t => [r3(t.x), r3(t.z), r3(t.h), r3(t.s), r3(t.rot), t.c]),
   enemies,
+  peaks,
 };
 writeFileSync(join(OUT, 'props.json'), JSON.stringify(props));
-console.log(`world.bin: ${N}×${N}, pines ${pines.length}, oaks ${oaks.length}, rocks ${rocks.length}, tufts ${tufts.length}, enemies ${enemies.length}`);
+console.log(`world.bin: ${N}×${N}, pines ${pines.length}, oaks ${oaks.length}, rocks ${rocks.length}, tufts ${tufts.length}, enemies ${enemies.length}, peaks ${peaks.length}`);

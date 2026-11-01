@@ -11,10 +11,21 @@ var _fire_light: OmniLight3D
 var _fire_flame: MeshInstance3D
 var _time := 0.0
 
+## Камни и горы — модели Meshy (tools/prepare_models.py env)
+const ROCK_SMALL := "res://models/rock_small.glb"                                  # Mossy Stone Outcrop
+const ROCK_BIG := ["res://models/rock_big1.glb", "res://models/rock_big2.glb"]    # Mossclad Monolith, Mossbound Stone Steps
+const MOUNTAIN := "res://models/mountain.glb"                                      # Mossy Stone Peak
+const ROCK_CHUNK := 120.0       # камни собраны по участкам — далёкие участки не рисуются
+const ROCK_VIEW := 200.0
+const MOUNTAIN_VIEW := 450.0
+const WATER_SHADER := "res://shaders/water/water_mobile.gdshader"   # реалистичный читает глубину сцены — в GL Compatibility она недоступна
+
 func build() -> void:
 	_build_terrain()
 	_build_water()
 	_build_vegetation()
+	_build_rocks()
+	_build_mountains()
 	_build_campfire()
 	_build_entrances()
 	town_map = Town.build(self)
@@ -87,14 +98,14 @@ func _build_terrain() -> void:
 	body.add_child(cs)
 	add_child(body)
 
+## Вода — мобильный шейдер воды с бликами и волнами (shaders/water)
 func _build_water() -> void:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(WorldGen.hex(0x2f7fae), 0.78)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.15
-	m.metallic = 0.1
+	var m := ShaderMaterial.new()
+	m.shader = load(WATER_SHADER)
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(WorldGen.WORLD * 1.6, WorldGen.WORLD * 1.6)
+	plane.subdivide_width = 160
+	plane.subdivide_depth = 160
 	var mi := MeshInstance3D.new()
 	mi.mesh = plane
 	mi.material_override = m
@@ -143,7 +154,6 @@ func _build_vegetation() -> void:
 	var white := Mats.lp(0xffffff)
 	var bark := Mats.lp(0xffffff, 0.95, 0.0, -1, 0.0, 0.45, 3.0)   # кора: шероховатая фактура
 	var leaves := Mats.lp(0xffffff, 0.9, 0.0, -1, 0.0, 0.28, 1.2)
-	var stone := Mats.lp(0xffffff, 0.95, 0.0, -1, 0.0, 0.4, 1.0)
 	var trunk_c := WorldGen.hex(0x6b4a2b)
 	var trunk := _cyl(0.22, 0.32, 1.0, 6)
 	var body := StaticBody3D.new()
@@ -180,21 +190,103 @@ func _build_vegetation() -> void:
 	var crown := _blob(1.9)
 	for k in 2:
 		_multimesh(crown, leaves, crowns[k])
-	# Камни: большие мешают пройти
-	var rocks := []
-	for r in p["rocks"]:
-		var s: float = r[3]
-		var pos := Vector3(r[0], r[2] + s * 0.3, r[1])
-		rocks.append([pos, r[4], Vector3(s * 1.2, s * 0.8, s), WorldGen.hex(int(r[5]))])
-		if s > 0.9:
-			_tree_collider(body, pos, s * 0.95)
-	_multimesh(_blob(1.0, 5, 2), stone, rocks)
 	# Трава
 	var tufts := []
 	for t in p["tufts"]:
 		var s: float = t[3]
 		tufts.append([Vector3(t[0], t[2] + 0.35 * s, t[1]), t[4], Vector3(s, s, s), WorldGen.hex(int(t[5]))])
 	_multimesh(_cyl(0.0, 0.25, 0.8, 3), white, tufts, false)
+
+## Сетка модели и её положение внутри файла (для MultiMesh и столкновений)
+func _model_mesh(path: String) -> Dictionary:
+	var sc: Node3D = (load(path) as PackedScene).instantiate()
+	var mi: MeshInstance3D = sc.find_children("*", "MeshInstance3D", true, false)[0]
+	var t := Transform3D()
+	var n: Node = mi
+	while n != sc:
+		t = (n as Node3D).transform * t
+		n = n.get_parent()
+	var mesh: Mesh = mi.mesh.duplicate()
+	sc.free()
+	# Камень не металл: у моделей Meshy материал помечен металлическим и блестит, как хром
+	for i in mesh.get_surface_count():
+		var m := mesh.surface_get_material(i)
+		if m is BaseMaterial3D:
+			m = m.duplicate()
+			m.metallic = 0.0
+			m.metallic_texture = null
+			m.roughness = maxf(m.roughness, 0.85)
+			mesh.surface_set_material(i, m)
+	return {"mesh": mesh, "local": t, "aabb": t * mesh.get_aabb()}
+
+## Камни: маленькие — Outcrop, большие — Monolith и Steps по очереди. Размер как у прежних камней,
+## низ чуть утоплен в землю; большие мешают пройти
+func _build_rocks() -> void:
+	var models := [_model_mesh(ROCK_SMALL), _model_mesh(ROCK_BIG[0]), _model_mesh(ROCK_BIG[1])]
+	var body := StaticBody3D.new()
+	body.name = "Rocks"
+	add_child(body)
+	var chunks := {}   # [ключ участка, модель] → [Transform3D]
+	var n_big := 0
+	for r in WorldGen.props["rocks"]:
+		var s: float = r[3]
+		var kind := 0
+		if s > 0.9:
+			kind = 1 + n_big % 2
+			n_big += 1
+		var md: Dictionary = models[kind]
+		var box: AABB = md["aabb"]
+		var k := 2.4 * s / maxf(box.size.x, box.size.z)
+		var y: float = r[2] - box.position.y * k - box.size.y * k * 0.15
+		var tr := Transform3D(Basis(Vector3.UP, r[4]).scaled(Vector3.ONE * k), Vector3(r[0], y, r[1])) * (md["local"] as Transform3D)
+		var key := Vector3i(floori(r[0] / ROCK_CHUNK), floori(r[1] / ROCK_CHUNK), kind)
+		if not chunks.has(key):
+			chunks[key] = []
+		chunks[key].append(tr)
+		if kind > 0:
+			_tree_collider(body, Vector3(r[0], r[2], r[1]), s * 1.0)
+	for key in chunks:
+		var list: Array = chunks[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = models[key.z]["mesh"]
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.visibility_range_end = ROCK_VIEW
+		add_child(mmi)
+
+## Горы: модель горы на каждой вершине рельефа выше 35 м — вырастает из склона,
+## высота модели ~60% высоты вершины; столкновения — выпуклая оболочка модели
+func _build_mountains() -> void:
+	var md := _model_mesh(MOUNTAIN)
+	var box: AABB = md["aabb"]
+	var hull: PackedVector3Array = (md["mesh"] as Mesh).create_convex_shape(true, true).points
+	var body := StaticBody3D.new()
+	body.name = "Mountains"
+	add_child(body)
+	for pk in WorldGen.props.get("peaks", []):
+		var top: float = pk[2]
+		var h := clampf(top * 0.62, 24.0, 55.0)
+		var k := h / box.size.y
+		var bottom := top - h * 0.55
+		var tr := Transform3D(Basis(Vector3.UP, pk[3]).scaled(Vector3.ONE * k), Vector3(pk[0], bottom - box.position.y * k, pk[1])) * (md["local"] as Transform3D)
+		var mi := MeshInstance3D.new()
+		mi.mesh = md["mesh"]
+		mi.transform = tr
+		mi.visibility_range_end = MOUNTAIN_VIEW
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+		var pts := PackedVector3Array()
+		for v in hull:
+			pts.append(tr * v)
+		var shape := ConvexPolygonShape3D.new()
+		shape.points = pts
+		var cs := CollisionShape3D.new()
+		cs.shape = shape
+		body.add_child(cs)
 
 func _tree_collider(body: StaticBody3D, pos: Vector3, r: float) -> void:
 	var shape := CylinderShape3D.new()
