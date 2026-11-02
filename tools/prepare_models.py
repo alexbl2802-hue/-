@@ -20,6 +20,8 @@ warden — герой Shadowwarden без меча (его единственн�
 bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD_PUNCH.glb KICK.glb DODGE.glb
   (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
 
+trees — деревья: python3 tools/prepare_models.py trees ember=EMBER.glb pine=EVERGREEN.glb ancient=ANCIENT.glb
+  → godot/models/tree_<имя>.glb (~4 тыс. треугольников) и tree_<имя>_far.glb (~600) для дальних деревьев.
 env — камни и горы: python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb
   Mossy_Stone_Peak → godot/textures/mountain_rock.jpg — бесшовная текстура склонов всех гор
   (из цветовой текстуры модели, края сведены со сдвинутой копией), большие камни
@@ -476,6 +478,25 @@ def env(peak, monolith, steps, outcrop):
     env_model(outcrop, "rock_small.glb", 0.0009, 1024, 512, True)
 
 
+# ---------- Деревья: модели Meshy (миллионы треугольников) → ближняя и дальняя версии
+def tree_models(src, name, near_tris=12000, far_tris=1500):
+    """tree_<name>.glb (~12 тыс. треугольников, текстуры 512/256) и tree_<name>_far.glb (~1,5 тыс., 256)."""
+    j, _ = read_glb(src)
+    total = 0
+    for m in j["meshes"]:
+        for p in m["primitives"]:
+            total += j["accessors"][p["indices"]]["count"] // 3
+    env_model(src, "tree_%s.glb" % name, near_tris / total, 512, 256, True)
+    env_model(src, "tree_%s_far.glb" % name, far_tris / total, 256, 128, True)
+
+
+def trees(*pairs):
+    """trees NAME=SRC.glb ...: например ember=Autumn_Ember_Tree.glb"""
+    for pr in pairs:
+        name, src = pr.split("=", 1)
+        tree_models(src, name)
+
+
 # ---------- Анимации умений героя (Вихрь, Рывок)
 def _hips_yaw(q):
     x, y, z, w = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
@@ -698,5 +719,7 @@ if __name__ == "__main__":
         env(*sys.argv[2:6])
     elif sys.argv[1] == "hero_skills":
         hero_skills(*sys.argv[2:4])
+    elif sys.argv[1] == "trees":
+        trees(*sys.argv[2:])
     elif sys.argv[1] == "shadowclaw":
         shadowclaw(*sys.argv[2:4])

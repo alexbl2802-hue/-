@@ -18,6 +18,98 @@ var _rock_nodes: Array = []
 func set_rock_view(d: float) -> void:
 	for n in _rock_nodes:
 		(n as GeometryInstance3D).visibility_range_end = d
+	for n in _tree_far_nodes:
+		(n as GeometryInstance3D).visibility_range_end = d * 1.4   # деревья видно дальше камней
+
+## Деревья: какие модели у каждого вида (первая найденная; если модели нет — берётся другая)
+const TREE_MODELS := {"pine": ["pine", "ember"], "oak": ["ember", "ancient"]}
+const PINE_HEIGHT := 9.0        # высота ели при размере 1 (м)
+const OAK_HEIGHT := 8.0
+const TREE_CHUNK := 40.0        # деревья собраны по участкам 40×40 м
+const TREE_NEAR := 75.0         # ближе — подробная модель, дальше — лёгкая
+var _tree_far_nodes: Array = []
+
+func _tree_path(name: String, far: bool) -> String:
+	return "res://models/tree_%s%s.glb" % [name, "_far" if far else ""]
+
+func _build_tree_models(placed: Dictionary) -> void:
+	# Какие модели есть
+	var avail := {}
+	for kind in TREE_MODELS:
+		var list := []
+		for nm in TREE_MODELS[kind]:
+			if ResourceLoader.exists(_tree_path(nm, false)) and not list.has(nm):
+				list.append(nm)
+		if kind == "oak" and list.is_empty() and ResourceLoader.exists(_tree_path("pine", false)):
+			list.append("pine")
+		avail[kind] = list
+	var meshes := {}
+	for kind in avail:
+		for nm in avail[kind]:
+			if not meshes.has(nm):
+				meshes[nm] = [_model_mesh(_tree_path(nm, false)), _model_mesh(_tree_path(nm, true)) if ResourceLoader.exists(_tree_path(nm, true)) else _model_mesh(_tree_path(nm, false))]
+	# Участки: [x, z, модель] → [Transform3D, цвет]
+	var chunks := {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for kind in placed:
+		var names: Array = avail[kind]
+		if names.is_empty():
+			continue
+		var n := 0
+		for it in placed[kind]:
+			var nm: String = names[n % names.size()]
+			n += 1
+			var md: Dictionary = meshes[nm][0]
+			var box: AABB = md["aabb"]
+			var k: float = it[2] / box.size.y
+			var pos: Vector3 = it[0]
+			var y: float = pos.y - box.position.y * k - 0.15
+			var tr := Transform3D(Basis(Vector3.UP, it[1]).scaled(Vector3.ONE * k), Vector3(pos.x, y, pos.z)) * (md["local"] as Transform3D)
+			var key := [floori(pos.x / TREE_CHUNK), floori(pos.z / TREE_CHUNK), nm]
+			if not chunks.has(key):
+				chunks[key] = []
+			var v := rng.randf_range(0.82, 1.08)   # деревья чуть разные по цвету
+			chunks[key].append([tr, Color(v, v * rng.randf_range(0.96, 1.04), v)])
+	for key in chunks:
+		var list: Array = chunks[key]
+		for far in [false, true]:
+			var md: Dictionary = meshes[key[2]][1 if far else 0]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.mesh = md["mesh"]
+			mm.instance_count = list.size()
+			for i in list.size():
+				# Дальняя модель — та же посадка, своё смещение внутри файла
+				var t0: Transform3D = list[i][0]
+				if far:
+					t0 = t0 * (meshes[key[2]][0]["local"] as Transform3D).affine_inverse() * (md["local"] as Transform3D)
+				mm.set_instance_transform(i, t0)
+				mm.set_instance_color(i, list[i][1])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.material_override = _tree_material(md["mesh"])
+			if far:
+				mmi.visibility_range_begin = TREE_NEAR
+				mmi.visibility_range_end = ROCK_VIEW
+				mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				_tree_far_nodes.append(mmi)
+			else:
+				mmi.visibility_range_end = TREE_NEAR
+			add_child(mmi)
+
+## Материал дерева: текстура модели × цвет экземпляра (лёгкая разница оттенков), не металл
+func _tree_material(mesh: Mesh) -> Material:
+	var m: Material = mesh.surface_get_material(0)
+	if m is BaseMaterial3D:
+		m = (m as BaseMaterial3D).duplicate()
+		(m as BaseMaterial3D).vertex_color_use_as_albedo = true
+		(m as BaseMaterial3D).metallic = 0.0
+		(m as BaseMaterial3D).roughness = 1.0
+		(m as BaseMaterial3D).metallic_specular = 0.15   # листья и кора матовые, без блеска
+		(m as BaseMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED   # листья видны с обеих сторон
+	return m
 
 ## Камни и горы — модели Meshy (tools/prepare_models.py env)
 const ROCK_SMALL := "res://models/rock_small.glb"                                  # Mossy Stone Outcrop
@@ -159,45 +251,24 @@ func _multimesh(mesh: Mesh, mat: Material, items: Array, shadow := true) -> void
 
 func _build_vegetation() -> void:
 	var p: Dictionary = WorldGen.props
-	var white := Mats.lp(0xffffff)
-	var bark := Mats.lp(0xffffff, 0.95, 0.0, -1, 0.0, 0.45, 3.0)   # кора: шероховатая фактура
-	var leaves: ShaderMaterial = Mats.lp(0xffffff, 0.9, 0.0, -1, 0.0, 0.28, 1.2).duplicate()
-	var trunk_c := WorldGen.hex(0x6b4a2b)
-	var trunk := _cyl(0.22, 0.32, 1.0, 6)
 	var body := StaticBody3D.new()
 	body.name = "Props"
 	add_child(body)
-	var trunks := []
-	var cones := [[], [], []]
-	var crowns := [[], []]
-	# Ели: ствол и три яруса конусов
-	# Нижний ярус ели начинается выше роста героя, ствол выше — под деревьями можно ходить
-	var layers := [[2.7, 1.0], [4.1, 0.8], [5.4, 0.58]]
+	# Деревья — модели Meshy (tools/prepare_models.py trees): ели — Evergreen Sentinel,
+	# лиственные — Autumn Ember и Ancient Woodland Guardian по очереди. Каждое дерево в двух
+	# версиях: подробная вблизи и лёгкая вдали; деревья собраны по участкам, далёкие не рисуются.
+	var placed := {"pine": [], "oak": []}   # [позиция, поворот, высота]
 	for t in p["pines"]:
 		var pos := Vector3(t[0], t[2], t[1])
 		var s: float = t[3] * TREE_SCALE
-		var rot: float = t[4]
-		trunks.append([pos + Vector3(0, -0.2 + 1.9 * s, 0), rot, Vector3(s, s * 3.8, s), trunk_c])
-		for l in 3:
-			var ls: float = layers[l][1] * s
-			cones[l].append([pos + Vector3(0, layers[l][0] * s + 1.6 * ls, 0), rot, Vector3(ls, ls, ls), WorldGen.hex(int(t[5 + l]))])
+		placed["pine"].append([pos, t[4], PINE_HEIGHT * s])
 		_tree_collider(body, pos, 0.3 * s)
-	# Лиственные: ствол и две кроны
 	for t in p["oaks"]:
 		var pos := Vector3(t[0], t[2], t[1])
 		var s: float = t[3] * TREE_SCALE
-		var rot: float = t[4]
-		trunks.append([pos + Vector3(0, -0.2 + 2.0 * s, 0), rot, Vector3(s * 1.1, s * 4.0, s * 1.1), trunk_c])
-		crowns[0].append([pos + Vector3(0, 5.3 * s, 0), rot, Vector3(s * 1.2, s, s * 1.2), WorldGen.hex(int(t[5]))])
-		crowns[1].append([pos + Vector3(0.6 * s, 6.3 * s, -0.3 * s), rot, Vector3(0.75 * s, 0.75 * s, 0.75 * s), WorldGen.hex(int(t[6]))])
+		placed["oak"].append([pos, t[4], OAK_HEIGHT * s])
 		_tree_collider(body, pos, 0.33 * s)
-	_multimesh(trunk, bark, trunks)
-	var cone := _cyl(0.0, 1.7, 3.2, 7)
-	for l in 3:
-		_multimesh(cone, leaves, cones[l])
-	var crown := _blob(1.9)
-	for k in 2:
-		_multimesh(crown, leaves, crowns[k])
+	_build_tree_models(placed)
 	# Трава
 	var tufts := []
 	for t in p["tufts"]:
@@ -206,8 +277,6 @@ func _build_vegetation() -> void:
 	var grass := ShaderMaterial.new()
 	grass.shader = load("res://shaders/grass.gdshader")
 	_multimesh(_grass_mesh(), grass, tufts, false)
-	# Кроны слегка качаются на ветру
-	leaves.set_shader_parameter("wind", 0.05)
 
 ## Пучок травы: семь тонких изогнутых травинок разной высоты, расходятся в стороны
 func _grass_mesh() -> ArrayMesh:
