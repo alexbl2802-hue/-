@@ -90,7 +90,7 @@ def main():
     ap.add_argument("--rig-task", default="")
     ap.add_argument("--actions", default="")
     ap.add_argument("--height", type=float, default=1.8)
-    ap.add_argument("--fps", type=int, default=30)
+    ap.add_argument("--fps", type=int, default=0)   # 0 — без пересчёта частоты кадров
     a = ap.parse_args()
     out_dir = ROOT / "meshy" / a.name
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -107,17 +107,25 @@ def main():
             for field, url in glb_urls(rig.get("result", rig)):
                 download(url, out_dir / ("rig_" + field.replace(".", "_") + ".glb"))
         (out_dir / "rig_task_id.txt").write_text(rig_id + "\n")
-        for act in [x.strip() for x in a.actions.split(",") if x.strip()]:
-            print("Анимация", act)
-            body = {"rig_task_id": rig_id, "action_id": int(act) if act.isdigit() else act}
+        # Движения — пачками до 10 (action_ids): Meshy отдаёт один файл, в нём клип на каждое движение
+        acts = [int(x) for x in a.actions.replace(" ", "").split(",") if x.strip()]
+        for i in range(0, len(acts), 10):
+            part = acts[i:i + 10]
+            print("Анимации", part)
+            body = {"rig_task_id": rig_id, "action_ids": part}
             if a.fps:
                 body["post_process"] = {"operation_type": "change_fps", "fps": a.fps}
             r = call("POST", "/animations", body)
             task_id = r.get("result") or r.get("id")
-            t = wait(f"/animations/{task_id}", f"анимация {act}")
-            urls = glb_urls(t.get("result", t))
-            for i, (field, url) in enumerate(urls):
-                download(url, out_dir / (f"anim_{act}" + ("" if len(urls) == 1 else "_" + field.replace(".", "_")) + ".glb"))
+            t = wait(f"/animations/{task_id}", f"анимации {part}")
+            res = t.get("result", t)
+            url = res.get("animation_glb_url") if isinstance(res, dict) else None
+            tag = "_".join(str(x) for x in part)
+            if url:
+                download(url, out_dir / f"anim_{tag}.glb")
+            else:
+                for field, u in glb_urls(res):
+                    download(u, out_dir / f"anim_{tag}_{field.replace('.', '_')}.glb")
     finally:
         (out_dir / "log.json").write_text(json.dumps(LOG, ensure_ascii=False, indent=1))
         print("Журнал ответов Meshy:", (out_dir / "log.json").relative_to(ROOT))
