@@ -57,6 +57,9 @@ func _ready() -> void:
 		sk.add_child(ba)
 		ba.bone_idx = PoseLib.bone(sk, nm2)
 		marks[nm2] = ba
+	if OS.get_environment("SPREAD") != "":
+		for arm in h._arm_axes:
+			h._arms_mod.set_angle(arm[0], arm[1], float(OS.get_environment("SPREAD")))
 	var cam := Camera3D.new()
 	cam.fov = 40
 	add_child(cam)

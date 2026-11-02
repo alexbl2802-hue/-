@@ -166,6 +166,7 @@ const WHIRL_TIME := 0.75
 const WHIRL_HIT := 0.5
 const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
+const ARMS_OUT_CALM := 0.12    # локти чуть отведены от тела всегда (кроме ударов и приёмов), рад
 const ARMS_OUT_WALK := 0.3     # насколько отводить руки от тела на бегу, рад
 const ARMS_OUT_RUN := 0.38
 var _sk: Skeleton3D
@@ -179,6 +180,7 @@ var _trail: SwordTrail
 var _arms_mod: PoseOffsets
 var _arm_axes := []
 var _arms_w := 0.0
+var _arms_calm := 0.0
 
 func _attach_character() -> void:
 	if not ResourceLoader.exists(CHAR_PATH):
@@ -511,7 +513,11 @@ func _spread_arms(running: bool) -> void:
 		return
 	var target := clampf(_speed_now / WALK, 0.0, 1.0) if running else 0.0
 	_arms_w = move_toward(_arms_w, target, get_physics_process_delta_time() * 5.0)
+	# Постоянное лёгкое отведение — только когда нет удара или приёма
+	var calm := attack_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _dash_t < 0.0 and _move != "horizontal" and not blocking
+	_arms_calm = move_toward(_arms_calm, ARMS_OUT_CALM if calm else 0.0, get_physics_process_delta_time() * 1.5)
 	var a := lerpf(ARMS_OUT_WALK, ARMS_OUT_RUN, clampf((_speed_now - WALK) / (RUN - WALK), 0.0, 1.0)) * _arms_w
+	a = maxf(a, _arms_calm)
 	for arm in _arm_axes:
 		_arms_mod.set_angle(arm[0], arm[1], a)
 

@@ -6,7 +6,7 @@ extends RefCounted
 
 ## Руки опущены вдоль тела, ноги прямо (исходная поза модели — руки разведены)
 const BASE := {
-	"LeftArm": Vector3(0, 15, -62), "RightArm": Vector3(0, -15, 62),
+	"LeftArm": Vector3(0, 15, -52), "RightArm": Vector3(0, -15, 52),
 	"LeftForeArm": Vector3(-10, 0, 0), "RightForeArm": Vector3(-10, 0, 0),
 }
 
@@ -28,8 +28,8 @@ static func stance_pose() -> Dictionary:
 		"Neck": Vector3(0, 6, 0), "Head": Vector3(4, 4, 0),
 		"LeftUpLeg": Vector3(-22, 18, 8), "LeftLeg": Vector3(26, 0, 0), "LeftFoot": Vector3(-4, 0, 0),
 		"RightUpLeg": Vector3(14, 18, -8), "RightLeg": Vector3(14, 0, 0), "RightFoot": Vector3(-26, 0, 0),
-		"RightArm": Vector3(-10, -10, 58), "RightForeArm": Vector3(-30, 0, 0),
-		"LeftArm": Vector3(-28, 10, -55), "LeftForeArm": Vector3(-45, 0, 0),
+		"RightArm": Vector3(-10, -10, 50), "RightForeArm": Vector3(-30, 0, 0),
+		"LeftArm": Vector3(-28, 10, -48), "LeftForeArm": Vector3(-45, 0, 0),
 	}
 const STANCE_SWORD := Vector3(-0.25, -0.75, 0.6)
 const STANCE_HIPS := Vector3(0, -0.09, 0)
@@ -38,7 +38,7 @@ static func stance() -> Array:
 	var p := stance_pose()
 	var p2 := p.duplicate()
 	p2["Spine2"] = Vector3(5, 4, 0)
-	p2["LeftArm"] = Vector3(-30, 10, -54)
+	p2["LeftArm"] = Vector3(-30, 10, -47)
 	return [
 		_k(0.0, p, STANCE_HIPS, STANCE_SWORD),
 		_k(1.2, p2, STANCE_HIPS + Vector3(0, -0.012, 0), STANCE_SWORD),
@@ -52,13 +52,13 @@ const WALK_SWORD := Vector3(-0.12, -0.2, 1.0)
 const RUN_SWORD := Vector3(-0.15, -0.25, 1.0)
 
 static func _arm_keys(length: float, arm_back: float, arm_fwd: float, elbow: float, sword: Vector3, left_swing := 0.0) -> Array:
-	var a := {"RightArm": Vector3(arm_back, -12, 58), "RightForeArm": Vector3(-elbow, 0, 0)}
-	var b := {"RightArm": Vector3(arm_fwd, -12, 58), "RightForeArm": Vector3(-elbow - 6, 0, 0)}
+	var a := {"RightArm": Vector3(arm_back, -12, 48), "RightForeArm": Vector3(-elbow, 0, 0)}
+	var b := {"RightArm": Vector3(arm_fwd, -12, 48), "RightForeArm": Vector3(-elbow - 6, 0, 0)}
 	if left_swing > 0.0:
 		# Левая рука опущена и качается в такт шагу (навстречу правой ноге)
-		a["LeftArm"] = Vector3(-left_swing, 12, -62)
+		a["LeftArm"] = Vector3(-left_swing, 12, -52)
 		a["LeftForeArm"] = Vector3(-18, 0, 0)
-		b["LeftArm"] = Vector3(left_swing, 12, -62)
+		b["LeftArm"] = Vector3(left_swing, 12, -52)
 		b["LeftForeArm"] = Vector3(-10, 0, 0)
 	return [_k(0.0, a, Vector3.ZERO, sword), _k(length * 0.5, b, Vector3.ZERO, sword), _k(length, a, Vector3.ZERO, sword)]
 
