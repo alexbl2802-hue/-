@@ -21,6 +21,10 @@ on:
       height:
         description: "Рост персонажа, м"
         default: "1.8"
+      docs_only:
+        description: "Только скачать документацию Meshy (список движений) в meshy/docs — без кредитов"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -35,7 +39,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Meshy docs (animation library)
+        if: inputs.docs_only
+        run: |
+          mkdir -p meshy/docs
+          cd meshy/docs
+          for u in \
+            https://docs.meshy.ai/llms.txt \
+            https://docs.meshy.ai/llms-full.txt \
+            https://docs.meshy.ai/en/api/rigging-and-animation \
+            https://docs.meshy.ai/en/api/animation-library \
+            https://docs.meshy.ai/en/api/rigging \
+            https://docs.meshy.ai/en/api/animation \
+            https://docs.meshy.ai/en/api/quick-start \
+            https://docs.meshy.ai/api/animation-library \
+            https://docs.meshy.ai/api/rigging-and-animation; do
+            f=$(echo "$u" | sed 's#https://##; s#[/]#_#g')
+            code=$(curl -sL -A "Mozilla/5.0" -o "$f" -w "%{http_code}" "$u" || echo 000)
+            echo "$code $u" | tee -a index.txt
+            [ "$code" = "200" ] || rm -f "$f"
+          done
+          # Ссылки из llms.txt на страницы про анимации — тоже скачать (markdown-версии)
+          if [ -f docs.meshy.ai_llms.txt ]; then
+            grep -oE 'https://docs\.meshy\.ai[^) ]*' docs.meshy.ai_llms.txt | grep -iE 'anim|rig' | sort -u | head -20 | while read -r u; do
+              f=$(echo "$u" | sed 's#https://##; s#[/]#_#g')
+              code=$(curl -sL -A "Mozilla/5.0" -o "$f" -w "%{http_code}" "$u" || echo 000)
+              echo "$code $u" | tee -a index.txt
+              [ "$code" = "200" ] || rm -f "$f"
+            done
+          fi
+          ls -la
+
       - name: Fetch from Meshy
+        if: ${{ !inputs.docs_only }}
         env:
           MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
           IN_NAME: ${{ inputs.name }}
