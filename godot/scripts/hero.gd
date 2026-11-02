@@ -157,6 +157,7 @@ const GRIP_TILT := 10.0      # наклон клинка от поперечно
 const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
 const A_STANCE := "Combat_Stance"   # боевая стойка с мечом — анимация модели Shadowwarden
+const STANCE_LEFT_ARM_DOWN := 10.0  # в стойке левая рука опущена ниже, чем в анимации, градусы
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
@@ -202,6 +203,7 @@ func _attach_character() -> void:
 			_anim.get_animation(n).loop_mode = Animation.LOOP_NONE
 	if _anim.has_animation(A_STANCE):
 		_anim.get_animation(A_STANCE).loop_mode = Animation.LOOP_LINEAR
+		_tilt_arm(_anim.get_animation(A_STANCE), _char.find_children("*", "Skeleton3D", true, false)[0], "LeftArm", STANCE_LEFT_ARM_DOWN)
 	_has_idle = _anim.has_animation(A_IDLE)
 	if _has_idle:
 		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
@@ -314,6 +316,23 @@ func _fist_grip(sk: Skeleton3D, anim: Animation, hg: HandGrip) -> Array:
 		c += p
 	c /= pts.size()
 	return [c, (knuckle["Index"] - knuckle["Pinky"]).normalized()]
+
+## Опустить руку в анимации на угол (градусы): поворот плеча вниз вокруг оси «вперёд»
+## персонажа, переведённой в систему родителя (ключицы) — во всех кадрах
+func _tilt_arm(anim: Animation, sk: Skeleton3D, suffix: String, deg: float) -> void:
+	var b := PoseLib.bone(sk, suffix)
+	if b < 0:
+		return
+	var p := sk.get_bone_parent(b)
+	var pg := sk.get_bone_global_rest(p).basis.orthonormalized() if p >= 0 else Basis()
+	# Левая рука опускается поворотом вокруг оси назад (+Z в системе ключицы) на +угол, правая — на −угол
+	var sgn := 1.0 if suffix.begins_with("Left") else -1.0
+	var axis := (pg.inverse() * Vector3.BACK).normalized()
+	var q := Quaternion(axis, deg_to_rad(deg) * sgn)
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) == Animation.TYPE_ROTATION_3D and String(anim.track_get_path(t)).get_slice(":", 1) == sk.get_bone_name(b):
+			for k in anim.track_get_key_count(t):
+				anim.track_set_key_value(t, k, q * (anim.track_get_key_value(t, k) as Quaternion))
 
 ## Модели клинков: у всех клинок по −Y, середина рукояти на y ≈ 0,65, ширина по X.
 ## Переворачиваем клинком вверх и ставим серединой рукояти в начало хвата.
