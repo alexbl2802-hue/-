@@ -56,12 +56,7 @@ func _build_terrain() -> void:
 	for j in _n:
 		for i in _n:
 			_heights[j * _n + i] = height_at(-half + i * STEP, -half + j * STEP)
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://shaders/terrain.gdshader")
-	mat.set_shader_parameter("detail", Mats.noise_texture("grain"))
-	mat.set_shader_parameter("macro", Mats.noise_texture("macro"))
-	mat.set_shader_parameter("rock", Mats.noise_texture("rock"))
-	mat.set_shader_parameter("mountain", load("res://textures/mountain_rock.jpg"))
+	var mat := Mats.terrain()
 	# Куски сетки по 40×40 клеток
 	var chunk := 40
 	for cj in range(0, _n - 1, chunk):
@@ -70,6 +65,7 @@ func _build_terrain() -> void:
 			var d := mini(chunk, _n - 1 - cj) + 1
 			var verts := PackedVector3Array()
 			var cols := PackedColorArray()
+			var norms := PackedVector3Array()
 			var idx := PackedInt32Array()
 			for j in d:
 				for i in w:
@@ -80,6 +76,11 @@ func _build_terrain() -> void:
 					var y := _heights[gj * _n + gi]
 					verts.append(Vector3(x, y, z))
 					cols.append(_ground_color(x, z, y))
+					var hl := _heights[gj * _n + maxi(gi - 1, 0)]
+					var hr := _heights[gj * _n + mini(gi + 1, _n - 1)]
+					var hd := _heights[maxi(gj - 1, 0) * _n + gi]
+					var hu := _heights[mini(gj + 1, _n - 1) * _n + gi]
+					norms.append(Vector3(hl - hr, 2.0 * STEP, hd - hu).normalized())
 			for j in d - 1:
 				for i in w - 1:
 					var a := j * w + i
@@ -88,6 +89,7 @@ func _build_terrain() -> void:
 			arrays.resize(Mesh.ARRAY_MAX)
 			arrays[Mesh.ARRAY_VERTEX] = verts
 			arrays[Mesh.ARRAY_COLOR] = cols
+			arrays[Mesh.ARRAY_NORMAL] = norms
 			arrays[Mesh.ARRAY_INDEX] = idx
 			var mesh := ArrayMesh.new()
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
@@ -109,7 +111,7 @@ func _build_terrain() -> void:
 ## Цвет земли: золотая трава, рыжая на холмах, серый камень на гребнях
 func _ground_color(x: float, z: float, y: float) -> Color:
 	var v := _detail.get_noise_2d(x * 2.0, z * 2.0) * 0.5 + 0.5
-	var grass := Color8(186, 168, 74).lerp(Color8(140, 150, 60), v)
+	var grass := Color8(118, 160, 58).lerp(Color8(86, 140, 46), v)
 	var hill := Color8(176, 120, 58)
 	var rock := Color8(128, 122, 116)
 	var c := grass.lerp(hill, smoothstep(14.0, 26.0, y) * 0.7)

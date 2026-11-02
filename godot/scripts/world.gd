@@ -134,7 +134,7 @@ const ROCK_CHUNK := 50.0        # камни собраны по участка�
 const ROCK_NEAR := 50.0         # ближе — подробная версия (~40 тыс. треугольников)
 const ROCK_MID := 130.0         # до сюда — средняя (~6 тыс.), дальше — простая (~1 тыс.)
 const ROCK_VIEW := 200.0
-const WATER_SHADER := "res://shaders/water/water_mobile.gdshader"   # реалистичный читает глубину сцены — в GL Compatibility она недоступна
+const WATER_SHADER := "res://shaders/water/water_lake.gdshader"   # глубина у берега — из карты высот рельефа
 
 func build() -> void:
 	_build_terrain()
@@ -159,13 +159,7 @@ func _build_terrain() -> void:
 	var step := WorldGen.step
 	var h := WorldGen.heights
 	var c := WorldGen.colors
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://shaders/terrain.gdshader")
-	mat.set_shader_parameter("detail", Mats.noise_texture("grain"))
-	mat.set_shader_parameter("macro", Mats.noise_texture("macro"))
-	mat.set_shader_parameter("rock", Mats.noise_texture("rock"))
-	# Склоны гор — камень со мхом с модели Mossy Stone Peak
-	mat.set_shader_parameter("mountain", load("res://textures/mountain_rock.jpg"))
+	var mat := Mats.terrain()
 	for cj in range(0, seg, CHUNK):
 		for ci in range(0, seg, CHUNK):
 			var w := mini(CHUNK, seg - ci) + 1
@@ -186,7 +180,12 @@ func _build_terrain() -> void:
 					var z := -WorldGen.HALF + gj * step
 					verts[j * w + i] = Vector3(x, h[k], z)
 					cols[j * w + i] = Color8(c[k * 3], c[k * 3 + 1], c[k * 3 + 2])
-					norms[j * w + i] = Vector3.UP
+					# Гладкая нормаль по соседним высотам
+					var hl := h[gj * n + maxi(gi - 1, 0)]
+					var hr := h[gj * n + mini(gi + 1, seg)]
+					var hd := h[maxi(gj - 1, 0) * n + gi]
+					var hu := h[mini(gj + 1, seg) * n + gi]
+					norms[j * w + i] = Vector3(hl - hr, 2.0 * step, hd - hu).normalized()
 			for j in d - 1:
 				for i in w - 1:
 					var a := j * w + i
@@ -220,6 +219,14 @@ func _build_terrain() -> void:
 func _build_water() -> void:
 	var m := ShaderMaterial.new()
 	m.shader = load(WATER_SHADER)
+	m.set_shader_parameter("normal_tex", load("res://textures/water_normal.png"))
+	# Карта высот рельефа — по ней вода знает глубину: у берега светлее, прозрачнее, с пеной
+	var n := WorldGen.seg + 1
+	var img := Image.create_from_data(n, n, false, Image.FORMAT_RF, WorldGen.heights.to_byte_array())
+	m.set_shader_parameter("height_tex", ImageTexture.create_from_image(img))
+	m.set_shader_parameter("height_rect", Vector4(-WorldGen.HALF, -WorldGen.HALF, WorldGen.WORLD, WorldGen.WORLD))
+	m.set_shader_parameter("use_height", true)
+	m.set_shader_parameter("water_y", WorldGen.WATER)
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(WorldGen.WORLD * 1.6, WorldGen.WORLD * 1.6)
 	plane.subdivide_width = 160

@@ -25,6 +25,23 @@ static func lp(color: int, rough := 0.9, metal := 0.0, emit := -1, emit_energy :
 	_cache[key] = m
 	return m
 
+## Материал рельефа: газон, земля, камень гор (shaders/terrain.gdshader, textures/*)
+static func terrain() -> ShaderMaterial:
+	if _cache.has("terrain"):
+		return _cache["terrain"]
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/terrain.gdshader")
+	mat.set_shader_parameter("detail", noise_texture("grain"))
+	mat.set_shader_parameter("macro", noise_texture("macro"))
+	mat.set_shader_parameter("rock", noise_texture("rock"))
+	mat.set_shader_parameter("mountain", load("res://textures/mountain_rock.jpg"))
+	mat.set_shader_parameter("grass_tex", load("res://textures/grass_albedo.png"))
+	mat.set_shader_parameter("grass_nrm", load("res://textures/grass_normal.png"))
+	mat.set_shader_parameter("dirt_tex", load("res://textures/dirt_albedo.png"))
+	mat.set_shader_parameter("dirt_nrm", load("res://textures/dirt_normal.png"))
+	_cache["terrain"] = mat
+	return mat
+
 ## Бесшовные шумовые текстуры для детализации (генерируются движком один раз)
 static func noise_texture(kind: String) -> NoiseTexture2D:
 	var key := "noise_" + kind
