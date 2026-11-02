@@ -726,9 +726,8 @@ func _horizontal_hit() -> void:
 	if hits > 0:
 		_finisher_fx()
 
-## Последний удар серии: короткое замедление и тряска камеры
+## Последний удар серии: тряска камеры
 func _finisher_fx() -> void:
-	TimeFx.slowmo(0.22)
 	if rig and rig.has_method("shake"):
 		rig.shake(0.09, 0.25)
 
@@ -915,14 +914,13 @@ func _sword_hit() -> void:
 
 var _finisher_landed := false
 
-## Урон с учётом навыков «Критический удар» и «Вампиризм»; попадание — стоп-кадр
+## Урон с учётом навыков «Критический удар» и «Вампиризм»
 func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 	var dmg := roundi((Game.dmg + randf() * 8.0) * mult)
 	var crit: bool = randf() < Game.rank("crit") * 0.08 + Game.crit_bonus + _wt()["crit"] + Game.stats["agi"] * Game.STAT_AGI_CRIT
 	if crit:
 		dmg *= 2
 	e.hit(dmg, dir, crit)
-	TimeFx.hitstop(0.07 if crit else 0.045)
 	var vamp := Game.rank("vamp") * 0.04
 	if vamp > 0.0 and not dead:
 		Game.hp = minf(Game.max_hp, Game.hp + dmg * vamp)

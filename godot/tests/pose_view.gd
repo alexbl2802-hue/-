@@ -34,6 +34,11 @@ func _ready() -> void:
 			l.mesh = b
 			l.position = Vector3(0, 0.005, i * 0.5) if axis == 0 else Vector3(i * 0.5, 0.005, 0)
 			add_child(l)
+	# Без снаряжения (щит закрывал бы руку) и с замером отклонения клинка
+	for k in Game.equip:
+		if k != "weapon":
+			Game.equip[k] = null
+	PoseLib.aim_log = true
 	var h: CharacterBody3D = preload("res://scripts/hero.gd").new()
 	add_child(h)
 	await get_tree().process_frame
@@ -65,10 +70,15 @@ func _ready() -> void:
 				ap.speed_scale = 0.0
 				ap.seek(t, true, true)
 				if view == "side":
-					cam.global_position = Vector3(-4.2, 1.1, -0.3)
+					cam.global_position = Vector3(4.2, 1.1, -0.3)
 				else:
 					cam.global_position = Vector3(-1.2, 1.2, -4.0)
 				cam.look_at(Vector3(0, 0.9, 0))
+				if OS.get_environment("ZOOM") != "":
+					# Крупно: кисть с мечом
+					var hp: Vector3 = sk.global_transform * sk.get_bone_global_pose(PoseLib.bone(sk, "RightHand")).origin
+					cam.global_position = hp + (Vector3(0.9, 0.2, -0.1) if view == "side" else Vector3(-0.3, 0.2, -0.9))
+					cam.look_at(hp)
 				for i in 3:
 					await get_tree().process_frame
 				if view == "side":

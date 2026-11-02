@@ -28,10 +28,10 @@ static func stance_pose() -> Dictionary:
 		"Neck": Vector3(0, 6, 0), "Head": Vector3(4, 4, 0),
 		"LeftUpLeg": Vector3(-22, 18, 8), "LeftLeg": Vector3(26, 0, 0), "LeftFoot": Vector3(-4, 0, 0),
 		"RightUpLeg": Vector3(14, 18, -8), "RightLeg": Vector3(14, 0, 0), "RightFoot": Vector3(-26, 0, 0),
-		"RightArm": Vector3(-20, -10, 64), "RightForeArm": Vector3(-35, 0, 0),
-		"LeftArm": Vector3(-28, 10, -55), "LeftForeArm": Vector3(-45, 20, 0),
+		"RightArm": Vector3(-10, -10, 58), "RightForeArm": Vector3(-30, 0, 0),
+		"LeftArm": Vector3(-28, 10, -55), "LeftForeArm": Vector3(-45, 0, 0),
 	}
-const STANCE_SWORD := Vector3(-0.3, -1, 0.6)
+const STANCE_SWORD := Vector3(-0.25, -0.75, 0.6)
 const STANCE_HIPS := Vector3(0, -0.09, 0)
 
 static func stance() -> Array:
@@ -52,23 +52,23 @@ static func walk() -> Array:
 		"LeftUpLeg": Vector3(-26, 0, 0), "LeftLeg": Vector3(6, 0, 0), "LeftFoot": Vector3(14, 0, 0),
 		"RightUpLeg": Vector3(16, 0, 0), "RightLeg": Vector3(12, 0, 0), "RightFoot": Vector3(-24, 0, 0),
 		"LeftArm": Vector3(18, 15, -64), "LeftForeArm": Vector3(-12, 0, 0),
-		"RightArm": Vector3(-14, -15, 64), "RightForeArm": Vector3(-25, 0, 0),
+		"RightArm": Vector3(4, -15, 58), "RightForeArm": Vector3(-12, 0, 0),
 	}
 	var passing := {
 		"Spine": Vector3(4, 0, 0), "Spine2": Vector3(0, 0, 0),
 		"LeftUpLeg": Vector3(2, 0, 0), "LeftLeg": Vector3(6, 0, 0), "LeftFoot": Vector3(-8, 0, 0),
 		"RightUpLeg": Vector3(-20, 0, 0), "RightLeg": Vector3(48, 0, 0), "RightFoot": Vector3(-14, 0, 0),
 		"LeftArm": Vector3(0, 15, -64), "LeftForeArm": Vector3(-12, 0, 0),
-		"RightArm": Vector3(-4, -15, 64), "RightForeArm": Vector3(-25, 0, 0),
+		"RightArm": Vector3(8, -15, 58), "RightForeArm": Vector3(-12, 0, 0),
 	}
-	var sw := Vector3(-0.25, -1, -0.35)
+	var sw := Vector3(-0.15, -0.8, 0.55)   # меч опущен вдоль ноги, остриём вниз-вперёд
 	var m_contact := PoseLib.mirror(contact)
 	var m_passing := PoseLib.mirror(passing)
 	# Рука с мечом качается меньше: зеркальная поза — со своим положением правой руки
-	m_contact["RightArm"] = Vector3(-6, -15, 64)
-	m_contact["RightForeArm"] = Vector3(-25, 0, 0)
-	m_passing["RightArm"] = Vector3(-6, -15, 64)
-	m_passing["RightForeArm"] = Vector3(-25, 0, 0)
+	m_contact["RightArm"] = Vector3(10, -15, 58)
+	m_contact["RightForeArm"] = Vector3(-12, 0, 0)
+	m_passing["RightArm"] = Vector3(8, -15, 58)
+	m_passing["RightForeArm"] = Vector3(-12, 0, 0)
 	return [
 		_k(0.0, contact, Vector3(0, -0.035, 0), sw),
 		_k(0.25, passing, Vector3(0, 0.0, 0), sw),
@@ -84,23 +84,23 @@ static func run() -> Array:
 		"LeftUpLeg": Vector3(-38, 0, 0), "LeftLeg": Vector3(18, 0, 0), "LeftFoot": Vector3(10, 0, 0),
 		"RightUpLeg": Vector3(26, 0, 0), "RightLeg": Vector3(55, 0, 0), "RightFoot": Vector3(-30, 0, 0),
 		"LeftArm": Vector3(30, 10, -62), "LeftForeArm": Vector3(-70, 0, 0),
-		"RightArm": Vector3(40, -10, 52), "RightForeArm": Vector3(-15, 0, 0),
+		"RightArm": Vector3(28, -10, 50), "RightForeArm": Vector3(-10, 0, 0),
 	}
 	var flight := {
 		"Spine": Vector3(18, 0, 0), "Spine1": Vector3(6, 0, 0), "Neck": Vector3(-14, 0, 0), "Head": Vector3(-6, 0, 0),
 		"LeftUpLeg": Vector3(4, 0, 0), "LeftLeg": Vector3(30, 0, 0), "LeftFoot": Vector3(-20, 0, 0),
 		"RightUpLeg": Vector3(-48, 0, 0), "RightLeg": Vector3(95, 0, 0), "RightFoot": Vector3(-10, 0, 0),
 		"LeftArm": Vector3(0, 10, -62), "LeftForeArm": Vector3(-80, 0, 0),
-		"RightArm": Vector3(42, -10, 52), "RightForeArm": Vector3(-15, 0, 0),
+		"RightArm": Vector3(30, -10, 50), "RightForeArm": Vector3(-10, 0, 0),
 	}
 	var m_contact := PoseLib.mirror(contact)
 	var m_flight := PoseLib.mirror(flight)
 	m_contact["LeftArm"] = Vector3(-45, 10, -55)
 	m_flight["LeftArm"] = Vector3(-20, 10, -60)
 	for m in [m_contact, m_flight]:
-		m["RightArm"] = Vector3(44, -10, 52)
-		m["RightForeArm"] = Vector3(-15, 0, 0)
-	var sw := Vector3(-0.35, -0.25, -1)
+		m["RightArm"] = Vector3(32, -10, 50)
+		m["RightForeArm"] = Vector3(-10, 0, 0)
+	var sw := Vector3(-0.2, -0.85, 0.45)   # меч опущен вниз сбоку, остриём вниз-вперёд
 	return [
 		_k(0.0, contact, Vector3(0, -0.06, 0), sw),
 		_k(0.17, flight, Vector3(0, 0.0, 0), sw),
@@ -372,5 +372,7 @@ static func library(sk: Skeleton3D, ref: Animation, ref_t: float, prefix: String
 	var moves := all()
 	for name in moves:
 		var m: Array = moves[name]
+		if PoseLib.aim_log:
+			print(name)
 		lib.add_animation(name, PoseLib.build(sk, m[0], BASE, m[1], m[2], ref, ref_t, prefix, blade))
 	return lib

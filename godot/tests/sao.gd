@@ -1,5 +1,5 @@
 ## Движения в стиле игры про мечника: стойка, шаг и бег, уклонения, Switch, реакции,
-## «Горизонталь», след клинка, стоп-кадр, замедление, осколки при смерти монстра.
+## «Горизонталь», след клинка, осколки при смерти монстра (замедлений времени нет).
 ## Запуск: godot --path godot res://tests/sao.tscn -- <папка>
 extends Node
 
@@ -24,7 +24,6 @@ func _frames(n: int) -> void:
 
 func _ready() -> void:
 	out = OS.get_cmdline_user_args()[0] + "/"
-	TimeFx.enabled = true   # здесь проверяем стоп-кадр и замедление
 	Game.bosses = []
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
@@ -147,13 +146,10 @@ func _ready() -> void:
 	h.use_horizontal()
 	_check("horizontal started", h._move == "horizontal", h._move)
 	var trail_seen := false
-	var slow_seen := false
 	for i in 50:
 		await get_tree().physics_frame
 		if h._trail.emitting:
 			trail_seen = true
-		if Engine.time_scale < 0.99:
-			slow_seen = true
 		if i == 24:
 			await _shot("horizontal")
 	var hit_n := 0
@@ -164,7 +160,7 @@ func _ready() -> void:
 			hit_n += 1
 	_check("horizontal hits all in front", hit_n == targets.size(), "%d/%d" % [hit_n, targets.size()])
 	_check("sword trail", trail_seen, "")
-	_check("hitstop/slowmo", slow_seen, "")
+	_check("no slow-motion", is_equal_approx(Engine.time_scale, 1.0), str(Engine.time_scale))
 	await _frames(40)
 	_check("time back to normal", is_equal_approx(Engine.time_scale, 1.0), str(Engine.time_scale))
 	# Осколки при смерти
