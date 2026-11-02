@@ -9,7 +9,9 @@ var rig: Node3D
 var hud: CanvasLayer
 var enemies: Node3D
 var loot: Node3D
-var mode := -1          # -1 — поверхность, 0/1 — подземелье
+var mode := -1          # -1 — поверхность, -2 — второй мир (Плато ветров), 0… — подземелья и этажи
+const WORLD2 := -2
+var world2: Node3D
 var _env: Environment
 var _sun: DirectionalLight3D
 var _hero_light: OmniLight3D
@@ -63,6 +65,12 @@ func _ready() -> void:
 	enemies.spawn_all()
 	for d in dungeons:
 		enemies.spawn_dungeon(d)
+	# Второй мир над вершиной башни
+	world2 = preload("res://scripts/world2.gd").new()
+	add_child(world2)
+	world2.build()
+	world2.visible = false
+	enemies.spawn_world2(world2)
 	hero.enemies = enemies
 
 	rig = preload("res://scripts/camera_rig.gd").new()
@@ -210,10 +218,16 @@ func apply_settings() -> void:
 func _set_mode(m: int) -> void:
 	mode = m
 	hero.underground = m >= 0
-	world.visible = m < 0
+	world.visible = m == -1
+	if world2:
+		world2.visible = m == WORLD2
+	hud.minimap.visible = m != WORLD2   # у плато пока нет карты
+	hero.in_world2 = m == WORLD2
+	# Костёр, у которого герой отдыхает (лечится быстрее)
+	hero.campfire_pos = world2.campfire_pos + world2.ORIGIN if m == WORLD2 and world2 else world.campfire.position
 	for i in dungeons.size():
 		dungeons[i].visible = i == m
-	_apply_env(m)
+	_apply_env(-1 if m == WORLD2 else m)
 	if day_night:
 		day_night.surface = m < 0
 		day_night.apply()
@@ -235,7 +249,7 @@ func enter_dungeon(i: int) -> void:
 		enemies.reset_all()
 		if d.tower:
 			d.set_gate(false)
-			d.set_stairs(enemies.boss_beaten(i) and d.def["floor"] < DungeonDefs.TOWER.size())
+			d.set_stairs(enemies.boss_beaten(i))
 		hero.busy = false
 		hud.banner(d.def["name"], d.def["sub"]))
 
@@ -253,6 +267,36 @@ func exit_dungeon() -> void:
 		hero.busy = false
 		hud.banner("Долина", "Снова под открытым небом"))
 
+## Второй мир: с вершины башни — на Плато ветров, к порталу в деревне
+func enter_world2() -> void:
+	hero.busy = true
+	hud.fade(func():
+		_set_mode(WORLD2)
+		hero.global_position = world2.start_pos + world2.ORIGIN
+		hero.velocity = Vector3.ZERO
+		hero.facing = PI
+		rig.yaw = hero.facing + PI
+		rig.pitch = 0.35
+		rig.snap()
+		enemies.reset_all()
+		hero.busy = false
+		hud.banner(world2.NAME, "Новый мир над вершиной башни. Здесь живут новые чудовища"))
+
+## Из второго мира — порталом к подножию башни
+func leave_world2() -> void:
+	hero.busy = true
+	var e: Dictionary = world.tower
+	hud.fade(func():
+		_set_mode(-1)
+		var p: Vector3 = e["door"] + e["dir"] * 4.0
+		hero.global_position = Vector3(p.x, WorldGen.ground_at(p.x, p.z) + 0.2, p.z)
+		hero.velocity = Vector3.ZERO
+		hero.facing = atan2(e["dir"].x, e["dir"].z)
+		rig.yaw = hero.facing + PI
+		rig.snap()
+		hero.busy = false
+		hud.banner("Долина", "Портал вернул тебя к подножию башни"))
+
 ## Этаж башни (с 1): вход снизу или подъём по лестнице с предыдущего этажа
 func enter_floor(f: int) -> void:
 	enter_dungeon(DungeonDefs.floor_index(f))
@@ -261,11 +305,11 @@ func _on_boss_killed(e: Node3D) -> void:
 	var d: Node3D = dungeons[e.dungeon_idx]
 	if d.tower:
 		d.set_gate(false)
-		d.set_stairs(d.def["floor"] < DungeonDefs.TOWER.size())
+		d.set_stairs(true)
 		if d.def["floor"] < DungeonDefs.TOWER.size():
 			hud.banner("%s повержен!" % e.T["name"], "Ворота открыты · путь на этаж %d свободен" % (d.def["floor"] + 1))
 		else:
-			hud.banner("%s повержен!" % e.T["name"], "Башня покорена! Ты — Покоритель башни")
+			hud.banner("%s повержен!" % e.T["name"], "Башня покорена! Лестница ведёт в новый мир — %s" % world2.NAME)
 	else:
 		hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт")
 
@@ -275,7 +319,7 @@ func open_chest(i: int) -> void:
 	Game.chests.append(i)
 	var c: Vector3 = d.chest["pos"]
 	loot.drop("gold", randi_range(40, 64), c)
-	loot.drop("potion", 2, c)
+	loot.drop("essence", 4, c)
 	loot.drop("shard", randi_range(3, 5), c)
 	for id in d.def["chest_loot"]:
 		loot.drop(id, 1, c)
@@ -334,7 +378,23 @@ func _process(_dt: float) -> void:
 	var text := ""
 	_act = Callable()
 	if not hero.busy and not hero.dead:
-		if mode < 0:
+		if mode == WORLD2:
+			var o: Vector3 = world2.ORIGIN
+			if Vector2(p.x - o.x - world2.portal_pos.x, p.z - o.z - world2.portal_pos.z).length() < 3.0:
+				text = "Спуститься к подножию башни"
+				_act = leave_world2
+			if Vector2(p.x - o.x - world2.forge_pos.x, p.z - o.z - world2.forge_pos.z).length() < 3.6:
+				text = "⚒ Кузница"
+				_act = hud.open_forge
+			var af: Vector3 = Alchemist.front(world2.alchemist_pos, PI / 2.0)
+			if Vector2(p.x - o.x - af.x, p.z - o.z - af.z).length() < Alchemist.SHOP_RADIUS:
+				text = "⚗ Алхимик"
+				_act = hud.open_alchemist
+		elif mode < 0:
+			var al := Vector3(WorldGen.ALCHEMIST_POS.x, 0, WorldGen.ALCHEMIST_POS.y)
+			if Vector2(p.x, p.z).distance_to(Vector2(Alchemist.front(al, WorldGen.ALCHEMIST_YAW).x, Alchemist.front(al, WorldGen.ALCHEMIST_YAW).z)) < Alchemist.SHOP_RADIUS:
+				text = "⚗ Алхимик"
+				_act = hud.open_alchemist
 			if Vector2(p.x, p.z).distance_to(WorldGen.FORGE_POS) < 3.4:
 				text = "⚒ Кузница"
 				_act = hud.open_forge
@@ -362,8 +422,12 @@ func _process(_dt: float) -> void:
 						if Vector2(p.x - gc.x, p.z - gc.z).length() < 7.0:
 							text = "⚔ Страж этажа: %s · Ур. %d" % [boss.T["name"], boss.level]
 				if d.stairs_open and Vector2(p.x - d.stairs_front.x, p.z - d.stairs_front.z).length() < 2.4:
-					text = "Подняться на этаж %d" % (d.def["floor"] + 1)
-					_act = enter_floor.bind(d.def["floor"] + 1)
+					if d.def["floor"] < DungeonDefs.TOWER.size():
+						text = "Подняться на этаж %d" % (d.def["floor"] + 1)
+						_act = enter_floor.bind(d.def["floor"] + 1)
+					else:
+						text = "Подняться в новый мир: " + world2.NAME
+						_act = enter_world2
 			var c: Vector3 = d.chest.get("pos", Vector3.INF)
 			if d.chest.has("pos") and not d.chest["opened"] and Vector2(p.x - c.x, p.z - c.z).length() < 2.2:
 				var boss: Node3D = enemies.boss_of(mode)

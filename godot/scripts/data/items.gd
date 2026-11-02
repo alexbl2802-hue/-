@@ -17,6 +17,8 @@ const MAX_RANK := 4
 const ALL := {
 	"gold": {"name": "Золото", "icon": "🪙", "kind": "gold", "rank": 0},
 	"potion": {"name": "Зелье лечения", "icon": "🧪", "kind": "potion", "rank": 0, "heal": 50},
+	# Эссенция монстра — падает с монстров, из неё алхимик варит зелья
+	"essence": {"name": "Эссенция монстра", "icon": "💠", "kind": "material", "rank": 0},
 	"shard": {"name": "Тёмный осколок", "icon": "🔮", "kind": "material", "rank": 3},
 	# Материалы боссов — для ковки уникального оружия
 	"mat_crown": {"name": "Корона Короля-скелета", "icon": "👑", "kind": "material", "rank": 3},
@@ -111,7 +113,12 @@ static func upgrade_cost(u: int) -> int:
 static func combine_cost(r: int) -> Array:
 	return [2 + r * 2, 30 + 30 * r]
 
-## Что выпадает: [шанс, мин, макс] золота, шанс зелья, шанс предмета, список предметов
+## Алхимик: зелья только покупаются или варятся у него — с монстров они не падают
+const POTION_PRICE := 30            # золота за зелье
+const BREW_ESSENCE := 3             # эссенций на одно зелье
+const BREW_GOLD := 5                # и немного золота за работу
+
+## Что выпадает: [шанс, мин, макс] золота, шанс эссенции (поле "potion"), шанс предмета, список предметов
 ## и [шанс, мин, макс] тёмных осколков (только в подземельях)
 const LOOT := {
 	"goblin": {"gold": [0.75, 4, 10], "potion": 0.25, "item": 0.15, "pool": ["sword_rusty", "sword_iron", "armor_leather", "helm_leather", "helm_iron", "boots_leather", "ring_copper", "cloak_wool", "shield_wood", "dagger_iron", "great_iron"]},
@@ -133,6 +140,11 @@ const LOOT := {
 	"crystal_guard": {"mat": "mat_frost", "gold": [1.0, 260, 320], "potion": 0.0, "item": 1.0, "items": 3, "pool": ["sword_crystal", "rapier_star", "amulet_crystal", "armor_plate", "cloak_shadow"], "shard": [1.0, 10, 12]},
 	"shadow_wolf": {"mat": "mat_fang", "gold": [1.0, 280, 340], "potion": 0.0, "item": 1.0, "items": 3, "pool": ["dagger_venom", "cloak_shadow", "boots_wind", "ring_ruby", "sword_bone"], "shard": [1.0, 11, 13]},
 	"sky_king": {"mat": "mat_crown", "gold": [1.0, 400, 500], "potion": 0.0, "item": 1.0, "items": 3, "pool": ["great_obsidian", "sword_crystal", "rapier_star", "armor_plate", "shield_tower", "amulet_crystal", "ring_ruby"], "shard": [1.0, 14, 16]},
+	# Плато ветров
+	"stone_golem": {"gold": [0.9, 30, 50], "potion": 0.0, "item": 0.35, "pool": ["armor_plate", "shield_tower", "helm_iron", "great_obsidian"], "shard": [0.8, 3, 5]},
+	"storm_wolf": {"gold": [0.9, 25, 40], "potion": 0.0, "item": 0.3, "pool": ["boots_wind", "cloak_shadow", "rapier_star", "ring_ruby"], "shard": [0.6, 2, 4]},
+	"venom_spider": {"gold": [0.9, 22, 36], "potion": 0.0, "item": 0.3, "pool": ["dagger_venom", "amulet_crystal", "ring_ruby", "cloak_shadow"], "shard": [0.6, 2, 4]},
+	"thorn_beast": {"gold": [0.9, 28, 46], "potion": 0.0, "item": 0.35, "pool": ["sword_crystal", "armor_plate", "boots_wind", "amulet_crystal"], "shard": [0.7, 3, 5]},
 	"kobold": {"gold": [0.85, 12, 24], "potion": 0.35, "item": 0.35, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "amulet_crystal", "ring_ruby", "cloak_shadow", "shield_tower", "boots_wind", "great_obsidian", "rapier_star"], "shard": [0.8, 2, 3]},
 }
 

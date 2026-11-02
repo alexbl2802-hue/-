@@ -34,6 +34,8 @@ static func build(parent: Node3D) -> Array:
 		_house(h[0], h[1], h[2], h[3], h[4], h[5], k, stone)
 	_garden()
 	_forge(stone)
+	Alchemist.build(_root, Vector3(WorldGen.ALCHEMIST_POS.x, G, WorldGen.ALCHEMIST_POS.y), WorldGen.ALCHEMIST_YAW, _body)
+	_map.append({"x0": WorldGen.ALCHEMIST_POS.x - 3.2, "x1": WorldGen.ALCHEMIST_POS.x + 3.2, "z0": WorldGen.ALCHEMIST_POS.y - 2.7, "z1": WorldGen.ALCHEMIST_POS.y + 2.7, "c": Color("#6a4a8a")})
 	_plaza(stone)
 	_manor(stone)
 	_lanterns()

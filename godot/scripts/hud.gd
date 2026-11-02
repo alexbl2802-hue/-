@@ -8,6 +8,7 @@ var minimap: Control
 var skills: Control
 var inventory: Control
 var forge: Control
+var alchemist: Control
 var menu: Control
 var hero: Node3D
 var camera: Camera3D
@@ -106,6 +107,9 @@ func _ready() -> void:
 	forge = preload("res://scripts/ui/forge_panel.gd").new()
 	root.add_child(forge)
 	forge.closed.connect(func(): touch.visible = true)
+	alchemist = preload("res://scripts/ui/alchemist_panel.gd").new()
+	root.add_child(alchemist)
+	alchemist.closed.connect(func(): touch.visible = true)
 	# Затемнение для переходов
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
@@ -206,6 +210,11 @@ func open_forge() -> void:
 	touch.release_all()
 	touch.visible = false
 	forge.open()
+
+func open_alchemist() -> void:
+	touch.release_all()
+	touch.visible = false
+	alchemist.open()
 
 func open_menu() -> void:
 	touch.release_all()

@@ -56,6 +56,16 @@ func spawn_dungeon(d: Node3D) -> void:
 		add_child(b)
 		list.append(b)
 
+## Монстры Плато ветров (второй мир)
+func spawn_world2(w2: Node3D) -> void:
+	var script := preload("res://scripts/enemy.gd")
+	for sp in w2.spawns:
+		var en: CharacterBody3D = script.new()
+		en.world2 = true
+		en.setup(sp[0], sp[1], hero, sp[2])
+		add_child(en)
+		list.append(en)
+
 ## Побеждён ли босс подземелья (у старых сохранений с открытым сундуком — тоже да)
 static func boss_beaten(idx: int) -> bool:
 	return Game.bosses.has(idx) or Game.chests.has(idx)

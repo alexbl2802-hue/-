@@ -64,7 +64,8 @@ func drop(id: String, n: int, at: Vector3, r := -1) -> void:
 	var rr := 0.5 + randf()
 	var pos := at + Vector3(cos(a) * rr, 0.9, sin(a) * rr)
 	# Подземелья лежат глубоко под миром: там пол — высота, на которой выпала вещь
-	var base := at.y if at.y < -50.0 else WorldGen.ground_at(pos.x, pos.z)
+	# Второй мир лежит далеко от первого: там тоже высота, на которой выпала вещь
+	var base := at.y if at.y < -50.0 or absf(at.x) > WorldGen.HALF + 50.0 else WorldGen.ground_at(pos.x, pos.z)
 	add_child(node)
 	node.global_position = pos
 	_items.append({"id": id, "n": n, "r": r, "node": node, "pos": pos, "vy": 5.0, "base": base, "t": 0.0})
@@ -77,8 +78,10 @@ func roll(type: String, at: Vector3) -> void:
 	var g: Array = t["gold"]
 	if randf() < g[0]:
 		drop("gold", randi_range(g[1], g[2]), at)
-	if randf() < t["potion"]:
-		drop("potion", 1, at)
+	# Вместо зелий — эссенция монстра (зелья варит и продаёт алхимик); у боссов её много
+	var ess := maxf(float(t["potion"]), 0.45)
+	if randf() < ess:
+		drop("essence", randi_range(3, 5) if t.has("mat") else 1, at)
 	for _n in int(t.get("items", 1)):
 		if randf() >= t["item"]:
 			continue

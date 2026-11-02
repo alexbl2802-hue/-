@@ -38,6 +38,15 @@ const TYPES := {
 		"spikes": {"near": 5.0, "far": 18.0, "cd": 3.0, "aim": 0.5, "count": 7, "speed": 26.0}},
 	"sky_king": {"name": "Небесный король", "model": "skeleton_king", "tint": 0xffe090, "boss": true, "hp": 950, "dmg": 35, "speed": 4.2, "r": 0.95, "aggro": 18.0, "reach": 3.2, "cd": 1.0, "windup": 0.45, "bar": 4.5, "scale": 2.2,
 		"slam": {"radius": 6.5, "cd": 5.0, "aim": 0.8, "dmg": 46}},
+	# Монстры Плато ветров (второй мир над башней)
+	"stone_golem": {"name": "Каменный голем", "model": "golem", "hp": 260, "dmg": 30, "speed": 3.4, "r": 0.8, "aggro": 14.0, "reach": 2.4, "cd": 1.4, "windup": 0.6, "bar": 3.2,
+		"slam": {"radius": 4.0, "cd": 6.0, "aim": 0.9, "dmg": 34}},
+	"storm_wolf": {"name": "Грозовой волк", "model": "wolf", "tint": 0xa8c4ff, "hp": 150, "dmg": 24, "speed": 7.2, "r": 0.6, "aggro": 20.0, "reach": 2.0, "cd": 0.8, "windup": 0.2, "bar": 1.8,
+		"spikes": {"near": 5.0, "far": 16.0, "cd": 2.6, "aim": 0.45, "count": 4, "speed": 26.0}},
+	"venom_spider": {"name": "Ядовитый паук", "model": "spider", "tint": 0xb070d8, "hp": 120, "dmg": 20, "speed": 5.6, "r": 0.8, "aggro": 14.0, "reach": 1.9, "cd": 0.9, "windup": 0.3, "bar": 1.6, "lunge": true, "scale": 1.3,
+		"spit": {"near": 4.0, "far": 14.0, "cd": 3.0, "aim": 0.5, "count": 3, "speed": 16.0}},
+	"thorn_beast": {"name": "Тернистый зверь", "model": "wolf", "tint": 0x6a9a48, "hp": 210, "dmg": 28, "speed": 6.0, "r": 0.75, "aggro": 16.0, "reach": 2.2, "cd": 0.9, "windup": 0.25, "bar": 2.2, "scale": 1.35,
+		"spikes": {"near": 4.0, "far": 14.0, "cd": 2.2, "aim": 0.4, "count": 6, "speed": 22.0}},
 	"kobold": {"name": "Кобольд", "hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0
@@ -48,6 +57,7 @@ var level := 1               # уровень монстра — показыв�
 var guard_room: Node3D = null   # этаж башни, если это страж (не покидает комнату)
 var model := ""              # чья модель (у стражей башни — обычного монстра)
 var in_dungeon := false
+var world2 := false          # монстр Плато ветров (второй мир над башней)
 var T: Dictionary
 var hero: Node3D
 var home := Vector3.ZERO
@@ -144,6 +154,9 @@ func _ready() -> void:
 		"rabbit": _build_rabbit()
 		"kobold": _build_kobold()
 		"wolf": _build_wolf()
+		"golem":
+			# Каменный голем: крупный, широкий, светящиеся глаза, без оружия
+			_build_humanoid(1.5, 0x8a8478, 0x6a645c, 0x3a3630, 0x60ffb0, 1.4, 0.9, 0.32, false, false, "none")
 		"skeleton_king":
 			_build_humanoid(1.0, 0xd8d0b8, 0x7a1f2a, 0x2a1a14, 0xff4020, 2.2, 0.5, 0.14, false, true, "sword")
 			_add_crown(1.93)
@@ -156,7 +169,7 @@ func _ready() -> void:
 		for m in _mats:
 			m.set_shader_parameter("albedo", (m.get_shader_parameter("albedo") as Color) * tint)
 	# Корона у стражей башни (у королей она уже есть)
-	if T.has("model") and model != "skeleton_king" and model != "goblin":
+	if T.get("boss", false) and T.has("model") and model != "skeleton_king" and model != "goblin":
 		_add_crown(_crown_at().y, _crown_at())
 	# Боссы крупнее обычных монстров
 	if T.has("scale"):
@@ -170,7 +183,7 @@ func _ready() -> void:
 	if _char and T.has("scale"):
 		_char.scale *= T["scale"]
 	# Корона у гоблина-вождя — поверх модели, в размер вождя
-	if type == "goblin_chief":
+	if type == "goblin_chief" and _char:
 		_add_crown(1.62 * T["scale"])
 		_model.get_child(_model.get_child_count() - 1).scale = Vector3.ONE * T["scale"] * 0.8
 	global_position = home
@@ -1033,7 +1046,7 @@ func _physics_process(dt: float) -> void:
 	var hv := mv * sp
 	# Не заходим в воду
 	var ahead := global_position + hv.normalized() * 1.0 if sp > 0.0 else global_position
-	if sp > 0.0 and not in_dungeon and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
+	if sp > 0.0 and not in_dungeon and not world2 and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
 		hv = Vector3.ZERO
 	# Отскок назад после удара
 	if _hop_t >= 0.0:

@@ -10,7 +10,8 @@ const SAVE_PATH := "user://save.json"
 ## Опыт за монстра: случайно в пределах [от, до]
 const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270],
 	"alpha_wolf": [180, 200], "goblin_chief": [190, 210], "sand_scorpion": [200, 220], "frost_king": [210, 230], "kobold_warlord": [230, 250],
-	"swamp_mother": [250, 270], "lava_lord": [270, 290], "crystal_guard": [290, 310], "shadow_wolf": [310, 330], "sky_king": [350, 380]}
+	"swamp_mother": [250, 270], "lava_lord": [270, 290], "crystal_guard": [290, 310], "shadow_wolf": [310, 330], "sky_king": [350, 380],
+	"stone_golem": [90, 100], "storm_wolf": [70, 80], "venom_spider": [60, 70], "thorn_beast": [85, 95]}
 
 static func enemy_xp(kind: String) -> int:
 	var r: Array = ENEMY_XP.get(kind, [10, 10])
@@ -346,6 +347,37 @@ func add_item(id: String, n := 1, r := -1) -> bool:
 		return false
 	inv.append(Items.make(id, n, r))
 	return true
+
+## Лавка алхимика: купить зелье за золото
+func buy_potion() -> bool:
+	if gold < Items.POTION_PRICE or not add_item("potion", 1):
+		return false
+	gold -= Items.POTION_PRICE
+	save_game()
+	changed.emit()
+	return true
+
+## Сварить зелье у алхимика из эссенций монстров
+func brew_potion() -> bool:
+	if count_of("essence") < Items.BREW_ESSENCE or gold < Items.BREW_GOLD:
+		return false
+	if not add_item("potion", 1):
+		return false
+	take_item("essence", Items.BREW_ESSENCE)
+	gold -= Items.BREW_GOLD
+	save_game()
+	changed.emit()
+	return true
+
+## Забрать из инвентаря n штук складываемой вещи
+func take_item(id: String, n: int) -> void:
+	for i in range(inv.size() - 1, -1, -1):
+		if inv[i]["id"] == id and n > 0:
+			var k := mini(n, int(inv[i]["n"]))
+			inv[i]["n"] -= k
+			n -= k
+			if inv[i]["n"] <= 0:
+				inv.remove_at(i)
 
 func potions() -> int:
 	for st in inv:

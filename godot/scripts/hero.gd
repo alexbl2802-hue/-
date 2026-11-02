@@ -172,6 +172,7 @@ const ARMS_OUT_CALM := 0.12    # локти чуть отведены от те�
 const ARMS_OUT_WALK := 0.3     # насколько отводить руки от тела на бегу, рад
 const ARMS_OUT_RUN := 0.38
 var _sk: Skeleton3D
+var in_world2 := false       # герой на Плато ветров (второй мир над башней)
 var _ragdoll := Ragdoll.new()  # падение по физике при гибели
 var _feet: FootIK            # стопы встают на склон, когда герой стоит
 var _ha: HeroAnim            # дерево анимаций (если у модели есть все нужные анимации)
@@ -1376,9 +1377,10 @@ func _physics_process(dt: float) -> void:
 	move_and_slide()
 	if _dash_t >= 0.0:
 		_dash_hits()
-	var lim := WorldGen.HALF - 4.0
-	global_position.x = clampf(global_position.x, -lim, lim)
-	global_position.z = clampf(global_position.z, -lim, lim)
+	if not in_world2:   # во втором мире свои стены по краям плато
+		var lim := WorldGen.HALF - 4.0
+		global_position.x = clampf(global_position.x, -lim, lim)
+		global_position.z = clampf(global_position.z, -lim, lim)
 	_heal(dt)
 	_animate(dt)
 
