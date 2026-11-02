@@ -156,6 +156,7 @@ const CHAR_SCALE := 1.05
 const GRIP_TILT := 10.0      # наклон клинка от поперечного к пальцам, градусы
 const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
+const A_STANCE := "Combat_Stance"   # боевая стойка с мечом — анимация модели Shadowwarden
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
@@ -199,6 +200,8 @@ func _attach_character() -> void:
 	for n in [A_WHIRL, A_DASH]:
 		if _anim.has_animation(n):
 			_anim.get_animation(n).loop_mode = Animation.LOOP_NONE
+	if _anim.has_animation(A_STANCE):
+		_anim.get_animation(A_STANCE).loop_mode = Animation.LOOP_LINEAR
 	_has_idle = _anim.has_animation(A_IDLE)
 	if _has_idle:
 		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
@@ -255,7 +258,7 @@ func _attach_character() -> void:
 		for m in MOVES:
 			acts[m] = "sao/" + m
 		# Ходьба по скорости: стойка → шаг → бег (свои анимации, scripts/anim/hero_moves.gd)
-		_ha.setup(_anim, sk, acts, [["sao/stance", 0.0], ["sao/walk", LOCO_WALK_FROM], ["sao/walk", LOCO_FAST_FROM], ["sao/run", LOCO_FAST_FULL]], RUN)
+		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], ["sao/walk", LOCO_WALK_FROM], ["sao/walk", LOCO_FAST_FROM], ["sao/run", LOCO_FAST_FULL]], RUN)
 	# След клинка
 	_trail = SwordTrail.new()
 	add_child(_trail)

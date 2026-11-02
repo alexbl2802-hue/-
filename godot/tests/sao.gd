@@ -49,7 +49,7 @@ func _ready() -> void:
 	main.rig.yaw = PI
 	await _frames(30)
 	# Стойка, шаг, бег — свои анимации
-	_check("stance anim", h._ha.current() == "" and h._anim.has_animation("sao/stance"), h._ha.current())
+	_check("stance anim", h._ha.current() == "" and h._anim.has_animation("Combat_Stance"), h._ha.current())
 	await _shot("stance")
 	h.touch.move = Vector2(0, 0.35)
 	await _frames(30)

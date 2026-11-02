@@ -310,7 +310,6 @@ static func horizontal() -> Array:
 ## Все движения: имя → [ключи, длина, петля]
 static func all() -> Dictionary:
 	return {
-		"stance": [stance(), 2.4, true],
 		"dodge_back": [dodge_back(), 0.55, false],
 		"dodge_left": [dodge_left(), 0.5, false],
 		"dodge_right": [dodge_right(), 0.5, false],

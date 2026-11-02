@@ -416,6 +416,20 @@ def warden(path, slash, run, runfast):
         grip.unlink()   # у Shadowwarden есть кости пальцев — хват считается по ним
 
 
+def warden_full(stance_path):
+    """Герой из модели Shadowwarden с анимацией Combat_Stance — текстуры не сжимаются (как в исходнике).
+    Все прежние анимации героя (Idle, удар, бег, быстрый бег, вихрь, прыжок рывка) переносятся с hero.glb."""
+    j, b = read_glb(stance_path)
+    old = OUT / "hero.glb"
+    anims = retarget(j, old) if old.exists() else []
+    bld = rebuild(j, b)
+    for name, times, tracks in anims:
+        add_animation(j, bld, name, times, tracks)
+    j["bufferViews"] = bld.views
+    print("анимации:", [a["name"] for a in j["animations"]])
+    write_glb(OUT / "hero.glb", j, bld.blob)
+
+
 def bunny(guard, kick, dodge):
     j, b = read_glb(guard)
     imgs = shrink_textures(j, b, {"color": 1024, "normal": 1024, "attrib": 512})
@@ -732,6 +746,8 @@ if __name__ == "__main__":
         simplify_blade(sys.argv[3], sys.argv[2])
     elif sys.argv[1] == "warden":
         warden(*sys.argv[2:6])
+    elif sys.argv[1] == "warden_full":
+        warden_full(sys.argv[2])
     elif sys.argv[1] == "bunny":
         bunny(*sys.argv[2:5])
     elif sys.argv[1] == "env":
