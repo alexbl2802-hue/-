@@ -1,0 +1,47 @@
+name: Fetch Terrain3D
+
+# По команде: скачать готовый плагин Terrain3D (TokisanGames/Terrain3D, лицензия MIT)
+# из релиза на GitHub и положить в godot/addons/terrain_3d.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Версия (тег релиза)"
+        default: "v1.1.0-stable"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p /tmp/t3d && cd /tmp/t3d
+          gh release view "$TAG" -R TokisanGames/Terrain3D --json assets --jq '.assets[].name'
+          gh release download "$TAG" -R TokisanGames/Terrain3D -p '*.zip'
+          ls -la
+          unzip -q -o ./*.zip -d out
+          find out -maxdepth 3 -type d | head -20
+          src=$(find out -type d -name terrain_3d -path '*addons*' | head -1)
+          echo "addon: $src"
+          rm -rf "$GITHUB_WORKSPACE/godot/addons/terrain_3d"
+          mkdir -p "$GITHUB_WORKSPACE/godot/addons"
+          cp -r "$src" "$GITHUB_WORKSPACE/godot/addons/terrain_3d"
+          # Только нужные платформы: Linux (для проверок), Android, Windows
+          cd "$GITHUB_WORKSPACE/godot/addons/terrain_3d/bin"
+          ls -la
+          rm -rf *macos* *ios* *web* || true
+          du -sh .
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add godot/addons/terrain_3d
+          git commit -m "Terrain3D ${{ inputs.tag }} (addon)" || exit 0
+          for i in 1 2 3 4; do git pull --rebase -q origin main && git push -q origin HEAD:main && break; sleep $((i*4)); done
