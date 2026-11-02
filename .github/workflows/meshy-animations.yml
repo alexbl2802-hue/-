@@ -1,0 +1,61 @@
+name: Meshy animations
+
+# По команде (вкладка Actions → Meshy animations → Run workflow): скелет и анимации из Meshy
+# по API, готовые .glb складываются в meshy/<имя>/ и отправляются в репозиторий.
+# Ключ — секрет репозитория MESHY_API_KEY.
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Папка результата (meshy/<имя>)"
+        default: "hero"
+      model_path:
+        description: "Модель в репозитории для риггинга (если нет rig_task_id)"
+        default: "godot/models/hero.glb"
+      rig_task:
+        description: "Готовый rig_task_id (тогда риггинг пропускается)"
+        default: ""
+      actions:
+        description: "Номера движений из библиотеки Meshy через запятую"
+        default: ""
+      height:
+        description: "Рост персонажа, м"
+        default: "1.8"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: meshy
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch from Meshy
+        env:
+          MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
+          IN_NAME: ${{ inputs.name }}
+          IN_MODEL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/${{ inputs.model_path }}
+          IN_RIG: ${{ inputs.rig_task }}
+          IN_ACTIONS: ${{ inputs.actions }}
+          IN_HEIGHT: ${{ inputs.height }}
+        run: |
+          python3 tools/meshy_fetch.py --name "$IN_NAME" --model-url "$IN_MODEL" \
+            --rig-task "$IN_RIG" --actions "$IN_ACTIONS" --height "$IN_HEIGHT"
+
+      - name: Commit results
+        if: always()
+        env:
+          IN_NAME: ${{ inputs.name }}
+          IN_ACTIONS: ${{ inputs.actions }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add meshy || true
+          if git diff --cached --quiet; then echo "нечего сохранять"; exit 0; fi
+          git commit -m "Meshy: $IN_NAME ($IN_ACTIONS)"
+          for i in 1 2 3 4; do git pull --rebase -q origin main && git push -q origin HEAD:main && break; sleep $((i*4)); done
