@@ -187,8 +187,8 @@ APK собирается **по команде**: вкладка **Actions** →
 - **В мире** (`world.gd`, `_build_tree_models`): ели — Evergreen Sentinel, лиственные — Ember и Ancient по очереди; если какой-то модели нет, берётся другая. Деревья собраны по участкам 40×40 м: до 45 м — подробные, до 130 м — средние (обе с тенью), дальше — лёгкие без тени, ещё дальше не рисуются (зависит от настройки «Дальность прорисовки»). Оттенок у каждого дерева чуть свой, листва и кора матовые.
 
 ## Камни, горы и вода
-- **Камни** — модели Meshy: маленькие — Mossy Stone Outcrop (`rock_small.glb`), большие — Mossclad Monolith и Mossbound Stone Steps по очереди (`rock_big1.glb`, `rock_big2.glb`); ~2 тыс. треугольников каждый. Камни собраны по участкам 120×120 м и видны до 200 м — телефон не рисует все сразу.
-- **Горы** — как модель Mossy Stone Peak: склоны всех гор (выше ~18 м и крутые) покрыты её камнем со мхом (`godot/textures/mountain_rock.jpg`, наложение с трёх сторон в `shaders/terrain.gdshader`), вершины выше 45 м заострены (`sharpen` в `tools/bake_world.mjs`), снега нет.
+- **Камни** — модели Meshy: маленькие — Mossy Stone Outcrop (`rock_small.glb`), большие — Mossclad Monolith и Mossbound Stone Steps по очереди (`rock_big1.glb`, `rock_big2.glb`); у каждого три версии: до 50 м — подробная (~40 тыс. треугольников, у маленького ~25 тыс., текстуры 2048), до 130 м — средняя (~6 тыс.), дальше — простая (~1 тыс.) до границы «Дальности прорисовки». Камни собраны по участкам 50×50 м.
+- **Горы** — как модель Mossy Stone Peak: склоны всех гор (выше ~18 м и крутые) покрыты её камнем со мхом (`godot/textures/mountain_rock.jpg`, 2048×2048, наложение с трёх сторон в `shaders/terrain.gdshader`), вершины выше 45 м заострены (`sharpen` в `tools/bake_world.mjs`), снега нет.
 - **Вода** — шейдеры из `godot/shaders/water/`: на озёрах `water_mobile.gdshader` (волны и блики; `water_realistic` читает глубину сцены, которой нет в режиме GL Compatibility, а `waterfall` — для водопадов, их пока нет в мире).
 - Модели готовит `python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb`. Кадры — `godot --path godot res://tests/env.tscn -- <папка>`.
 

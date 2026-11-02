@@ -17,7 +17,7 @@ var _rock_nodes: Array = []
 ## Дальность видимости камней (настройка «Дальность прорисовки»)
 func set_rock_view(d: float) -> void:
 	for n in _rock_nodes:
-		(n as GeometryInstance3D).visibility_range_end = d
+		(n as GeometryInstance3D).visibility_range_end = maxf(d, ROCK_MID + 40.0)
 	for n in _tree_far_nodes:
 		(n as GeometryInstance3D).visibility_range_end = maxf(d * 1.4, TREE_MID + 50.0)   # деревья видно дальше камней
 
@@ -124,7 +124,9 @@ func _tree_material(mesh: Mesh) -> Material:
 ## Камни и горы — модели Meshy (tools/prepare_models.py env)
 const ROCK_SMALL := "res://models/rock_small.glb"                                  # Mossy Stone Outcrop
 const ROCK_BIG := ["res://models/rock_big1.glb", "res://models/rock_big2.glb"]    # Mossclad Monolith, Mossbound Stone Steps
-const ROCK_CHUNK := 120.0       # камни собраны по участкам — далёкие участки не рисуются
+const ROCK_CHUNK := 50.0        # камни собраны по участкам — далёкие участки не рисуются
+const ROCK_NEAR := 50.0         # ближе — подробная версия (~40 тыс. треугольников)
+const ROCK_MID := 130.0         # до сюда — средняя (~6 тыс.), дальше — простая (~1 тыс.)
 const ROCK_VIEW := 200.0
 const WATER_SHADER := "res://shaders/water/water_mobile.gdshader"   # реалистичный читает глубину сцены — в GL Compatibility она недоступна
 
@@ -339,7 +341,14 @@ func _model_mesh(path: String) -> Dictionary:
 ## Камни: маленькие — Outcrop, большие — Monolith и Steps по очереди. Размер как у прежних камней,
 ## низ чуть утоплен в землю; большие мешают пройти
 func _build_rocks() -> void:
-	var models := [_model_mesh(ROCK_SMALL), _model_mesh(ROCK_BIG[0]), _model_mesh(ROCK_BIG[1])]
+	# У каждого камня три версии: вблизи подробная, дальше — проще (tools/prepare_models.py env)
+	var models := []
+	for path in [ROCK_SMALL, ROCK_BIG[0], ROCK_BIG[1]]:
+		var lods := [_model_mesh(path)]
+		for suffix in ["_mid", "_far"]:
+			var lp: String = path.replace(".glb", suffix + ".glb")
+			lods.append(_model_mesh(lp) if ResourceLoader.exists(lp) else lods[-1])
+		models.append(lods)
 	var body := StaticBody3D.new()
 	body.name = "Rocks"
 	add_child(body)
@@ -351,7 +360,7 @@ func _build_rocks() -> void:
 		if s > 0.9:
 			kind = 1 + n_big % 2
 			n_big += 1
-		var md: Dictionary = models[kind]
+		var md: Dictionary = models[kind][0]
 		var box: AABB = md["aabb"]
 		var k := 2.4 * s / maxf(box.size.x, box.size.z)
 		var y: float = r[2] - box.position.y * k - box.size.y * k * 0.15
@@ -364,17 +373,33 @@ func _build_rocks() -> void:
 			_tree_collider(body, Vector3(r[0], r[2], r[1]), s * 1.0)
 	for key in chunks:
 		var list: Array = chunks[key]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = models[key.z]["mesh"]
-		mm.instance_count = list.size()
-		for i in list.size():
-			mm.set_instance_transform(i, list[i])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.visibility_range_end = ROCK_VIEW
-		add_child(mmi)
-		_rock_nodes.append(mmi)
+		var lods: Array = models[key.z]
+		for lod in 3:
+			var md: Dictionary = lods[lod]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = md["mesh"]
+			mm.instance_count = list.size()
+			for i in list.size():
+				# Та же посадка, у каждой версии своё смещение внутри файла
+				var t0: Transform3D = list[i]
+				if lod > 0:
+					t0 = t0 * (lods[0]["local"] as Transform3D).affine_inverse() * (md["local"] as Transform3D)
+				mm.set_instance_transform(i, t0)
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			match lod:
+				0:
+					mmi.visibility_range_end = ROCK_NEAR
+				1:
+					mmi.visibility_range_begin = ROCK_NEAR
+					mmi.visibility_range_end = ROCK_MID
+				2:
+					mmi.visibility_range_begin = ROCK_MID
+					mmi.visibility_range_end = maxf(ROCK_VIEW, ROCK_MID + 40.0)
+					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					_rock_nodes.append(mmi)
+			add_child(mmi)
 
 func _tree_collider(body: StaticBody3D, pos: Vector3, r: float) -> void:
 	var shape := CylinderShape3D.new()

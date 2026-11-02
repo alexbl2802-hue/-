@@ -23,10 +23,11 @@ bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD
 trees — деревья: python3 tools/prepare_models.py trees ember=EMBER.glb pine=EVERGREEN.glb ancient=ANCIENT.glb
   → godot/models/tree_<имя>.glb (~60 тыс. треугольников, текстуры 2048), tree_<имя>_mid.glb (~8 тыс.), tree_<имя>_far.glb (~1,5 тыс.).
 env — камни и горы: python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb
-  Mossy_Stone_Peak → godot/textures/mountain_rock.jpg — бесшовная текстура склонов всех гор
+  Mossy_Stone_Peak → godot/textures/mountain_rock.jpg — бесшовная текстура склонов всех гор (2048)
   (из цветовой текстуры модели, края сведены со сдвинутой копией), большие камни
   Mossclad_Monolith → rock_big1.glb и Mossbound_Stone_Steps → rock_big2.glb, маленький
-  Mossy_Stone_Outcrop → rock_small.glb (по ~2 тыс. треугольников, текстуры 1024/512).
+  Mossy_Stone_Outcrop → rock_small.glb; у каждого камня три версии: вблизи ~40 тыс. треугольников
+  (текстуры 2048), _mid ~6 тыс., _far ~1 тыс.
 
 hero_skills — анимации умений героя: python3 tools/prepare_models.py hero_skills SKILL_03.glb JUMP_OVER_OBSTACLE.glb
   Skill_03 → «Whirl» (Вихрь: удар с разворотом, обрезается на полном обороте),
@@ -454,12 +455,24 @@ def env_model(src, out_name, ratio, color, other, aggressive):
     write_glb(OUT / out_name, j, bld.blob)
 
 
+def lod_models(src, name, tris, sizes):
+    """Несколько версий модели: name.glb, name_mid.glb, name_far.glb — по числу треугольников tris
+    и размерам текстур sizes [(цвет, остальные), ...]."""
+    j, _ = read_glb(src)
+    total = 0
+    for m in j["meshes"]:
+        for p in m["primitives"]:
+            total += j["accessors"][p["indices"]]["count"] // 3
+    for suffix, n, sz in zip(["", "_mid", "_far"], tris, sizes):
+        env_model(src, name + suffix + ".glb", min(1.0, n / total), sz[0], sz[1], True)
+
+
 def mountain_texture(peak):
-    """Склоны гор как у модели горы: её цветовая текстура → бесшовная плитка 1024."""
+    """Склоны гор как у модели горы: её цветовая текстура → бесшовная плитка 2048."""
     j, b = read_glb(peak)
     k = [i for i, r in image_roles(j).items() if r == "color"][0]
     im = Image.open(io.BytesIO(view_bytes(j, b, j["images"][k]["bufferView"]))).convert("RGB")
-    a = np.asarray(im.resize((1024, 1024), Image.LANCZOS)).astype(np.float32)
+    a = np.asarray(im.resize((2048, 2048), Image.LANCZOS)).astype(np.float32)
     n = a.shape[0]
     y, x = np.mgrid[0:n, 0:n] / (n - 1)
     w = np.clip(np.minimum(np.minimum(x, 1 - x), np.minimum(y, 1 - y)) / 0.18, 0, 1)[..., None]
@@ -467,15 +480,19 @@ def mountain_texture(peak):
     shifted = np.roll(np.roll(a, n // 2, 0), n // 2, 1)
     out = ROOT / "godot/textures/mountain_rock.jpg"
     out.parent.mkdir(exist_ok=True)
-    Image.fromarray((a * w + shifted * (1 - w)).clip(0, 255).astype(np.uint8)).save(out, quality=88)
+    Image.fromarray((a * w + shifted * (1 - w)).clip(0, 255).astype(np.uint8)).save(out, quality=90)
     print("→", out.relative_to(ROOT))
 
 
 def env(peak, monolith, steps, outcrop):
     mountain_texture(peak)
-    env_model(monolith, "rock_big1.glb", 0.0009, 1024, 512, True)
-    env_model(steps, "rock_big2.glb", 0.0012, 1024, 512, True)
-    env_model(outcrop, "rock_small.glb", 0.0009, 1024, 512, True)
+    # Камни подробно (телефон мощный): вблизи ~40 тыс. треугольников, текстуры 2048/1024;
+    # на среднем расстоянии ~6 тыс.; вдали ~1 тыс.
+    tris = [40000, 6000, 1000]
+    sizes = [(2048, 1024), (1024, 512), (512, 256)]
+    lod_models(monolith, "rock_big1", tris, sizes)
+    lod_models(steps, "rock_big2", tris, sizes)
+    lod_models(outcrop, "rock_small", [25000, 4000, 800], sizes)
 
 
 # ---------- Деревья: модели Meshy (миллионы треугольников) → ближняя и дальняя версии
