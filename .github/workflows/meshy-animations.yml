@@ -21,6 +21,9 @@ on:
       height:
         description: "Рост персонажа, м"
         default: "1.8"
+      retexture:
+        description: "Файл JSON {набор: описание} — перекрасить модель (Retexture) вместо анимаций"
+        default: ""
       docs_only:
         description: "Только скачать документацию Meshy (список движений) в meshy/docs — без кредитов"
         type: boolean
@@ -84,9 +87,10 @@ jobs:
           IN_RIG: ${{ inputs.rig_task }}
           IN_ACTIONS: ${{ inputs.actions }}
           IN_HEIGHT: ${{ inputs.height }}
+          IN_RETEX: ${{ inputs.retexture }}
         run: |
           python3 tools/meshy_fetch.py --name "$IN_NAME" --model-url "$IN_MODEL" \
-            --rig-task "$IN_RIG" --actions "$IN_ACTIONS" --height "$IN_HEIGHT"
+            --rig-task "$IN_RIG" --actions "$IN_ACTIONS" --height "$IN_HEIGHT" --retexture "$IN_RETEX"
 
       - name: Commit results
         if: always()

@@ -83,6 +83,26 @@ def download(url, dst):
     print(f"  → {dst.relative_to(ROOT)} ({dst.stat().st_size / 1e6:.1f} МБ)")
 
 
+def retexture(out_dir, model_url, sets):
+    """Перекраска модели (Retexture): сетка и UV те же, новые текстуры по описанию.
+    sets — {имя: описание}. Кладёт meshy/<имя>/<набор>_base_color.png, _normal, _metallic, _roughness."""
+    for key, prompt in sets.items():
+        print("Перекраска", key)
+        r = call("POST", "/retexture", {
+            "model_url": model_url, "text_style_prompt": prompt[:800], "enable_original_uv": True,
+            "enable_pbr": True, "ai_model": "latest", "texture_resolution": "4k", "target_formats": ["glb"],
+        })
+        task_id = r.get("result") or r.get("id")
+        t = wait(f"/retexture/{task_id}", f"перекраска {key}")
+        for tex in t.get("texture_urls", [])[:1]:
+            for kind, url in tex.items():
+                if isinstance(url, str) and url.startswith("http"):
+                    ext = ".jpg" if ".jpg" in url.split("?")[0] else ".png"
+                    download(url, out_dir / f"{key}_{kind}{ext}")
+        if t.get("thumbnail_url"):
+            download(t["thumbnail_url"], out_dir / f"{key}_preview.png")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True)
@@ -91,9 +111,16 @@ def main():
     ap.add_argument("--actions", default="")
     ap.add_argument("--height", type=float, default=1.8)
     ap.add_argument("--fps", type=int, default=0)   # 0 — без пересчёта частоты кадров
+    ap.add_argument("--retexture", default="")      # файл JSON {набор: описание} — перекраска модели
     a = ap.parse_args()
     out_dir = ROOT / "meshy" / a.name
     out_dir.mkdir(parents=True, exist_ok=True)
+    if a.retexture:
+        try:
+            retexture(out_dir, a.model_url, json.loads((ROOT / a.retexture).read_text()))
+        finally:
+            (out_dir / "log.json").write_text(json.dumps(LOG, ensure_ascii=False, indent=1))
+        return
     try:
         rig_id = a.rig_task.strip()
         if not rig_id:
