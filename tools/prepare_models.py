@@ -21,7 +21,7 @@ bunny — боевой кролик: python3 tools/prepare_models.py bunny GUARD
   (одна модель, анимации стойки с ударом, удара ногой в прыжке и кувырка собираются в один файл).
 
 trees — деревья: python3 tools/prepare_models.py trees ember=EMBER.glb pine=EVERGREEN.glb ancient=ANCIENT.glb
-  → godot/models/tree_<имя>.glb (~4 тыс. треугольников) и tree_<имя>_far.glb (~600) для дальних деревьев.
+  → godot/models/tree_<имя>.glb (~60 тыс. треугольников, текстуры 2048), tree_<имя>_mid.glb (~8 тыс.), tree_<имя>_far.glb (~1,5 тыс.).
 env — камни и горы: python3 tools/prepare_models.py env PEAK.glb MONOLITH.glb STEPS.glb OUTCROP.glb
   Mossy_Stone_Peak → godot/textures/mountain_rock.jpg — бесшовная текстура склонов всех гор
   (из цветовой текстуры модели, края сведены со сдвинутой копией), большие камни
@@ -479,15 +479,17 @@ def env(peak, monolith, steps, outcrop):
 
 
 # ---------- Деревья: модели Meshy (миллионы треугольников) → ближняя и дальняя версии
-def tree_models(src, name, near_tris=12000, far_tris=1500):
-    """tree_<name>.glb (~12 тыс. треугольников, текстуры 512/256) и tree_<name>_far.glb (~1,5 тыс., 256)."""
+def tree_models(src, name):
+    """Три версии дерева: tree_<name>.glb — вблизи (~60 тыс. треугольников, текстуры 2048/1024),
+    tree_<name>_mid.glb — на среднем расстоянии (~8 тыс., 1024/512), tree_<name>_far.glb — вдали (~1,5 тыс., 512)."""
     j, _ = read_glb(src)
     total = 0
     for m in j["meshes"]:
         for p in m["primitives"]:
             total += j["accessors"][p["indices"]]["count"] // 3
-    env_model(src, "tree_%s.glb" % name, near_tris / total, 512, 256, True)
-    env_model(src, "tree_%s_far.glb" % name, far_tris / total, 256, 128, True)
+    env_model(src, "tree_%s.glb" % name, 60000 / total, 2048, 1024, True)
+    env_model(src, "tree_%s_mid.glb" % name, 8000 / total, 1024, 512, True)
+    env_model(src, "tree_%s_far.glb" % name, 1500 / total, 512, 256, True)
 
 
 def trees(*pairs):

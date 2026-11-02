@@ -19,18 +19,20 @@ func set_rock_view(d: float) -> void:
 	for n in _rock_nodes:
 		(n as GeometryInstance3D).visibility_range_end = d
 	for n in _tree_far_nodes:
-		(n as GeometryInstance3D).visibility_range_end = d * 1.4   # деревья видно дальше камней
+		(n as GeometryInstance3D).visibility_range_end = maxf(d * 1.4, TREE_MID + 50.0)   # деревья видно дальше камней
 
 ## Деревья: какие модели у каждого вида (первая найденная; если модели нет — берётся другая)
 const TREE_MODELS := {"pine": ["pine", "ember"], "oak": ["ember", "ancient"]}
 const PINE_HEIGHT := 9.0        # высота ели при размере 1 (м)
 const OAK_HEIGHT := 8.0
 const TREE_CHUNK := 40.0        # деревья собраны по участкам 40×40 м
-const TREE_NEAR := 75.0         # ближе — подробная модель, дальше — лёгкая
+const TREE_NEAR := 45.0         # ближе — подробная модель (~60 тыс. треугольников)
+const TREE_MID := 130.0         # до сюда — средняя (~8 тыс.), дальше — лёгкая (~1,5 тыс.)
 var _tree_far_nodes: Array = []
 
-func _tree_path(name: String, far: bool) -> String:
-	return "res://models/tree_%s%s.glb" % [name, "_far" if far else ""]
+## Модель дерева: lod 0 — вблизи, 1 — среднее расстояние, 2 — вдали
+func _tree_path(name: String, lod: int) -> String:
+	return "res://models/tree_%s%s.glb" % [name, ["", "_mid", "_far"][lod]]
 
 func _build_tree_models(placed: Dictionary) -> void:
 	# Какие модели есть
@@ -38,16 +40,20 @@ func _build_tree_models(placed: Dictionary) -> void:
 	for kind in TREE_MODELS:
 		var list := []
 		for nm in TREE_MODELS[kind]:
-			if ResourceLoader.exists(_tree_path(nm, false)) and not list.has(nm):
+			if ResourceLoader.exists(_tree_path(nm, 0)) and not list.has(nm):
 				list.append(nm)
-		if kind == "oak" and list.is_empty() and ResourceLoader.exists(_tree_path("pine", false)):
+		if kind == "oak" and list.is_empty() and ResourceLoader.exists(_tree_path("pine", 0)):
 			list.append("pine")
 		avail[kind] = list
 	var meshes := {}
 	for kind in avail:
 		for nm in avail[kind]:
 			if not meshes.has(nm):
-				meshes[nm] = [_model_mesh(_tree_path(nm, false)), _model_mesh(_tree_path(nm, true)) if ResourceLoader.exists(_tree_path(nm, true)) else _model_mesh(_tree_path(nm, false))]
+				var lods := []
+				for lod in 3:
+					var path := _tree_path(nm, lod)
+					lods.append(_model_mesh(path) if ResourceLoader.exists(path) else (lods[-1] if lod > 0 else _model_mesh(_tree_path(nm, 0))))
+				meshes[nm] = lods
 	# Участки: [x, z, модель] → [Transform3D, цвет]
 	var chunks := {}
 	var rng := RandomNumberGenerator.new()
@@ -73,8 +79,8 @@ func _build_tree_models(placed: Dictionary) -> void:
 			chunks[key].append([tr, Color(v, v * rng.randf_range(0.96, 1.04), v)])
 	for key in chunks:
 		var list: Array = chunks[key]
-		for far in [false, true]:
-			var md: Dictionary = meshes[key[2]][1 if far else 0]
+		for lod in 3:
+			var md: Dictionary = meshes[key[2]][lod]
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.use_colors = true
@@ -83,20 +89,24 @@ func _build_tree_models(placed: Dictionary) -> void:
 			for i in list.size():
 				# Дальняя модель — та же посадка, своё смещение внутри файла
 				var t0: Transform3D = list[i][0]
-				if far:
+				if lod > 0:
 					t0 = t0 * (meshes[key[2]][0]["local"] as Transform3D).affine_inverse() * (md["local"] as Transform3D)
 				mm.set_instance_transform(i, t0)
 				mm.set_instance_color(i, list[i][1])
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
 			mmi.material_override = _tree_material(md["mesh"])
-			if far:
-				mmi.visibility_range_begin = TREE_NEAR
-				mmi.visibility_range_end = ROCK_VIEW
-				mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				_tree_far_nodes.append(mmi)
-			else:
-				mmi.visibility_range_end = TREE_NEAR
+			match lod:
+				0:
+					mmi.visibility_range_end = TREE_NEAR
+				1:
+					mmi.visibility_range_begin = TREE_NEAR
+					mmi.visibility_range_end = TREE_MID
+				2:
+					mmi.visibility_range_begin = TREE_MID
+					mmi.visibility_range_end = maxf(ROCK_VIEW * 1.4, TREE_MID + 50.0)
+					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					_tree_far_nodes.append(mmi)
 			add_child(mmi)
 
 ## Материал дерева: текстура модели × цвет экземпляра (лёгкая разница оттенков), не металл
