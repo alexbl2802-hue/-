@@ -337,8 +337,7 @@ static func library(sk: Skeleton3D, player: AnimationPlayer, ref: Animation, ref
 		if PoseLib.aim_log:
 			print(name)
 		lib.add_animation(name, PoseLib.build(sk, m[0], BASE, m[1], m[2], ref, ref_t, prefix, blade))
-	# Бег: спринт из библиотеки Meshy (корпус вперёд) или запись модели героя + своя правая рука
-	# с опущенным мечом (хват как на фото)
+	# Бег: спринт из библиотеки Meshy (корпус вперёд) как есть, без своих поз рук
 	var run_name := "Lean_Forward_Sprint" if player.has_animation("Lean_Forward_Sprint") else "Running"
 	run_stride = MESHY_RUN_STRIDE if run_name == "Lean_Forward_Sprint" else RUN_STRIDE
 	if player.has_animation(run_name):
@@ -346,7 +345,10 @@ static func library(sk: Skeleton3D, player: AnimationPlayer, ref: Animation, ref
 		run_src.loop_mode = Animation.LOOP_LINEAR
 		if PoseLib.aim_log:
 			print("run")
-		lib.add_animation("run", PoseLib.override(run_src, sk, _arm_keys(run_src.length, 18, 6, 18, RUN_SWORD), {}, prefix, blade))
+		if run_name == "Lean_Forward_Sprint":
+			lib.add_animation("run", run_src.duplicate(true))
+		else:
+			lib.add_animation("run", PoseLib.override(run_src, sk, _arm_keys(run_src.length, 18, 6, 18, RUN_SWORD), {}, prefix, blade))
 	# Ходьба: боевой шаг из библиотеки Meshy (меч поднят наготове) — или ходьба гоблина
 	if player.has_animation("Walk_Fight_Forward"):
 		var wf := player.get_animation("Walk_Fight_Forward").duplicate(true) as Animation

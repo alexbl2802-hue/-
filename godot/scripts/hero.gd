@@ -55,12 +55,13 @@ var _char: Node3D           # модель персонажа из models/hero.g
 var _anim: AnimationPlayer
 var _new_swing := false
 var _idle_pose := false
-var _gear := {}
 var _longsword: Node3D
 var _shields := {}           # щиты по виду: round / heater / tower
-var _armor_fit: ArmorFit
+var _body_mat: Material
+var _armor_skin := ""
+const ARMOR_SKINS := {"armor_leather": "leather", "armor_chain": "chain", "armor_plate": "plate"}
+const ARMOR_DIR := "res://models/armor/"
 var _body_mi: MeshInstance3D
-var _hidden_key := ""
 var _blades := {}           # модели клинков: ключ → {node, mesh, base, glow, rust}
 var _has_idle := false            # детали брони и шлема на костях модели: имя → MeshInstance3D
 
@@ -173,8 +174,8 @@ const WHIRL_HIT := 0.5
 const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
 const ARMS_OUT_CALM := 0.12    # локти чуть отведены от тела всегда (кроме ударов и приёмов), рад
-const ARMS_OUT_WALK := 0.3     # насколько отводить руки от тела на бегу, рад
-const ARMS_OUT_RUN := 0.38
+const ARMS_OUT_WALK := 0.0     # ходьба и бег — клипы Meshy как есть, руки не отводим
+const ARMS_OUT_RUN := 0.0
 var _sk: Skeleton3D
 var in_world2 := false       # герой на Плато ветров (второй мир над башней)
 var _ragdoll := Ragdoll.new()  # падение по физике при гибели
@@ -393,17 +394,16 @@ func _attach_blades() -> void:
 ## Броня и шлем — детали на костях модели, двигаются вместе с телом.
 ## Размеры подобраны по модели: торс ~0,4 м в ширину, голова ~0,2 м.
 func _build_gear(sk: Skeleton3D) -> void:
-	# Доспехи по фигуре: оболочки вокруг костей по форме тела модели (scripts/hero_armor.gd)
+	# Доспехи — сама модель героя в другой раскраске (перекраска Meshy, те же сетка и UV):
+	# кожаный доспех, кольчуга, латы. Ничего не надето поверх — значит, ничто и не проступает.
 	var body: MeshInstance3D = null
 	for m in _char.find_children("*", "MeshInstance3D", true, false):
 		if (m as MeshInstance3D).skin != null:
 			body = m
 	if body == null:
 		return
-	var built := HeroArmor.build(body)
-	_gear = built["parts"]
-	_armor_fit = built["fit"]
 	_body_mi = body
+	_body_mat = body.mesh.surface_get_material(0)
 	# Щиты на тыльной стороне левого предплечья, снаружи руки (не касаются её)
 	var b := -1
 	for i in sk.get_bone_count():
@@ -429,15 +429,6 @@ func _build_gear(sk: Skeleton3D) -> void:
 		sh.transform = g.affine_inverse() * Transform3D(basis, center)
 		sh.scale = Vector3.ONE / CHAR_SCALE * 1.0
 		_shields[kind] = sh
-
-func _set_gear(names: Array, show: bool, color: Color, metal: bool, kind := "") -> void:
-	for n in names:
-		if not _gear.has(n):
-			continue
-		var mi: MeshInstance3D = _gear[n]
-		mi.visible = show
-		if show:
-			HeroArmor.paint(mi, color, metal, kind)
 
 func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 	for i in sk.get_bone_count():
@@ -713,58 +704,43 @@ func update_look() -> void:
 	if not h.is_empty():
 		_helmet_mat.set_shader_parameter("albedo", WorldGen.hex(h["color"]))
 	# У следопыта своя броня и капюшон — накладки брони и шлема на нём не показываем
-	if not _gear.is_empty() and SHOW_GEAR:
+	if _body_mi != null and SHOW_GEAR:
 		_show_armor(a, h)
 
 ## Доспехи в духе SAO: кожаная куртка — лёгкий кожаный нагрудник с поясом; кольчуга — кольчужный
 ## нагрудник с пластинами на бёдрах и наплечниками; латы — белые латы с золотой кромкой
 ## (нагрудник, наплечники, наручи, перчатки, наколенники, набедренники).
 func _show_armor(a: Dictionary, h: Dictionary) -> void:
-	var all := ["cuirass", "belt", "tassets", "pauldron_Left", "pauldron_Right", "vambrace_Left", "vambrace_Right",
-		"glove_Left", "glove_Right", "knee_Left", "knee_Right", "cuisse_Left", "cuisse_Right", "greave_Left", "greave_Right",
-		"bootleg_Left", "bootleg_Right", "boot_Left", "boot_Right", "helm", "helm_dome", "visor", "circlet", "cloak", "cloak_collar"]
-	_set_gear(all, false, Color.BLACK, false)
-	var ac := WorldGen.hex(a.get("color", 0))
-	var leather := Color("#4a3220")
-	var aid: String = Game.equip["armor"]["id"] if Game.equip.get("armor") != null else ""
-	var hid: String = Game.equip["helm"]["id"] if Game.equip.get("helm") != null else ""
-	match aid:
-		"armor_leather":
-			_set_gear(["cuirass"], true, ac, false, "leather")
-			_set_gear(["belt"], true, leather.darkened(0.2), false)
-		"armor_chain":
-			_set_gear(["cuirass", "tassets"], true, ac, true, "chain")
-			_set_gear(["belt"], true, leather, false)
-			_set_gear(["pauldron_Left", "pauldron_Right"], true, ac.lightened(0.1), true)
-		"armor_plate":
-			_set_gear(["cuirass", "pauldron_Left", "pauldron_Right", "vambrace_Left", "vambrace_Right", "knee_Left", "knee_Right",
-				"cuisse_Left", "cuisse_Right", "tassets"], true, ac.lightened(0.15), true)
-			_set_gear(["glove_Left", "glove_Right"], true, ac.darkened(0.2), true)
-			_set_gear(["belt"], true, Color("#c8a040"), true)
-		_:
-			if not a.is_empty():
-				_set_gear(["cuirass", "belt"], true, ac, a.get("metal", false))
-	if not h.is_empty():
-		var hc := WorldGen.hex(h["color"])
-		if hid == "helm_leather":
-			_set_gear(["circlet"], true, hc, false, "leather")
-		else:
-			_set_gear(["helm", "helm_dome"], true, hc, true)
-			_set_gear(["visor"], true, Color("#101014"), false)
-			_set_gear(["circlet"], true, Color("#c8a040"), true)
-	var e = Game.equip.get("boots")
-	if e != null:
-		var it := Items.get_item(e["id"])
-		var bc := WorldGen.hex(it.get("color", 0x444444))
-		var metal: bool = it.get("metal", false)
-		_set_gear(["bootleg_Left", "bootleg_Right", "boot_Left", "boot_Right"], true, bc, metal, "" if metal else "leather")
-		if metal:
-			_set_gear(["greave_Left", "greave_Right"], true, bc, true)
-	e = Game.equip.get("cloak")
-	if e != null:
-		var cc := WorldGen.hex(Items.get_item(e["id"]).get("color", 0x444444))
-		_set_gear(["cloak", "cloak_collar"], true, cc, false, "cloth")
-	e = Game.equip.get("shield")
+	_apply_armor_skin(ARMOR_SKINS.get(Game.equip["armor"]["id"] if Game.equip.get("armor") != null else "", ""))
+	_show_shield()
+
+## Раскраска модели под доспех: текстуры из models/armor/<набор>_*.jpg (tools/prepare_models.py armor)
+func _apply_armor_skin(key: String) -> void:
+	if key == _armor_skin:
+		return
+	_armor_skin = key
+	var base := ARMOR_DIR + key + "_base_color.jpg"
+	if key == "" or not ResourceLoader.exists(base):
+		_body_mi.material_override = null
+		return
+	var m := (_body_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+	m.albedo_texture = load(base)
+	m.albedo_color = Color.WHITE
+	if ResourceLoader.exists(ARMOR_DIR + key + "_normal.jpg"):
+		m.normal_enabled = true
+		m.normal_texture = load(ARMOR_DIR + key + "_normal.jpg")
+	if ResourceLoader.exists(ARMOR_DIR + key + "_metallic.jpg"):
+		m.metallic = 1.0
+		m.metallic_texture = load(ARMOR_DIR + key + "_metallic.jpg")
+		m.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	if ResourceLoader.exists(ARMOR_DIR + key + "_roughness.jpg"):
+		m.roughness = 1.0
+		m.roughness_texture = load(ARMOR_DIR + key + "_roughness.jpg")
+		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	_body_mi.material_override = m
+
+func _show_shield() -> void:
+	var e = Game.equip.get("shield")
 	var kind := ""
 	if e != null:
 		kind = {"shield_wood": "round", "shield_iron": "heater", "shield_tower": "tower"}.get(e["id"], "heater")
@@ -775,19 +751,6 @@ func _show_armor(a: Dictionary, h: Dictionary) -> void:
 		SaoGear.paint_shield(_shields[kind], sc, it.get("metal", false))
 	for k in _shields:
 		_shields[k].visible = k == kind
-	# Части тела (одежды модели) под надетыми деталями прячем — сквозь броню ничего не проступает
-	var hidden := {}
-	var names := []
-	for n in _gear:
-		var mi: MeshInstance3D = _gear[n]
-		if mi.visible and mi.has_meta("hide"):
-			names.append(n)
-			for ti in mi.get_meta("hide"):
-				hidden[ti] = true
-	var key := ",".join(names)
-	if key != _hidden_key:
-		_hidden_key = key
-		_body_mi.mesh = _armor_fit.masked_body(hidden)
 
 # ---------- Бой
 # ---------- Уклонения, Switch, реакции на удары, приём «Горизонталь»
