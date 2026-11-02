@@ -47,6 +47,14 @@ static func _solve(sk: Skeleton3D, keys: Array, base: Dictionary, blade: Vector3
 			aims = true
 	if aims and hand >= 0 and blade != Vector3.ZERO:
 		used["RightHand"] = true
+	# Левая кисть «тыльной стороной туда-то»: ключ "lback" — куда смотрит тыльная сторона ладони
+	var lhand := bone(sk, "LeftHand")
+	var lback := false
+	for key in keys:
+		if key.has("lback"):
+			lback = true
+	if lback and lhand >= 0:
+		used["LeftHand"] = true
 	var idx := {}
 	for k in used:
 		var b := bone(sk, k)
@@ -97,6 +105,23 @@ static func _solve(sk: Skeleton3D, keys: Array, base: Dictionary, blade: Vector3
 				locals[arm][ki] = best_arm
 			if aim_log and best_d < 0.94:
 				print("  клинок отклонён на %d°" % roundi(rad_to_deg(acos(clampf(best_d, -1, 1)))))
+	# Левая кисть: в исходной позе модели ладони смотрят вниз, тыльная сторона — вверх
+	if lback and lhand >= 0:
+		var back_local := (_rest_g(sk, lhand).inverse() * Vector3.UP).normalized()
+		var lchain := []
+		var lc := sk.get_bone_parent(lhand)
+		while lc >= 0:
+			lchain.push_front(lc)
+			lc = sk.get_bone_parent(lc)
+		for ki in keys.size():
+			var key: Dictionary = keys[ki]
+			if not key.has("lback"):
+				continue
+			var dp := Basis()
+			for cb in lchain:
+				var l: Basis = locals[cb][ki] if locals.has(cb) else other.call(cb, ki)
+				dp = dp * (_rest_p(sk, cb) * l * _rest_g(sk, cb).inverse())
+			locals[lhand][ki] = _aim_hand(sk, lhand, dp, back_local, (key["lback"] as Vector3).normalized(), "LeftHand")[0]
 	return [idx, locals]
 
 ## Перенести запись движения с другого скелета Mixamo (например, ходьбу гоблина на героя):
@@ -274,8 +299,8 @@ const LIMITS := {
 ## Поворот кисти в пределах запястья, при котором клинок ближе всего к нужному направлению:
 ## перебор углов сгиба, отведения и кручения кисти (грубо, потом точнее)
 static var aim_log := false
-static func _aim_hand(sk: Skeleton3D, hand: int, dp: Basis, blade: Vector3, want: Vector3) -> Array:
-	var lim: Array = LIMITS["RightHand"]
+static func _aim_hand(sk: Skeleton3D, hand: int, dp: Basis, blade: Vector3, want: Vector3, lim_name := "RightHand") -> Array:
+	var lim: Array = LIMITS[lim_name]
 	var r0 := sk.get_bone_rest(hand).basis.orthonormalized()
 	var parent_g := dp * _rest_p(sk, hand)   # глобальный поворот предплечья (в осях персонажа)
 	var best := Vector3.ZERO

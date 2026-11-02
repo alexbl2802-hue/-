@@ -28,22 +28,28 @@ static func stance_pose() -> Dictionary:
 		"Neck": Vector3(0, 6, 0), "Head": Vector3(4, 4, 0),
 		"LeftUpLeg": Vector3(-22, 18, 8), "LeftLeg": Vector3(26, 0, 0), "LeftFoot": Vector3(-4, 0, 0),
 		"RightUpLeg": Vector3(14, 18, -8), "RightLeg": Vector3(14, 0, 0), "RightFoot": Vector3(-26, 0, 0),
-		"RightArm": Vector3(-10, -10, 50), "RightForeArm": Vector3(-30, 0, 0),
-		"LeftArm": Vector3(-28, 10, -48), "LeftForeArm": Vector3(-45, 0, 0),
+		"RightArm": Vector3(-14, -10, 50), "RightForeArm": Vector3(-55, 0, 0),
+		"LeftArm": Vector3(-34, 10, -46), "LeftForeArm": Vector3(-38, 0, 0),
 	}
-const STANCE_SWORD := Vector3(-0.25, -0.75, 0.6)
+## Меч в стойке — как держит человек (фото-образец): кулак, клинок вперёд и вверх по диагонали
+const STANCE_SWORD := Vector3(-0.05, 0.55, 0.85)
+## Левая рука вытянута вперёд, тыльная сторона ладони смотрит вверх
+const STANCE_LBACK := Vector3(0, 1, 0.15)
 const STANCE_HIPS := Vector3(0, -0.09, 0)
 
 static func stance() -> Array:
 	var p := stance_pose()
 	var p2 := p.duplicate()
 	p2["Spine2"] = Vector3(5, 4, 0)
-	p2["LeftArm"] = Vector3(-30, 10, -47)
-	return [
+	p2["LeftArm"] = Vector3(-36, 10, -45)
+	var out := [
 		_k(0.0, p, STANCE_HIPS, STANCE_SWORD),
 		_k(1.2, p2, STANCE_HIPS + Vector3(0, -0.012, 0), STANCE_SWORD),
 		_k(2.4, p, STANCE_HIPS, STANCE_SWORD),
 	]
+	for k in out:
+		k["lback"] = STANCE_LBACK
+	return out
 
 # ---------- Ходьба и бег: ноги и корпус — из записей живых движений (ходьба гоблина
 # переносится на героя, бег — собственная запись модели героя), а правая рука — своя:
