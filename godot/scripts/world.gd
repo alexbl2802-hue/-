@@ -161,7 +161,9 @@ func _build_terrain() -> void:
 	var c := WorldGen.colors
 	var mat := Mats.terrain()
 	# Рельеф рисует Terrain3D (addons/terrain_3d), если плагин загружен; иначе — своя сетка
-	if ClassDB.class_exists("Terrain3D"):
+	# Terrain3D 1.1.0 падает в режиме Vulkan — там пока своя сетка рельефа
+	var t3d_ok := RenderingServer.get_current_rendering_method() == "gl_compatibility" or OS.get_environment("T3D_FORCE") != ""
+	if ClassDB.class_exists("Terrain3D") and t3d_ok and OS.get_environment("NO_T3D") == "":
 		_build_terrain3d()
 	for cj in range(0, seg, CHUNK):
 		if terrain3d != null:
@@ -231,6 +233,7 @@ var terrain3d: Node3D
 func _build_terrain3d() -> void:
 	var t: Node3D = ClassDB.instantiate("Terrain3D")
 	t.name = "Terrain3D"
+	t.set("free_editor_textures", false)
 	t.set("region_size", 1024)
 	t.set("vertex_spacing", WorldGen.step / T3D_UP)
 	add_child(t)

@@ -8,9 +8,10 @@ class_name HeroAnim
 extends Node
 
 var ACTS: Array = []        # имена действий (по ключам anims в setup)
-const XFADE := 0.1          # переход между действиями, с
-const BLEND_IN := 12.0      # скорость наложения действия (1/с)
-const BLEND_OUT := 8.0
+const XFADE := 0.16         # переход между действиями, с
+const BLEND_IN := 11.0      # скорость наложения действия (1/с)
+const BLEND_OUT := 5.0      # выход из действия обратно в ходьбу — мягче (≈0,2 с)
+const LOCO_SMOOTH := 9.0    # скорость в смеси ходьбы/бега догоняет настоящую плавно (1/с)
 
 var tree: AnimationTree
 var _names := {}            # действие → имя анимации
@@ -20,6 +21,8 @@ var _w := 0.0               # вес действия
 var act_time := 0.0         # позиция в анимации действия (с)
 var act_scale := 1.0
 var _upper := false
+var _loco_pos := 0.0
+var _loco_target := 0.0
 
 ## player — AnimationPlayer модели; anims — действие → имя анимации;
 ## loco_points — [[имя анимации, скорость м/с], …] для смешения ходьбы
@@ -99,7 +102,7 @@ func set_loco_anim(point: int, anim_name: String) -> void:
 		node.animation = anim_name
 
 func locomotion(speed: float, stride_scale: float) -> void:
-	tree.set("parameters/loco/blend_position", speed)
+	_loco_target = speed
 	tree.set("parameters/loco_ts/scale", stride_scale)
 
 ## Начать или продолжить действие. pos ≥ 0 — перемотать на эту секунду,
@@ -130,6 +133,8 @@ func weight() -> float:
 	return _w
 
 func update(dt: float) -> void:
+	_loco_pos = lerpf(_loco_pos, _loco_target, 1.0 - exp(-LOCO_SMOOTH * dt))
+	tree.set("parameters/loco/blend_position", _loco_pos)
 	if _cur != "":
 		act_time += dt * act_scale
 		_w = minf(1.0, _w + dt * BLEND_IN)

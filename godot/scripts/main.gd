@@ -142,9 +142,18 @@ func _build_environment() -> void:
 	sky.sky_material = sky_mat
 	# Облака движутся — отражения неба обновляем понемногу и в малом размере, чтобы не тратить кадры
 	sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
-	sky.radiance_size = Sky.RADIANCE_SIZE_32
+	var vulkan := RenderingServer.get_current_rendering_method() != "gl_compatibility"
+	sky.radiance_size = Sky.RADIANCE_SIZE_64 if vulkan else Sky.RADIANCE_SIZE_32
 	_env.sky = sky
 	_env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	if vulkan:
+		# Режим «Мобильный» (Vulkan): мягкое свечение ярких мест (солнце, огонь, магия клинков)
+		_env.glow_enabled = true
+		_env.glow_intensity = 0.55
+		_env.glow_strength = 0.9
+		_env.glow_bloom = 0.04
+		_env.glow_hdr_threshold = 1.1
+		_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	_env.fog_enabled = true
 	_env.fog_mode = Environment.FOG_MODE_DEPTH
 	_env.fog_density = 1.0
