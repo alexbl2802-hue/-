@@ -38,9 +38,6 @@ func _ready() -> void:
 	await _shot("g_manor.png", func(): _place(Vector3(-19, 4, -4), 0.2, 0.22, 12.0))
 	await _shot("g_square.png", func(): _place(Vector3(2, 4, 14), -0.5, 0.35, 10.0))
 	await _shot("g_gate.png", func(): _place(Vector3(0, 0, 52), 0.0, 0.3, 14.0))
-	var e: Dictionary = main.world.entrances[1]
-	var door: Vector3 = e["door"] + e["dir"] * 5.0
-	await _shot("g_cave.png", func(): _place(door, atan2(e["dir"].x, e["dir"].z), 0.3, 9.0))
 	await _shot("g_far.png", func(): _place(Vector3(-60, 0, -120), 2.6, 0.5, 16.0))
 	print("SHOTS DONE")
 	get_tree().quit()

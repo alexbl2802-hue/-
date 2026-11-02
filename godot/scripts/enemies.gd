@@ -66,9 +66,9 @@ func spawn_world2(w2: Node3D) -> void:
 		add_child(en)
 		list.append(en)
 
-## Побеждён ли босс подземелья (у старых сохранений с открытым сундуком — тоже да)
+## Побеждён ли страж этажа
 static func boss_beaten(idx: int) -> bool:
-	return Game.bosses.has(idx) or Game.chests.has(idx)
+	return Game.bosses.has(idx)
 
 ## Живой босс подземелья или null
 func boss_of(idx: int) -> Node3D:

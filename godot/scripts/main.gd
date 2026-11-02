@@ -318,14 +318,19 @@ func open_chest(i: int) -> void:
 	d.open_chest()
 	Game.chests.append(i)
 	var c: Vector3 = d.chest["pos"]
-	loot.drop("gold", randi_range(40, 64), c)
-	loot.drop("essence", 4, c)
-	loot.drop("shard", randi_range(3, 5), c)
-	for id in d.def["chest_loot"]:
+	# Чем выше этаж, тем богаче сундук: золото, эссенции, осколки и вещь из добычи стража этажа
+	var lvl: int = d.def.get("level", 2)
+	loot.drop("gold", randi_range(30, 50) + lvl * 8, c)
+	loot.drop("essence", 3 + lvl / 4, c)
+	loot.drop("shard", randi_range(2, 4) + lvl / 5, c)
+	for id in d.def.get("chest_loot", []):
 		loot.drop(id, 1, c)
+	var pool: Array = Items.LOOT.get(d.def.get("boss", ""), {}).get("pool", [])
+	if not pool.is_empty():
+		loot.drop(pool[randi() % pool.size()], 1, c)
 	Game.save_game()
 	var n := Game.chests.size()
-	hud.banner("Сокровище найдено!", "Все сокровища собраны — ты настоящий искатель приключений!" if n >= DungeonDefs.LIST.size() else "Осталось ещё одно подземелье")
+	hud.banner("Сокровище найдено!", "Все сундуки башни найдены!" if n >= DungeonDefs.TOWER.size() else "Найдено сундуков: %d из %d" % [n, DungeonDefs.TOWER.size()])
 
 func _on_level_up(level: int) -> void:
 	var sub := "Здоровье +15 · Урон +4 · +1 очко навыка"
@@ -430,7 +435,7 @@ func _process(_dt: float) -> void:
 						_act = enter_world2
 			var c: Vector3 = d.chest.get("pos", Vector3.INF)
 			if d.chest.has("pos") and not d.chest["opened"] and Vector2(p.x - c.x, p.z - c.z).length() < 2.2:
-				var boss: Node3D = enemies.boss_of(mode)
+				var boss: Node3D = null if d.tower else enemies.boss_of(mode)
 				if boss:
 					text = "🔒 Сундук стережёт " + boss.T["name"]
 				else:

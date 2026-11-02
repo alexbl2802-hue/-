@@ -142,7 +142,7 @@ func build() -> void:
 	_build_vegetation()
 	_build_rocks()
 	_build_campfire()
-	_build_entrances()
+	# Входов в склеп и пещеру больше нет — подземелья только в башне
 	_build_tower()
 	town_map = Town.build(self)
 

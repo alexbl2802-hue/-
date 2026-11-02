@@ -77,7 +77,6 @@ func _ready() -> void:
 	_check("rabbits roam the world", rabbits.size() == 24 and not rabbits[0].in_dungeon, "%d кроликов" % rabbits.size())
 	_check("no slimes", not main.enemies.list.any(func(e): return e.type == "slime"), "")
 	_check("goblins doubled", base.filter(func(e): return e.type == "goblin").size() == 32, "")
-	_check("kobolds in dungeons", kobolds.size() == 10 and kobolds.all(func(e): return e.in_dungeon), "%d кобольдов" % kobolds.size())
 	var rb: Node3D = rabbits[0]
 	var spot := Vector3(-60, 0, -120)
 	_place(spot, 2.6)
@@ -88,43 +87,28 @@ func _ready() -> void:
 	rb.T["aggro"] = 0.0
 	await _frames(30)
 	await _shot("s3_rabbit.png")
-	# 6. Вход в склеп через кнопку «Войти»
-	var e: Dictionary = main.world.entrances[0]
+	# 6. Вход в башню через кнопку у двери — этаж 1
+	var e: Dictionary = main.world.tower
 	var door: Vector3 = e["door"] + e["dir"] * 1.5
 	_place(door, atan2(e["dir"].x, e["dir"].z))
 	await _frames(10)
-	_check("entrance action", hud.touch.act_text.begins_with("Войти"), hud.touch.act_text)
+	_check("entrance action", hud.touch.act_text.begins_with("Войти в башню"), hud.touch.act_text)
 	_tap_act()
 	await _wait_until(func(): return main.mode == 0 and not main.hero.busy, 400)
 	var d: Node3D = main.dungeons[0]
-	_check("entered crypt", main.mode == 0 and main.hero.global_position.distance_to(d.start_pos) < 2.0, str(main.hero.global_position))
+	_check("entered floor 1", main.mode == 0 and main.hero.global_position.distance_to(d.start_pos) < 2.0, str(main.hero.global_position))
+	_check("no crypt/cave entrances", main.world.entrances.is_empty() and main.dungeons.size() == DungeonDefs.TOWER.size(), str(main.dungeons.size()))
+	var all_chests := main.dungeons.all(func(x): return x.chest.has("pos"))
+	_check("chest on every floor", all_chests, "")
 	await _frames(30)
-	await _shot("s3_crypt.png")
-	# Кобольд крупным планом
-	var kb: Node3D = kobolds.filter(func(k): return absf(k.global_position.y - d.Y) < 20)[0]
-	kb.T = kb.T.duplicate()
-	kb.T["aggro"] = 0.0
-	var kp: Vector3 = kb.global_position
-	main.hero.global_position = kp + Vector3(0, 0.2, 3.5)
-	main.hero.facing = PI
-	main.rig.yaw = 0.0
-	main.rig.pitch = 0.2
-	main.rig.dist = 5.0
-	main.rig.snap()
-	await _frames(30)
-	await _shot("s3_kobold.png")
-	# 7. Сундук
+	await _shot("s3_floor1.png")
+	# 7. Сундук в случайном месте этажа — открыть можно, не убивая стража
 	var c: Vector3 = d.chest["pos"]
 	var gold0 := Game.gold
-	kb.global_position = kp + Vector3(0, 0, -20)
 	for k in main.enemies.list:
 		if k.in_dungeon:
 			k.T = k.T.duplicate()
 			k.T["aggro"] = 0.0
-	# Сундук стережёт босс — сначала побеждаем его
-	var boss: Node3D = main.enemies.boss_of(0)
-	if boss:
-		boss.hit(99999, Vector3.FORWARD)
 	main.hero.global_position = c + Vector3(0, 0.3, 1.6)
 	await _frames(10)
 	_check("chest action", hud.touch.act_text == "Открыть сундук", hud.touch.act_text)
@@ -132,33 +116,22 @@ func _ready() -> void:
 	await _frames(40)
 	await _shot("s3_chest.png")
 	var on_floor: bool = main.loot._items.size() >= 2 and main.loot._items.all(func(it): return absf(it["pos"].y - d.Y) < 1.0)
-	_check("chest loot lies on dungeon floor", on_floor, str(main.loot._items.map(func(it): return snappedf(it["pos"].y, 0.1))))
+	_check("chest loot lies on floor", on_floor, str(main.loot._items.map(func(it): return snappedf(it["pos"].y, 0.1))))
 	for it in main.loot._items.duplicate():
 		main.hero.global_position = it["pos"] + Vector3(0, 0.3, 0)
 		await _frames(10)
-	_check("chest opened and looted", Game.chests.has(0) and Game.gold > gold0 and Game.inv.any(func(s): return s["id"] == "amulet_life"), "gold %d → %d" % [gold0, Game.gold])
-	# 8. Выход на поверхность
+	_check("chest opened and looted", Game.chests.has(0) and Game.gold > gold0, "gold %d → %d" % [gold0, Game.gold])
+	_check("guardian still there", main.enemies.boss_of(0) != null and not main.enemies.boss_beaten(0), "")
+	# 8. Выход из башни
 	main.hero.global_position = d.start_pos + Vector3(0, 0.3, 0)
 	await _frames(10)
-	_check("exit action", hud.touch.act_text == "Подняться на поверхность", hud.touch.act_text)
+	_check("exit action", hud.touch.act_text == "Выйти из башни", hud.touch.act_text)
 	_tap_act()
 	await _wait_until(func(): return main.mode == -1 and not main.hero.busy, 400)
 	_check("back on surface", main.mode == -1 and main.world.visible and main.hero.global_position.y > -50, str(main.hero.global_position))
-	# 9. Пещера кристаллов
-	main.enter_dungeon(1)
-	await _wait_until(func(): return main.mode == 1 and not main.hero.busy, 400)
-	var d1: Node3D = main.dungeons[1]
-	main.hero.global_position = d1.cell_center(5, 4) + Vector3(0, 0.3, 0)
-	main.rig.yaw = -2.2
-	main.rig.pitch = 0.3
-	main.rig.dist = 6.0
-	main.rig.snap()
-	await _frames(30)
-	await _shot("s3_cave.png")
-	_check("cave entered", main.mode == 1, "")
 	# 10. Сохранение: имя, сундук, снаряжение
 	var saved = JSON.parse_string(FileAccess.get_file_as_string(Game.SAVE_PATH))
-	_check("saved", saved["name"] == "Алекс" and saved["chests"].has(0.0) and saved["equip"]["weapon"]["id"] == "sword_steel", str(saved["chests"]))
+	_check("saved", saved["name"] == "Алекс" and saved["chests"].has(0.0) and int(saved["v"]) == 2, str(saved["chests"]))
 	print("RESULT: ", "ALL OK" if ok else "FAILED")
 	get_tree().quit()
 

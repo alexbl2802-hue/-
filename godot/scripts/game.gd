@@ -447,7 +447,7 @@ func reset_skills() -> void:
 func save_game() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"name": player_name, "chests": chests, "bosses": bosses, "stats": stats, "time": time_of_day, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
+		f.store_string(JSON.stringify({"v": 2, "name": player_name, "chests": chests, "bosses": bosses, "stats": stats, "time": time_of_day, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -465,6 +465,10 @@ func load_game() -> bool:
 	bosses = []
 	for c in d.get("bosses", []):
 		bosses.append(int(c))
+	# Старые сохранения: номера 0 и 1 были у склепа и пещеры, этажи башни шли с 2
+	if int(d.get("v", 1)) < 2:
+		bosses = bosses.filter(func(i): return i >= 2).map(func(i): return i - 2)
+		chests = []
 	level = int(d.get("level", 1))
 	xp = int(d.get("xp", 0))
 	gold = int(d.get("gold", 0))

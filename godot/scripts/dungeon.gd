@@ -83,6 +83,9 @@ func build(d: Dictionary, idx: int) -> void:
 				"G": gate_cells.append(Vector2i(i, j))
 				"B": boss_pos = cell_center(i, j)
 				"U": stairs_pos = cell_center(i, j)
+	# На каждом этаже башни — сундук в случайном месте: не у входа, не в комнате стража
+	if tower and chest.is_empty():
+		_place_random_chest(floors)
 	_build_shell(floors, walls)
 	for p in pillars:
 		_build_pillar(cell_center(p.x, p.y))
@@ -545,6 +548,31 @@ func _build_exit() -> void:
 	light.omni_range = 9.0
 	light.position = Vector3(start_pos.x, Y + 2, start_pos.z)
 	add_child(light)
+
+func _place_random_chest(floors: Array) -> void:
+	var start := cell_of(start_pos)
+	var boss_c := cell_of(boss_pos)
+	var cand := []
+	for c in floors:
+		var t := ch(c.x, c.y)
+		if t != ".":
+			continue
+		if absi(c.x - start.x) + absi(c.y - start.y) < 5:
+			continue
+		if boss_pos != Vector3.ZERO and absi(c.x - boss_c.x) + absi(c.y - boss_c.y) < 7:
+			continue
+		var gate_near := false
+		for g in gate_cells:
+			if absi(c.x - g.x) + absi(c.y - g.y) < 3:
+				gate_near = true
+		if not gate_near:
+			cand.append(c)
+	if cand.is_empty():
+		return
+	var r := RandomNumberGenerator.new()
+	r.randomize()
+	var pick: Vector2i = cand[r.randi_range(0, cand.size() - 1)]
+	_build_chest(cell_center(pick.x, pick.y))
 
 # ---------- Сундук с сокровищем
 func _build_chest(c: Vector3) -> void:
