@@ -160,7 +160,12 @@ func _build_terrain() -> void:
 	var h := WorldGen.heights
 	var c := WorldGen.colors
 	var mat := Mats.terrain()
+	# Рельеф рисует Terrain3D (addons/terrain_3d), если плагин загружен; иначе — своя сетка
+	if ClassDB.class_exists("Terrain3D"):
+		_build_terrain3d()
 	for cj in range(0, seg, CHUNK):
+		if terrain3d != null:
+			break
 		for ci in range(0, seg, CHUNK):
 			var w := mini(CHUNK, seg - ci) + 1
 			var d := mini(CHUNK, seg - cj) + 1
@@ -214,6 +219,72 @@ func _build_terrain() -> void:
 	cs.scale = Vector3(step, 1.0, step)
 	body.add_child(cs)
 	add_child(body)
+
+## Рельеф на Terrain3D: карта высот мира (в 2 раза подробнее, сглажена), текстуры — трава,
+## земля, песок, камень гор; на лугах склоны сами становятся камнем (автошейдер).
+## Столкновения остаются свои (HeightMapShape3D) — ходьба та же, что и раньше.
+const T3D_UP := 2              # во сколько раз подробнее исходной сетки
+const T3D_TEX := ["grass", "dirt", "sand", "rock"]
+const T3D_UV := [0.31, 0.25, 0.22, 0.07]   # повторов текстуры на метр
+var terrain3d: Node3D
+
+func _build_terrain3d() -> void:
+	var t: Node3D = ClassDB.instantiate("Terrain3D")
+	t.name = "Terrain3D"
+	t.set("region_size", 1024)
+	t.set("vertex_spacing", WorldGen.step / T3D_UP)
+	add_child(t)
+	var col = t.get("collision")
+	if col != null:
+		col.set("mode", 0)   # DISABLED — столкновения свои
+	var mat = t.get("material")
+	mat.set("world_background", 0)
+	mat.set("auto_shader_enabled", true)
+	mat.set("max_regions", 64)
+	mat.call("set_shader_param", "auto_slope", 1.6)
+	mat.call("set_shader_param", "auto_height_reduction", 0.0)
+	mat.call("set_shader_param", "auto_base_texture", 3)   # склон — камень
+	mat.call("set_shader_param", "auto_overlay_texture", 0) # ровное — трава (вес наложения = ровность)
+	mat.call("set_shader_param", "blend_sharpness", 0.9)
+	var assets = t.get("assets")
+	for i in T3D_TEX.size():
+		var ta = ClassDB.instantiate("Terrain3DTextureAsset")
+		ta.set("name", T3D_TEX[i])
+		ta.set("albedo_texture", load("res://textures/t3d/%s_albedo_height.png" % T3D_TEX[i]))
+		ta.set("normal_texture", load("res://textures/t3d/%s_normal_rough.png" % T3D_TEX[i]))
+		ta.set("uv_scale", T3D_UV[i])
+		if T3D_TEX[i] == "grass":
+			ta.set("albedo_color", Color(0.8, 0.82, 0.68))   # трава чуть приглушённее
+		ta.set("detiling_rotation", 0.3)
+		ta.set("detiling_shift", 0.3)
+		assets.call("set_texture_asset", i, ta)
+	# Карты высот и текстур (контроль) — из данных мира
+	var n := WorldGen.seg + 1
+	var hi := Image.create_from_data(n, n, false, Image.FORMAT_RF, WorldGen.heights.to_byte_array())
+	var m := (n - 1) * T3D_UP + 1
+	hi.resize(m, m, Image.INTERPOLATE_CUBIC)
+	var ctrl := PackedByteArray()
+	ctrl.resize(n * n * 4)
+	var c := WorldGen.colors
+	for k in n * n:
+		var r := c[k * 3]
+		var g := c[k * 3 + 1]
+		var b := c[k * 3 + 2]
+		var h := WorldGen.heights[k]
+		var base := 1      # земля
+		var auto := 0
+		if g - maxi(r, b) > 8:
+			base = 0       # луг; крутые склоны — камень (автошейдер)
+			auto = 1
+		elif r > 158:
+			base = 2       # песок у воды
+		elif h > 16.0 or (absi(r - g) < 10 and absi(g - b) < 10):
+			base = 3       # камень гор
+		ctrl.encode_u32(k * 4, (base & 0x1F) << 27 | auto)
+	var ci := Image.create_from_data(n, n, false, Image.FORMAT_RF, ctrl)
+	ci.resize(m, m, Image.INTERPOLATE_NEAREST)
+	t.get("data").call("import_images", [hi, ci, null], Vector3(-WorldGen.HALF, 0, -WorldGen.HALF), 0.0, 1.0)
+	terrain3d = t
 
 ## Вода — мобильный шейдер воды с бликами и волнами (shaders/water)
 func _build_water() -> void:
