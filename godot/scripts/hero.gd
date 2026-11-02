@@ -222,18 +222,20 @@ func _attach_character() -> void:
 		var width := Vector3(g["width"][0], g["width"][1], g["width"][2]).normalized()
 		_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), Vector3(g["grip"][0], g["grip"][1], g["grip"][2]))
 	else:
-		# Хват по костям пальцев: пальцы сжимаются в кулак, рукоять проходит через его середину,
-		# клинок выходит над большим и указательным пальцами
-		var hg := HandGrip.new()
+		# Хват по сжатым пальцам из анимации удара: рукоять лежит в ладони — проходит через
+		# середину кулака (внутри согнутых пальцев), клинок выходит со стороны большого
+		# и указательного пальцев поперёк кисти (при прямом запястье, чуть наклонён к пальцам)
+		var hg := HandGrip.new()   # сжимает пальцы в кулак поверх анимации
 		sk.add_child(hg)
-		if hg.setup(sk, "Right"):
-			# Хват как у человека: при прямом запястье клинок выходит из кулака со стороны
-			# большого и указательного пальцев поперёк кисти (чуть наклонён вперёд, к пальцам)
+		hg.setup(sk, "Right")
+		var fist := _fist_grip(sk, _anim.get_animation(A_SLASH), hg)
+		if not fist.is_empty():
 			var axis := Vector3.UP   # ось кисти (от запястья к пальцам) в системе кости
-			var blade := (hg.grip_axis - axis * hg.grip_axis.dot(axis)).normalized()
+			var across: Vector3 = fist[1]
+			var blade := (across - axis * across.dot(axis)).normalized()
 			blade = blade.rotated(blade.cross(axis).normalized(), deg_to_rad(GRIP_TILT)).normalized()
 			var width := (axis - blade * axis.dot(blade)).normalized()
-			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), hg.grip_point)
+			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), fist[0])
 	_sword.scale = Vector3.ONE / CHAR_SCALE
 	_attach_blades()
 	_build_gear(sk)
@@ -264,6 +266,51 @@ func _attach_character() -> void:
 	if feet.setup(self, sk):
 		_feet = feet
 	update_look()
+
+## Где у сжатого кулака середина (там лежит рукоять) и куда смотрит поперечная ось ладони:
+## по суставам четырёх пальцев в позе анимации (в системе кости кисти).
+## Возвращает [середина кулака, ось от мизинца к указательному] или [] если костей нет.
+func _fist_grip(sk: Skeleton3D, anim: Animation, hg: HandGrip) -> Array:
+	var curl := {}   # кость → добавочный сгиб пальца (HandGrip)
+	for bb in hg._bones:
+		curl[bb[0]] = Quaternion(bb[1], bb[2])
+	var hand := -1
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("RightHand"):
+			hand = i
+	if hand < 0:
+		return []
+	var rot := {}   # кость → поворот в анимации (кадр стойки удара)
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+			var b := sk.find_bone(String(anim.track_get_path(t)).get_slice(":", 1))
+			if b >= 0:
+				rot[b] = anim.rotation_track_interpolate(t, 0.0)
+	var pts := []
+	var knuckle := {}
+	for f in ["Index", "Middle", "Ring", "Pinky"]:
+		var tr := Transform3D()
+		for k in [1, 2, 3, 4]:
+			var b := -1
+			for i in sk.get_bone_count():
+				if sk.get_bone_name(i).ends_with("RightHand%s%d" % [f, k]):
+					b = i
+			if b < 0:
+				break
+			var r: Quaternion = rot.get(b, sk.get_bone_rest(b).basis.get_rotation_quaternion())
+			if curl.has(b):
+				r = r * curl[b]
+			tr = tr * Transform3D(Basis(r), sk.get_bone_rest(b).origin)
+			pts.append(tr.origin)
+			if k == 1:
+				knuckle[f] = tr.origin
+	if pts.size() < 8 or not knuckle.has("Index") or not knuckle.has("Pinky"):
+		return []
+	var c := Vector3.ZERO
+	for p in pts:
+		c += p
+	c /= pts.size()
+	return [c, (knuckle["Index"] - knuckle["Pinky"]).normalized()]
 
 ## Модели клинков: у всех клинок по −Y, середина рукояти на y ≈ 0,65, ширина по X.
 ## Переворачиваем клинком вверх и ставим серединой рукояти в начало хвата.
