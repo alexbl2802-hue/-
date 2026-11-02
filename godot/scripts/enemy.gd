@@ -271,6 +271,10 @@ func _attach_club() -> void:
 	club.material_override = Mats.lp(0x5a3a1c, 0.95, 0.0, -1, 0.0, 0.45, 3.0)
 	att.add_child(club)
 	club.transform = Transform3D(Basis(fingers, dir, flat), grip + dir * 0.32)
+	# Свои удары гоблина (scripts/anim/goblin_moves.gd): кисть поворачивается по оси дубины
+	var ref := _ap.get_animation("Charged_Slash")
+	var prefix := String(ref.track_get_path(0)).get_slice(":", 0)
+	_ap.add_animation_library("gob", GoblinMoves.library(sk, ref, prefix, dir))
 	for k in 3:   # сучки-шипы на толстом конце
 		var spike := MeshInstance3D.new()
 		var sm := CylinderMesh.new()
@@ -304,6 +308,23 @@ const G_RUN_STRIDE := 3.45    # то же для Running
 func _animate_char() -> void:
 	var want := "Combat_Stance"
 	var speed := 1.0
+	if st != "windup" and st != "recover":
+		_swing = false
+	# Свои движения: удар сверху, боковой взмах, отскок
+	if _hop_t >= 0.0 and _hop_t < 0.5:
+		if _ap.current_animation != "gob/hop_back":
+			_ap.play("gob/hop_back", 0.08)
+			_ap.seek(0.0, true)
+		_ap.speed_scale = 1.0
+		return
+	if _atk != "slash" and (st == "windup" or (st == "recover" and _t < 0.6)):
+		want = "gob/" + _atk
+		if st == "windup" and not _swing:
+			_swing = true
+			_ap.play(want, 0.1)
+			_ap.seek(0.0, true)
+		_ap.speed_scale = GoblinMoves.HIT[_atk] / maxf(0.15, _wind_len) if st == "windup" else 1.0
+		return
 	if st == "windup" or (st == "recover" and _t < 0.45):
 		want = "Charged_Slash"
 		# Удар в анимации приходится примерно на середину (1,1 с) — совмещаем с концом замаха
@@ -592,7 +613,7 @@ func _slam(dist: float) -> void:
 	var sl: Dictionary = T["slam"]
 	Fx.ring(global_position + Vector3(0, 0.15, 0), Color(0.85, 0.75, 0.6, 0.9), sl["radius"], 0.45)
 	if dist < sl["radius"] and absf(hero.global_position.y - global_position.y) < 2.0:
-		hero.take_damage(sl["dmg"], global_position, self)
+		hero.take_damage(sl["dmg"], global_position, self, "slam")
 
 ## Корона босса
 func _add_crown(y: float, at := Vector3.ZERO) -> void:
@@ -774,12 +795,29 @@ func hit(dmg: int, dir: Vector3, crit := false) -> void:
 		_dodge()
 
 ## Замах: у кролика — следующая атака по очереди (джеб, прямой, крюк, комбо)
+## Вид удара: у гоблина — сверху / сбоку / обычный, у кобольда — мечом / щитом / боковой
+var _atk := "slash"
+var _hop_plan := false        # после удара отскочить назад
+var _hop_t := -1.0
+const HOP_TIME := 0.3
+const HOP_SPEED := 6.0
+
 func _start_attack() -> void:
 	st = "windup"
 	_t = 0.0
 	_wind_len = T["windup"]
 	_rec_len = T["cd"]
 	_extra_hits = []
+	_atk = "slash"
+	_hop_plan = false
+	if model == "goblin" and _char:
+		_atk = ["slash", "overhead", "side"][randi() % 3]
+	elif model == "kobold":
+		_atk = ["slash", "bash", "sweep"][randi() % 3]
+	if model in ["goblin", "kobold"] and not T.get("boss", false):
+		_hop_plan = randf() < 0.35
+	if _atk == "overhead":
+		_wind_len *= 1.3   # тяжёлый удар — замах дольше
 	if _moves:
 		var kind := _moves.next_attack()
 		var hits: Array = _moves.start_attack(kind)
@@ -791,16 +829,18 @@ func _start_attack() -> void:
 func knock(mult: float) -> void:
 	_kb *= mult
 
-var _ragdoll := Ragdoll.new()   # гоблин и кролик падают по физике
+## Гибель как в игре про мечника: монстр вспыхивает белым и рассыпается на светящиеся осколки
+const SHATTER_AT := 0.14
+const SHATTER_COLOR := Color(0.55, 0.85, 1.0, 1.0)
+var _shattered := false
 
 func _die() -> void:
 	dead = true
 	_dead_t = 0.0
-	if _char:
-		var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
-		if _ragdoll.start(sk, _kb.normalized() * 2.5 + Vector3.UP * 1.5):
-			if _ap:
-				_ap.speed_scale = 0.0   # остальные кости замирают в позе
+	_shattered = false
+	_set_flash(1.0)
+	if _ap:
+		_ap.speed_scale = 0.0   # замирает в момент удара
 	collision_layer = 0
 	collision_mask = 1
 	Game.kills += 1
@@ -811,7 +851,8 @@ func _die() -> void:
 
 func revive() -> void:
 	dead = false
-	_ragdoll.stop()
+	_shattered = false
+	_set_flash(0.0)
 	hp = T["hp"]
 	st = "idle"
 	_kb = Vector3.ZERO
@@ -840,15 +881,12 @@ func reset_home() -> void:
 func _physics_process(dt: float) -> void:
 	if dead:
 		_dead_t += dt
-		var k := minf(1.0, _dead_t / 0.4)
-		# С рэгдоллом тело падает само и лежит дольше; иначе — заваливается набок
-		var lie := 1.6 if _ragdoll.active() else 0.6
-		if not _ragdoll.active():
-			_model.rotation.z = k * 1.4
-		_model.scale = Vector3.ONE * maxf(0.001, 1.0 - maxf(0.0, _dead_t - lie) / 0.5)
-		if _dead_t > lie + 0.5:
+		if not _shattered and _dead_t >= SHATTER_AT:
+			_shattered = true
 			visible = false
-			_ragdoll.stop()
+			var sc: float = T.get("scale", 1.0)
+			if Fx.root:
+				Shatter.spawn(Fx.root, global_position, T["bar"] * 0.85, T["r"] * 2.2 * sqrt(sc), SHATTER_COLOR, 70 if T.get("boss", false) else 44)
 		if not in_dungeon and _dead_t > 30.0 and hero.global_position.distance_to(home) > 40.0:
 			revive()
 		return
@@ -955,6 +993,9 @@ func _physics_process(dt: float) -> void:
 			if _t >= _stun_len:
 				st = "chase"
 		"recover":
+			if _hop_plan and _t >= 0.32:
+				_hop_plan = false
+				_hop_t = 0.0
 			# Следующие удары комбо
 			while not _extra_hits.is_empty() and _t >= _extra_hits[0]:
 				_extra_hits.pop_front()
@@ -983,6 +1024,13 @@ func _physics_process(dt: float) -> void:
 	var ahead := global_position + hv.normalized() * 1.0 if sp > 0.0 else global_position
 	if sp > 0.0 and not in_dungeon and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
 		hv = Vector3.ZERO
+	# Отскок назад после удара
+	if _hop_t >= 0.0:
+		_hop_t += dt
+		if _hop_t < HOP_TIME:
+			hv += -Vector3(sin(facing), 0, cos(facing)) * HOP_SPEED
+		elif _hop_t > 0.5:
+			_hop_t = -1.0
 	hv += _kb
 	_kb *= exp(-dt * 6.0)
 	velocity.x = hv.x
@@ -997,12 +1045,48 @@ func _physics_process(dt: float) -> void:
 	_animate(dt)
 	# Вспышка при попадании
 	if _flash > 0.0:
-		_flash = maxf(0.0, _flash - dt * 5.0)
-		if _flash_mat:
-			_flash_mat.albedo_color.a = _flash * 0.6
-		for m in _mats:
-			m.set_shader_parameter("emission", (m.get_meta("emit") as Color).lerp(Color.WHITE, _flash))
-			m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, _flash))
+		_set_flash(maxf(0.0, _flash - dt * 5.0))
+
+func _set_flash(f: float) -> void:
+	_flash = f
+	if _flash_mat:
+		_flash_mat.albedo_color.a = f * 0.6
+	for m in _mats:
+		m.set_shader_parameter("emission", (m.get_meta("emit") as Color).lerp(Color.WHITE, f))
+		m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, f))
+
+## Удары кобольда: щитом (рука со щитом выбрасывается вперёд, корпус за ней) и боковой взмах
+## мечом (рука поднята и проходит справа налево, корпус закручивается); отскок — присел и назад
+func _kobold_moves(_dt: float) -> void:
+	var wind := minf(1.0, _t / maxf(0.1, _wind_len))
+	var after := smoothstep(0.0, 1.0, _t / 0.14)
+	var twist := 0.0
+	var lean := 0.0
+	if _atk == "bash" and (st == "windup" or (st == "recover" and _t < 0.4)):
+		if st == "windup":
+			_arms[1].rotation.x = lerpf(0.0, 0.5, wind)       # щит отведён назад
+			lean = -0.15 * wind
+			twist = 0.35 * wind
+		else:
+			_arms[1].rotation.x = lerpf(0.5, -1.6, after)     # толчок щитом вперёд
+			lean = lerpf(-0.15, 0.3, after)
+			twist = lerpf(0.35, -0.3, after)
+		_arms[0].rotation.x = -0.4
+	elif _atk == "sweep" and (st == "windup" or (st == "recover" and _t < 0.4)):
+		_arms[0].rotation.x = -1.5                             # рука с мечом поднята вперёд
+		if st == "windup":
+			_arms[0].rotation.y = lerpf(0.0, -1.3, wind)      # отведена вправо-назад
+			twist = -0.5 * wind
+		else:
+			_arms[0].rotation.y = lerpf(-1.3, 1.4, after)     # взмах справа налево
+			twist = lerpf(-0.5, 0.6, after)
+	if _hop_t >= 0.0 and _hop_t < 0.5:
+		var k := sin(clampf(_hop_t / 0.45, 0.0, 1.0) * PI)
+		lean = 0.25 * k
+		_legs[0].rotation.x = -0.6 * k
+		_legs[1].rotation.x = -0.4 * k
+	_model.rotation.y += twist
+	_model.rotation.x += lean
 
 ## Где корона стража (до увеличения): над головой его модели
 func _crown_at() -> Vector3:
@@ -1079,3 +1163,6 @@ func _animate(dt: float) -> void:
 				ax = lerpf(-3.0, 0.6, smoothstep(0.0, 1.0, _t / 0.12))
 				_arms[1].rotation.x = ax
 			_arms[0].rotation.x = ax
+			_arms[0].rotation.y = 0.0
+			if model == "kobold":
+				_kobold_moves(dt)

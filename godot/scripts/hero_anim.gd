@@ -2,12 +2,12 @@
 ## действия (удар, вихрь, рывок, стойки) плавно накладываются поверх.
 ## На бегу действие берёт только верх тела — ноги продолжают бежать (удар на ходу).
 ##
-##   loco (Idle · Running · RunFast по скорости) → темп шага ─┐
-##   act (удар / вихрь / рывок / поза бега, перекрёстный переход) → перемотка → темп ─┤→ mix → выход
+##   loco (стойка · ходьба · бег по скорости) → темп шага ─┐
+##   act (удары, приёмы, уклонения, реакции; перекрёстный переход) → перемотка → темп ─┤→ mix → выход
 class_name HeroAnim
 extends Node
 
-const ACTS := ["slash", "whirl", "dash", "run"]
+var ACTS: Array = []        # имена действий (по ключам anims в setup)
 const XFADE := 0.1          # переход между действиями, с
 const BLEND_IN := 12.0      # скорость наложения действия (1/с)
 const BLEND_OUT := 8.0
@@ -21,10 +21,11 @@ var act_time := 0.0         # позиция в анимации действи�
 var act_scale := 1.0
 var _upper := false
 
-## player — AnimationPlayer модели; anims — {"slash","whirl","dash","run"};
+## player — AnimationPlayer модели; anims — действие → имя анимации;
 ## loco_points — [[имя анимации, скорость м/с], …] для смешения ходьбы
 func setup(player: AnimationPlayer, sk: Skeleton3D, anims: Dictionary, loco_points: Array, max_speed: float) -> void:
-	_names = {"slash": anims["slash"], "whirl": anims["whirl"], "dash": anims["dash"], "run": anims["run"]}
+	_names = anims.duplicate()
+	ACTS = anims.keys()
 	var bt := AnimationNodeBlendTree.new()
 	# Ходьба: по скорости — стойка → бег → быстрый бег
 	var loco := AnimationNodeBlendSpace1D.new()

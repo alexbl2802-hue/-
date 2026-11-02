@@ -324,10 +324,12 @@ func _process(_dt: float) -> void:
 	t.art_icon = SkillDefs.find(art)["icon"] if art != "" and Game.rank(art) > 0 else ""
 	t.cd_left["art"] = hero.cd["art"]
 	t.cd_total["art"] = hero.cooldown_total("art")
-	for id in ["whirl", "dash"]:
+	for id in ["whirl", "dash", "horizontal"]:
 		t.skill_ranks[id] = Game.rank(id)
 		t.cd_left[id] = hero.cd[id]
 		t.cd_total[id] = hero.cooldown_total(id)
+	t.cd_left["dodge"] = hero.cd["dodge"]
+	t.cd_total["dodge"] = hero.cooldown_total("dodge")
 	# Что можно сделать рядом
 	var text := ""
 	_act = Callable()

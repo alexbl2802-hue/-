@@ -1,5 +1,5 @@
-## Падение по физике и реакция на удары: гоблин отшатывается от удара, падает по физике,
-## герой при гибели падает так же и встаёт целым у костра.
+## Реакция на удары и гибель: гоблин отшатывается от удара и рассыпается на осколки,
+## герой при гибели падает по физике и встаёт целым у костра.
 ## Запуск: godot --path godot res://tests/ragdoll.tscn -- <папка>
 extends Node
 
@@ -57,36 +57,15 @@ func _ready() -> void:
 	for i in 30:
 		await get_tree().physics_frame
 	_check("flinch fades", g._tilt.length() < 0.02, str(g._tilt))
-	# Смерть — падение по физике
-	var sk: Skeleton3D = g._char.find_children("*", "Skeleton3D", true, false)[0]
-	var hips := BoneAttachment3D.new()
-	sk.add_child(hips)
-	hips.bone_idx = Ragdoll._find(sk, "Hips")
-	await get_tree().process_frame
-	var y0: float = hips.global_position.y
+	# Смерть — монстр рассыпается на осколки (падение по физике — только у героя)
 	g.hit(9999, Vector3(0, 0, 1))
-	_check("goblin ragdoll", g._ragdoll.active(), "")
-	var k := 0
-	for t in [6, 20, 50, 90]:
-		while k < t:
-			await get_tree().physics_frame
-			focus = hips.global_position - Vector3(0, 0.4, 0)
-			k += 1
-		await get_tree().process_frame
-		get_viewport().get_texture().get_image().save_png(out + "r_goblin_%d.png" % t)
-	var y1: float = hips.global_position.y
-	var gy := WorldGen.ground_at(hips.global_position.x, hips.global_position.z)
-	var moved: float = Vector2(hips.global_position.x - p.x, hips.global_position.z - p.z).length()
-	print("hips ", y0, " → ", y1, " ground under body ", gy, " moved ", moved)
-	_check("body lies on the ground", y1 - gy < 0.45 and y1 - gy > -0.1, "над землёй %.2f м" % (y1 - gy))
-	_check("body did not roll away", moved < 3.5, "%.1f м" % moved)
-	for i in 120:
+	for i in 20:
 		await get_tree().physics_frame
-	_check("ragdoll removed after hide", not g._ragdoll.active() and not g.visible, "")
+	_check("goblin shattered", g._shattered and not g.visible, "")
 	g.revive()
 	for i in 5:
 		await get_tree().physics_frame
-	_check("revived standing", g.visible and not g._ragdoll.active(), "")
+	_check("revived standing", g.visible and not g._shattered, "")
 	# Удар по герою — отшатывается
 	Game.hp = Game.max_hp
 	h._invuln = 0.0

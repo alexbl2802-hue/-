@@ -90,7 +90,7 @@ func _ready() -> void:
 	h.touch.jump = false
 	for i in 12:
 		await get_tree().physics_frame
-	_check("jump pose", h._ha.current() == "run", h._ha.current())
+	_check("jump pose", h._ha.current() == "air", h._ha.current())
 	await shot.call("jump")
 	print("RESULT: ", "ALL OK" if ok else "FAILED")
 	get_tree().quit()
