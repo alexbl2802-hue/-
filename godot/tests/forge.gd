@@ -73,7 +73,7 @@ func _ready() -> void:
 	var hp0 := Game.hp
 	await _frames(9)  # ~0,15 с
 	_check("rabbit hits at once", Game.hp < hp0, "hp %d → %d" % [hp0, Game.hp])
-	_check("rabbit/kobold damage up", rb.T["dmg"] == 16 and main.enemies.list.filter(func(e): return e.type == "kobold")[0].T["dmg"] == 23, "")
+	_check("rabbit/kobold damage up", rb.T["dmg"] == 16 and preload("res://scripts/enemy.gd").TYPES["kobold"]["dmg"] == 23, "")
 	# 5. Эволюция навыка закрыта на максимуме
 	Game.level = 10
 	Game.skills = {"strength": 7}
