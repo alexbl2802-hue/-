@@ -41,6 +41,8 @@ jobs:
 
       - name: Meshy docs (animation library)
         if: inputs.docs_only
+        env:
+          MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
         run: |
           mkdir -p meshy/docs
           cd meshy/docs
@@ -68,6 +70,9 @@ jobs:
               [ "$code" = "200" ] || rm -f "$f"
             done
           fi
+          # Каталог движений (номер, название, категория, превью) — JSON
+          curl -sL -A "Mozilla/5.0" -o animations_resources.json -w "%{http_code} catalog\n" https://api.meshy.ai/web/public/animations/resources | tee -a index.txt
+          curl -sL -H "Authorization: Bearer $MESHY_API_KEY" -o animations_library.json -w "%{http_code} library\n" https://api.meshy.ai/openapi/v1/animations/library | tee -a index.txt
           ls -la
 
       - name: Fetch from Meshy
