@@ -98,7 +98,7 @@ func _ready() -> void:
 	var d: Node3D = main.dungeons[0]
 	_check("entered floor 1", main.mode == 0 and main.hero.global_position.distance_to(d.start_pos) < 2.0, str(main.hero.global_position))
 	_check("no crypt/cave entrances", main.world.entrances.is_empty() and main.dungeons.size() == DungeonDefs.TOWER.size(), str(main.dungeons.size()))
-	var all_chests := main.dungeons.all(func(x): return x.chest.has("pos"))
+	var all_chests: bool = main.dungeons.all(func(x): return x.chest.has("pos"))
 	_check("chest on every floor", all_chests, "")
 	await _frames(30)
 	await _shot("s3_floor1.png")
