@@ -57,6 +57,10 @@ var _new_swing := false
 var _idle_pose := false
 var _gear := {}
 var _longsword: Node3D
+var _shields := {}           # щиты по виду: round / heater / tower
+var _armor_fit: ArmorFit
+var _body_mi: MeshInstance3D
+var _hidden_key := ""
 var _blades := {}           # модели клинков: ключ → {node, mesh, base, glow, rust}
 var _has_idle := false            # детали брони и шлема на костях модели: имя → MeshInstance3D
 
@@ -367,115 +371,73 @@ const BLADES := {
 const BLADE_OF := {"sword_bone": "bone_blade", "sword_crystal": "crystal_blade", "rapier_star": "crystal_blade", "dagger_venom": "bone_blade",
 	"u_bone_king": "bone_blade", "u_queen": "crystal_blade", "u_frost": "crystal_blade", "u_chief": "bone_blade"}
 
+## Клинки в духе SAO (scripts/sao_gear.gd): по одному на тип оружия, цвет — по предмету
+const BLADE_REF_LEN := {"sword": 1.0, "great": 1.4, "rapier": 1.15, "dagger": 0.55}
+
 func _attach_blades() -> void:
-	for key in BLADES:
-		if not ResourceLoader.exists(BLADES[key]):
-			continue
-		var node: Node3D = (load(BLADES[key]) as PackedScene).instantiate()
+	for wt in SaoGear.BLADE:
+		var node := SaoGear.blade(wt)
 		node.visible = false
+		# кулак держит рукоять у гарды: начало клинка чуть выше центра хвата
+		node.position.y = float(SaoGear.BLADE[wt]["grip"]) * 0.42
 		_sword.add_child(node)
-		var mi: MeshInstance3D = node.find_children("*", "MeshInstance3D", true, false)[0]
-		var base: StandardMaterial3D = mi.mesh.surface_get_material(0)
-		_blades[key] = {"node": node, "mesh": mi, "base": base, "glow": base.duplicate()}
-	if _blades.is_empty():
-		return
+		SaoGear.paint_blade(node, Color.WHITE, Color("#3a3a44"), Color("#2a1e16"), Color.BLACK, 0.0)
+		var mi: MeshInstance3D = node.get_node("Blade")
+		var base: StandardMaterial3D = mi.material_override
+		_blades["sao_" + wt] = {"node": node, "mesh": mi, "base": base, "glow": base.duplicate()}
 	for c in _sword.get_children():
 		if not c in _blades.values().map(func(x): return x["node"]):
 			c.visible = false
-	if _blades.has("longsword"):
-		var ls: Dictionary = _blades["longsword"]
-		ls["rust"] = (ls["base"] as StandardMaterial3D).duplicate()
-		ls["rust"].albedo_texture = load(RUST_TEX)
-		ls["rust"].metallic = 0.15
-		ls["rust"].roughness = 0.9
-	_longsword = _blades.get("longsword", {}).get("node")
+	_longsword = _blades["sao_sword"]["node"]
 
 ## Броня и шлем — детали на костях модели, двигаются вместе с телом.
 ## Размеры подобраны по модели: торс ~0,4 м в ширину, голова ~0,2 м.
 func _build_gear(sk: Skeleton3D) -> void:
-	# Положение каждой накладки задаётся в системе скелета в позе покоя (T-поза, лицом к +Z,
-	# левая рука — к +X) и переводится в систему своей кости — так накладки не зависят от того,
-	# как повёрнуты оси костей у модели
-	var bone := func(suffix: String) -> int:
-		for i in sk.get_bone_count():
-			if sk.get_bone_name(i).ends_with(suffix):
-				return i
-		return -1
-	var rest := func(suffix: String) -> Transform3D: return sk.get_bone_global_rest(bone.call(suffix))
-	var put := func(suffix: String, mesh: Mesh, center: Vector3, size: Vector3, basis := Basis()) -> MeshInstance3D:
-		var att := BoneAttachment3D.new()
-		sk.add_child(att)
-		var b: int = bone.call(suffix)
-		att.bone_name = sk.get_bone_name(b)
-		att.bone_idx = b
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		mi.material_override = StandardMaterial3D.new()
-		att.add_child(mi)
-		var g: Transform3D = sk.get_bone_global_rest(b)
-		mi.transform = g.affine_inverse() * Transform3D(basis.scaled(size), center)
-		return mi
-	var tube := CylinderMesh.new()
-	tube.top_radius = 1.0
-	tube.bottom_radius = 1.0
-	tube.height = 1.0
-	tube.radial_segments = 16
-	var dome := SphereMesh.new()
-	dome.radius = 1.0
-	dome.height = 1.0
-	dome.is_hemisphere = true
-	dome.radial_segments = 16
-	dome.rings = 6
-	var box := BoxMesh.new()
-	var spine1: Vector3 = rest.call("Spine1").origin
-	var spine2: Vector3 = rest.call("Spine2").origin
-	var neck: Vector3 = rest.call("Neck").origin
-	var head: Vector3 = rest.call("Head").origin
-	# Нагрудник и пояс
-	_gear["cuirass"] = put.call("Spine1", tube, spine1 + Vector3(0, 0.1, 0.02), Vector3(0.17, 0.3, 0.13))
-	_gear["chest_top"] = put.call("Spine2", dome, Vector3(spine1.x, spine1.y + 0.25, spine1.z + 0.02), Vector3(0.17, 0.06, 0.13))
-	_gear["belt"] = put.call("Spine", tube, rest.call("Spine").origin + Vector3(0, -0.02, 0.01), Vector3(0.18, 0.05, 0.14))
-	# Наплечники
-	for side in ["Left", "Right"]:
-		var sh: Vector3 = rest.call(side + "Arm").origin
-		var sx := 1.0 if side == "Left" else -1.0
-		_gear["pauldron_" + side] = put.call(side + "Arm", dome, sh + Vector3(sx * 0.03, 0.03, 0), Vector3(0.1, 0.08, 0.1), Basis(Vector3(0, 0, 1), -sx * 0.5))
-	# Шлем поверх капюшона
-	_gear["helm"] = put.call("Head", dome, head + Vector3(0, 0.1, -0.01), Vector3(0.13, 0.14, 0.145))
-	_gear["helm_rim"] = put.call("Head", tube, head + Vector3(0, 0.1, -0.01), Vector3(0.137, 0.02, 0.152))
-	_gear["helm_nose"] = put.call("Head", box, head + Vector3(0, 0.04, 0.14), Vector3(0.025, 0.1, 0.02))
-	# Сапоги: голенище на нижней части голени и носок
-	for side in ["Left", "Right"]:
-		var knee: Vector3 = rest.call(side + "Leg").origin
-		var ankle: Vector3 = rest.call(side + "Foot").origin
-		var toe: Vector3 = rest.call(side + "ToeBase").origin
-		var up := (knee - ankle).normalized()
-		var axis := Basis(up.cross(Vector3(0, 0, 1)).normalized(), up, up.cross(up.cross(Vector3(0, 0, 1))).normalized() * -1.0)
-		_gear["boot_" + side] = put.call(side + "Leg", tube, ankle + up * 0.13, Vector3(0.075, 0.26, 0.08), axis)
-		_gear["toe_" + side] = put.call(side + "Foot", box, (ankle + toe) / 2.0 + Vector3(0, -0.03, 0.02), Vector3(0.11, 0.09, 0.2))
-	# Плащ: полотно за спиной от плеч до колен, ворот
-	_gear["cloak"] = put.call("Spine2", box, Vector3(spine2.x, spine2.y - 0.32, spine2.z - 0.17), Vector3(0.42, 0.9, 0.025), Basis(Vector3(1, 0, 0), 0.1))
-	_gear["cloak_collar"] = put.call("Neck", tube, neck + Vector3(0, -0.03, -0.01), Vector3(0.14, 0.06, 0.12))
-	# Щит на тыльной стороне левого предплечья (в T-позе — сверху, когда рука опущена — снаружи)
-	var elbow: Vector3 = rest.call("LeftForeArm").origin
-	var wrist: Vector3 = rest.call("LeftHand").origin
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.0
-	disc.bottom_radius = 1.0
-	disc.height = 1.0
-	disc.radial_segments = 20
-	_gear["shield"] = put.call("LeftForeArm", disc, (elbow + wrist) / 2.0 + Vector3(0, 0.08, 0), Vector3(0.27, 0.035, 0.27))
-	_gear["shield_boss"] = put.call("LeftForeArm", dome, (elbow + wrist) / 2.0 + Vector3(0, 0.1, 0), Vector3(0.07, 0.05, 0.07))
+	# Доспехи по фигуре: оболочки вокруг костей по форме тела модели (scripts/hero_armor.gd)
+	var body: MeshInstance3D = null
+	for m in _char.find_children("*", "MeshInstance3D", true, false):
+		if (m as MeshInstance3D).skin != null:
+			body = m
+	if body == null:
+		return
+	var built := HeroArmor.build(body)
+	_gear = built["parts"]
+	_armor_fit = built["fit"]
+	_body_mi = body
+	# Щиты на тыльной стороне левого предплечья, снаружи руки (не касаются её)
+	var b := -1
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("LeftForeArm"):
+			b = i
+	var att := BoneAttachment3D.new()
+	sk.add_child(att)
+	att.bone_name = sk.get_bone_name(b)
+	att.bone_idx = b
+	var elbow: Vector3 = sk.get_bone_global_rest(b).origin
+	var wrist: Vector3 = sk.get_bone_global_rest(sk.find_bone(sk.get_bone_name(b).replace("ForeArm", "Hand"))).origin
+	var g: Transform3D = sk.get_bone_global_rest(b)
+	_shields = {}
+	for kind in ["round", "heater", "tower"]:
+		var sh := SaoGear.shield(kind)
+		sh.visible = false
+		att.add_child(sh)
+		# в T-позе левая рука вдоль +X ладонью вниз; щит — на тыльной стороне предплечья (+Y),
+		# лицом наружу, верхом к большому пальцу (+Z): в стойке, когда ладонь смотрит к телу,
+		# щит стоит вертикально и прикрывает бок
+		var center := elbow.lerp(wrist, 0.45) + Vector3(0, 0.075, 0)
+		var basis := Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0))
+		sh.transform = g.affine_inverse() * Transform3D(basis, center)
+		sh.scale = Vector3.ONE / CHAR_SCALE * 1.0
+		_shields[kind] = sh
 
-func _set_gear(names: Array, show: bool, color: Color, metal: bool) -> void:
+func _set_gear(names: Array, show: bool, color: Color, metal: bool, kind := "") -> void:
 	for n in names:
+		if not _gear.has(n):
+			continue
 		var mi: MeshInstance3D = _gear[n]
 		mi.visible = show
-		var m := mi.material_override as StandardMaterial3D
-		m.albedo_color = color
-		m.albedo_color = color.darkened(0.25) if metal else color
-		m.metallic = 0.5 if metal else 0.0
-		m.roughness = 0.5 if metal else 0.85
+		if show:
+			HeroArmor.paint(mi, color, metal, kind)
 
 func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 	for i in sk.get_bone_count():
@@ -705,35 +667,45 @@ func update_look() -> void:
 		_blade.position.y = 0.12 + 0.5 * w["len"]
 		if not _blades.is_empty():
 			var id: String = Game.equip["weapon"]["id"]
-			var key: String = BLADE_OF.get(id, "longsword")
-			if not _blades.has(key):
-				key = "longsword"
-			var s := 0.55 * float(w["len"])
+			var wt: String = w.get("wt", "sword")
+			var key := "sao_" + wt
 			for k in _blades:
 				_blades[k]["node"].visible = k == key
 			var bl: Dictionary = _blades[key]
-			# Тип оружия меняет ширину клинка: двуручник шире, рапира тонкая
-			var wd: float = Items.wtype_of(Game.equip["weapon"])["width"]
-			(bl["node"] as Node3D).transform = Transform3D(Basis(Vector3(0, 0, 1), PI).scaled(Vector3(s * wd, s, s * wd)), Vector3(0, 0.65 * s, 0))
-			var mat: StandardMaterial3D = bl["base"]
-			if id == "sword_rusty" and bl.has("rust"):
-				mat = bl["rust"]
-			elif id == "sword_steel":
-				mat = bl["glow"]
-				mat.albedo_color = WorldGen.hex(w["color"])
-			if r >= 3:
-				# Великий и легендарный ранг — клинок светится цветом ранга
-				var g: StandardMaterial3D = bl["glow"]
-				if mat != g:
-					g.albedo_color = Color.WHITE
-				g.emission_enabled = true
-				# Уникальное оружие светится своим цветом, остальное — цветом ранга
-				g.emission = WorldGen.hex(w["glow"]) if w.get("unique", false) else Items.RANKS[r]["color"]
-				g.emission_energy_multiplier = 1.2 if w.get("unique", false) else 0.8
-				mat = g
-			else:
-				(bl["glow"] as StandardMaterial3D).emission_enabled = false
-			(bl["mesh"] as MeshInstance3D).material_override = mat
+			# Длина клинка по предмету (рукоять та же)
+			var blade_mi: MeshInstance3D = bl["mesh"]
+			blade_mi.scale = Vector3(1.0, float(w["len"]) / float(BLADE_REF_LEN[wt]), 1.0)
+			# Гарда и рукоять: простое оружие — тёмное железо и кожа, редкое — золото,
+			# уникальное — цвет своего свечения
+			var guard := Color("#3a3a44")
+			if r >= 2:
+				guard = Color("#c8a040")
+			if w.get("unique", false):
+				guard = WorldGen.hex(w["glow"]).lerp(Color("#202028"), 0.45)
+			if id == "sword_rusty":
+				guard = Color("#5a4030")
+			var grip := Color("#2a1e16") if r < 2 else Color("#1a1a30")
+			SaoGear.paint_blade(bl["node"], WorldGen.hex(w["color"]), guard, grip, Color.BLACK, 0.0)
+			var mat: StandardMaterial3D = blade_mi.material_override
+			if id == "sword_rusty":
+				mat.metallic = 0.3
+				mat.roughness = 0.75
+				if ResourceLoader.exists(RUST_TEX):
+					mat.albedo_texture = load(RUST_TEX)
+			var glow := Color.BLACK
+			var energy := 0.0
+			if w.has("glow"):
+				glow = WorldGen.hex(w["glow"])
+				energy = 1.2 if w.get("unique", false) else 0.7
+			elif r >= 3:
+				glow = Items.RANKS[r]["color"]
+				energy = 0.8
+			if energy > 0.0:
+				mat.emission_enabled = true
+				mat.emission = glow
+				mat.emission_energy_multiplier = energy
+			bl["base"] = mat
+			bl["glow"] = mat.duplicate()
 	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)))
 	_tunic_mat.set_shader_parameter("metallic", 0.55 if a.get("metal", false) else 0.0)
 	_tunic_mat.set_shader_parameter("roughness", 0.45 if a.get("metal", false) else 0.8)
@@ -742,25 +714,80 @@ func update_look() -> void:
 		_helmet_mat.set_shader_parameter("albedo", WorldGen.hex(h["color"]))
 	# У следопыта своя броня и капюшон — накладки брони и шлема на нём не показываем
 	if not _gear.is_empty() and SHOW_GEAR:
-		var am: bool = a.get("metal", false)
-		_set_gear(["cuirass", "chest_top", "belt"], not a.is_empty(), WorldGen.hex(a.get("color", 0)), am)
-		_set_gear(["belt"], not a.is_empty(), WorldGen.hex(0x4a3220), false)
-		# Наплечники — только у металлических доспехов
-		_set_gear(["pauldron_Left", "pauldron_Right"], am, WorldGen.hex(a.get("color", 0)), true)
-		var hm: bool = h.get("id", "") == "helm_iron" or (not h.is_empty() and h["color"] != 0x6a4626)
-		_set_gear(["helm"], not h.is_empty(), WorldGen.hex(h.get("color", 0)), hm)
-		_set_gear(["helm_rim", "helm_nose"], hm, WorldGen.hex(h.get("color", 0)).darkened(0.15), true)
-		for slot in ["boots", "cloak", "shield"]:
-			var e = Game.equip.get(slot)
-			var it: Dictionary = Items.get_item(e["id"]) if e != null else {}
-			var c: Color = WorldGen.hex(it.get("color", 0x444444))
-			var metal: bool = it.get("metal", false)
-			match slot:
-				"boots": _set_gear(["boot_Left", "boot_Right", "toe_Left", "toe_Right"], e != null, c, metal)
-				"cloak": _set_gear(["cloak", "cloak_collar"], e != null, c, false)
-				"shield":
-					_set_gear(["shield"], e != null, c, metal)
-					_set_gear(["shield_boss"], e != null, Color("#b8b0a0"), true)
+		_show_armor(a, h)
+
+## Доспехи в духе SAO: кожаная куртка — лёгкий кожаный нагрудник с поясом; кольчуга — кольчужный
+## нагрудник с пластинами на бёдрах и наплечниками; латы — белые латы с золотой кромкой
+## (нагрудник, наплечники, наручи, перчатки, наколенники, набедренники).
+func _show_armor(a: Dictionary, h: Dictionary) -> void:
+	var all := ["cuirass", "belt", "tassets", "pauldron_Left", "pauldron_Right", "vambrace_Left", "vambrace_Right",
+		"glove_Left", "glove_Right", "knee_Left", "knee_Right", "cuisse_Left", "cuisse_Right", "greave_Left", "greave_Right",
+		"bootleg_Left", "bootleg_Right", "boot_Left", "boot_Right", "helm", "helm_dome", "visor", "circlet", "cloak", "cloak_collar"]
+	_set_gear(all, false, Color.BLACK, false)
+	var ac := WorldGen.hex(a.get("color", 0))
+	var leather := Color("#4a3220")
+	var aid: String = Game.equip["armor"]["id"] if Game.equip.get("armor") != null else ""
+	var hid: String = Game.equip["helm"]["id"] if Game.equip.get("helm") != null else ""
+	match aid:
+		"armor_leather":
+			_set_gear(["cuirass"], true, ac, false, "leather")
+			_set_gear(["belt"], true, leather.darkened(0.2), false)
+		"armor_chain":
+			_set_gear(["cuirass", "tassets"], true, ac, true, "chain")
+			_set_gear(["belt"], true, leather, false)
+			_set_gear(["pauldron_Left", "pauldron_Right"], true, ac.lightened(0.1), true)
+		"armor_plate":
+			_set_gear(["cuirass", "pauldron_Left", "pauldron_Right", "vambrace_Left", "vambrace_Right", "knee_Left", "knee_Right",
+				"cuisse_Left", "cuisse_Right", "tassets"], true, ac.lightened(0.15), true)
+			_set_gear(["glove_Left", "glove_Right"], true, ac.darkened(0.2), true)
+			_set_gear(["belt"], true, Color("#c8a040"), true)
+		_:
+			if not a.is_empty():
+				_set_gear(["cuirass", "belt"], true, ac, a.get("metal", false))
+	if not h.is_empty():
+		var hc := WorldGen.hex(h["color"])
+		if hid == "helm_leather":
+			_set_gear(["circlet"], true, hc, false, "leather")
+		else:
+			_set_gear(["helm", "helm_dome"], true, hc, true)
+			_set_gear(["visor"], true, Color("#101014"), false)
+			_set_gear(["circlet"], true, Color("#c8a040"), true)
+	var e = Game.equip.get("boots")
+	if e != null:
+		var it := Items.get_item(e["id"])
+		var bc := WorldGen.hex(it.get("color", 0x444444))
+		var metal: bool = it.get("metal", false)
+		_set_gear(["bootleg_Left", "bootleg_Right", "boot_Left", "boot_Right"], true, bc, metal, "" if metal else "leather")
+		if metal:
+			_set_gear(["greave_Left", "greave_Right"], true, bc, true)
+	e = Game.equip.get("cloak")
+	if e != null:
+		var cc := WorldGen.hex(Items.get_item(e["id"]).get("color", 0x444444))
+		_set_gear(["cloak", "cloak_collar"], true, cc, false, "cloth")
+	e = Game.equip.get("shield")
+	var kind := ""
+	if e != null:
+		kind = {"shield_wood": "round", "shield_iron": "heater", "shield_tower": "tower"}.get(e["id"], "heater")
+		var it := Items.get_item(e["id"])
+		var sc := WorldGen.hex(it.get("color", 0x777777))
+		if kind == "tower":
+			sc = Color("#eeeef2")
+		SaoGear.paint_shield(_shields[kind], sc, it.get("metal", false))
+	for k in _shields:
+		_shields[k].visible = k == kind
+	# Части тела (одежды модели) под надетыми деталями прячем — сквозь броню ничего не проступает
+	var hidden := {}
+	var names := []
+	for n in _gear:
+		var mi: MeshInstance3D = _gear[n]
+		if mi.visible and mi.has_meta("hide"):
+			names.append(n)
+			for ti in mi.get_meta("hide"):
+				hidden[ti] = true
+	var key := ",".join(names)
+	if key != _hidden_key:
+		_hidden_key = key
+		_body_mi.mesh = _armor_fit.masked_body(hidden)
 
 # ---------- Бой
 # ---------- Уклонения, Switch, реакции на удары, приём «Горизонталь»
