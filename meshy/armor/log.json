@@ -1,0 +1,973 @@
+[
+ {
+  "request": [
+   "POST",
+   "/retexture",
+   {
+    "model_url": "https://raw.githubusercontent.com/alexbl2802-hue/-/e5c7cc0e62d1f5984c75b2e79f5dc8ce9d4835e0/godot/models/hero.glb",
+    "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+    "enable_original_uv": true,
+    "enable_pbr": true,
+    "ai_model": "latest",
+    "texture_resolution": "4k",
+    "target_formats": [
+     "glb"
+    ]
+   }
+  ],
+  "response": {
+   "result": "01a19ddb-e91d-74c8-9247-a02872307dc7"
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 0,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 0,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 0,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 0,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 0,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 49,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649801136,
+   "progress": 69,
+   "started_at": 1793649801162,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddb-e91d-74c8-9247-a02872307dc7",
+   null
+  ],
+  "response": {
+   "id": "01a19ddb-e91d-74c8-9247-a02872307dc7",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing fitted light leather armor: dark brown leather breastplate with stitched seams and buckles, leather shoulder guards, leather bracers and gloves, dark grey trousers, brown leather boots, long dark charcoal hooded coat with leather trim. Clean hand-painted anime game style, crisp details, no dirt.",
+   "image_style_url": "",
+   "status": "SUCCEEDED",
+   "created_at": 1793649801136,
+   "progress": 100,
+   "started_at": 1793649801162,
+   "finished_at": 1793649871635,
+   "expires_at": 1793909071635,
+   "task_error": null,
+   "model_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/model.glb?Expires=1793909071&Signature=lYMYaN6LDaxv-mQlLVUTIRHo7oveI3RWiTGnhYQULagGYp~f1yqd7kyTgiDliZqEuK9DFfyvH16et1Pe5wr7nkqCmzxDKrRXxVnhdJ~CMC6wRkX0U-H78TOB80fcY~Xxf3ruENAM4v~CfTMQNKvYM00zUvdFtAja2eqrOGR5uiFGb065~xDip6hQN5-51OGXm0GsfJF4eDFOhK9cfNvyZf861ccyztZ8SSpkphDaVzweyrnUhFOHtwmkNAMaURCJAsyP-~AlZApibZpyKIafwUpn6C99sJsk7QwuMWUBgVmchYlRMNxpow8WdiGYn~7KhXgroOBrKVjx8-lm1-gHPg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+   "model_urls": {
+    "glb": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/model.glb?Expires=1793909071&Signature=lYMYaN6LDaxv-mQlLVUTIRHo7oveI3RWiTGnhYQULagGYp~f1yqd7kyTgiDliZqEuK9DFfyvH16et1Pe5wr7nkqCmzxDKrRXxVnhdJ~CMC6wRkX0U-H78TOB80fcY~Xxf3ruENAM4v~CfTMQNKvYM00zUvdFtAja2eqrOGR5uiFGb065~xDip6hQN5-51OGXm0GsfJF4eDFOhK9cfNvyZf861ccyztZ8SSpkphDaVzweyrnUhFOHtwmkNAMaURCJAsyP-~AlZApibZpyKIafwUpn6C99sJsk7QwuMWUBgVmchYlRMNxpow8WdiGYn~7KhXgroOBrKVjx8-lm1-gHPg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+   },
+   "thumbnail_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/preview.png?Expires=1793909071&Signature=K7dQTShCSzSc9-9BVVkNJVtqM2WlKiSA9qnZSpkmk2xHwz6ix-eloezMWnLlaoeWZuBt-AMEdEZtco-kSfcv9m7~kNOuIbV63WyvBqsK4pB5cxUYnk1GGOtjN0YMxiwtmj4hnqMjH2aKvzWQEYuph0~f0PzUHTGZU1vAVoFJTBlhYzqg08j-KKV5WkEIAvgZJCy1qKDaNXuApUaNHEpYEvRpWQr-9K62OG8Vg7EysVR7iC5F0TBMFaGB4QlKm93wGf63hvUSfc1Ap4KgtnbA-ZGACjwfVPY3MkfgwM4MvPWtwce2RvYxPU8kby6EpXbJx5gPhAbS6bgDmwqwNvx7lQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+   "texture_urls": [
+    {
+     "base_color": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/texture_0.png?Expires=1793909071&Signature=P3G~XKi3WXHrG-EvyGdDLm9ALxi3KEX6nsu-KFRlyulmMZJeXx6octmN~thB2Z7rDTl1xrpuM3~j4KcZB23vZVkNNI1bEDCBNzlkzl8MPxEpnTUt~r9mxzz629z~RGds~b5HawFndoV1DtE1bFoNEeFC6dqzrCR599DaifctdR8YPJ65oO7IEYa~9c6~g2TgVBjcLrxNNIhoRLtODHWk8051Y-9mJGWsKnYRvTzbZ9FZLWEKZa4tF5loHbAtKfQ5Rvug1KtvP1LkQBBi9O-KNEkVZ0iHCUXQQPodeB7TwiCubV81IK2-XB-YVLQgshbpnH-9q-jllhua4YMwimyPSw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "metallic": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/texture_0_metallic.png?Expires=1793909071&Signature=aUSLQNbr1MFuKHUAl5hSanKAiCIRdghLrLTBEGTc3dkPG~w1F8i1CANd4Iwcfeo7b~j8Vf-z6~sgwNA5rfiQsPdlzAvthBz3fXeGUK4DWcEj0mYxz2Nz1RimTuphGR7FF1ZnNb~7TsPaAxzjjsY~G55BoLpMZghmyG7UvLEPABDhiOFKv-AbbjUdExanIxvvOoZTDeMo07q70raIRW1KkXnOcZ5WozP7gFWmn5L0BTneOZG1tUPcd4Rum95y2f8MCA0LfVj9ZvgZokOBHiT61FOUptGrJCcJ1AbTnWR3XPIaBtilVolvAy6WT1AEgCVBdHTY3uQQBc6qOCwwo7Nw8w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "roughness": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/texture_0_roughness.png?Expires=1793909071&Signature=hOjMWDpl-CWg3Cd7ikA0akR7FFrSK-YkrHoqJy~ne5oS7rKU6d6nkg6Il8cM3vu0-~2ZPDqlZXvbxDCiwuG-utP0MWvNTZ-vlm6QmVRbhh9QqVjAX2a2HU-vPphgQudT~mcDN~zCD~Q8M0Fnu8T-EOj-QiiulYEFzhoHih8~LtN~XgWZiyj3xKq-iTEZo-~9HovsTWC4QFkyyp1e7prsDUEfGnGa3mvVUpmezAQ5oaGIJmrl3GHmhXB~e7S0KGan7YyygOcbLZ5ZkaL8kOHFZ9LHOgHfFhVwr6nhnIFNY2UrtyujnNHo0siBNMb5IRQThjA4t~Jhnp4iitvhAYM-AQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "normal": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddb-e91d-74c8-9247-a02872307dc7/output/texture_0_normal.png?Expires=1793909071&Signature=FerjUIoZcQPWrcY~n3LpugCuVWQWD2OSVDY~4BoZ7E3PokB1yhS0l~zjYthwmCbpbcAvp8nO6rrqV-LhzN2mmmHNfkiwRmTk-MZRuEswNu9ZpaKNQpuWbKwKE3inxv4zaETsxvAUpXxU6fW20zxpq2vCXSvqquAzP-HdKU~2MxU1nD8xtenASpXEg204emwyug7ZCwRme-HQqTjfcw-6cHq-7LBPY18rUuHa58-KB9yXW2pLMcWb4JRFSqLTHE6Gwl5PrtePAPGccrKhxmaMNBy69Wbe5tZPcyHQgQr1EYu650HtddoyrMEd7LiR7QRPA6QaQkAmtC2cavyaGAaGBw__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+   ],
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "POST",
+   "/retexture",
+   {
+    "model_url": "https://raw.githubusercontent.com/alexbl2802-hue/-/e5c7cc0e62d1f5984c75b2e79f5dc8ce9d4835e0/godot/models/hero.glb",
+    "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+    "enable_original_uv": true,
+    "enable_pbr": true,
+    "ai_model": "latest",
+    "texture_resolution": "4k",
+    "target_formats": [
+     "glb"
+    ]
+   }
+  ],
+  "response": {
+   "result": "01a19ddd-1598-7006-96d7-b606b5b620cf"
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 0,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 0,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 0,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 0,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 0,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 49,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 69,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649876593,
+   "progress": 99,
+   "started_at": 1793649876613,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19ddd-1598-7006-96d7-b606b5b620cf",
+   null
+  ],
+  "response": {
+   "id": "01a19ddd-1598-7006-96d7-b606b5b620cf",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO swordsman wearing steel chainmail armor: silver chainmail shirt with fine rings over the chest and arms, polished steel shoulder plates and bracers, dark leather belts with silver buckles, dark trousers, steel-capped boots, long dark navy hooded coat with silver trim. Clean anime game style, crisp metal details.",
+   "image_style_url": "",
+   "status": "SUCCEEDED",
+   "created_at": 1793649876593,
+   "progress": 100,
+   "started_at": 1793649876613,
+   "finished_at": 1793649948295,
+   "expires_at": 1793909148295,
+   "task_error": null,
+   "model_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/model.glb?Expires=1793909148&Signature=U78nY~C3Cy~sgJWRNCISRyo7NAAV4XcRomiEXyR0RYAUHVQdrsiqnXo8a8PGLJMtoM~NUoHMwDFjvALOmI5iCz4GlONG25EbP2LU0Zw22elv~zbpCNxlprwjscmVRF4s7Y4KDfx7P2A1VBGiGEyDBbXQCHEFvRbhj4CS1zWo4VyEOL9e1BDvRZY-F6hSW7dOu5XYP4y2~f17sgCQfdPmcNGQnyh8cIr4XKJ2gSKIyUsjUpCYQAQcchqizGh8TMx6ArHIzK-y~kEmgL41OE~I89BJPhBzFTigPhFJrOPoc~NF5N7S6ASutuu1HLXBc4lciLMnZ8kEm5-YpLGCZIJ-6g__&Key-Pair-Id=K1VGYTHIYLM9UM",
+   "model_urls": {
+    "glb": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/model.glb?Expires=1793909148&Signature=U78nY~C3Cy~sgJWRNCISRyo7NAAV4XcRomiEXyR0RYAUHVQdrsiqnXo8a8PGLJMtoM~NUoHMwDFjvALOmI5iCz4GlONG25EbP2LU0Zw22elv~zbpCNxlprwjscmVRF4s7Y4KDfx7P2A1VBGiGEyDBbXQCHEFvRbhj4CS1zWo4VyEOL9e1BDvRZY-F6hSW7dOu5XYP4y2~f17sgCQfdPmcNGQnyh8cIr4XKJ2gSKIyUsjUpCYQAQcchqizGh8TMx6ArHIzK-y~kEmgL41OE~I89BJPhBzFTigPhFJrOPoc~NF5N7S6ASutuu1HLXBc4lciLMnZ8kEm5-YpLGCZIJ-6g__&Key-Pair-Id=K1VGYTHIYLM9UM"
+   },
+   "thumbnail_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/preview.png?Expires=1793909148&Signature=dYALJ1ASplEt1RSg~bKbqzsGkNRY-kaO-XaOULzcf9NONSHI6tHYd6D8ZVNnFVjpvKvAupBT~0TvA9QIRaqO4K36s~Jz6WMJLICEG~1L-Vd7YcMz2aeXRHW1lVWUHfPOasB14pYnhWEaCub-Yhefu2~jWzc2CQfozSimvUILbIcK5klQUnRKRYufzbNdijTygYnVGkR14oHrssxB6Rw7hzUC5QirOKwkjscv7MSI~6r-1fUIlIwqHHVilmZLcTa6EQAd8l0PQOto1kDaxSOqwRyHEPCT9wfy~L4sfPnGEyE65cDD~vVd~7Z80YPD1T9EXpOxtyNJRR2xj9Hv~UtmzA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+   "texture_urls": [
+    {
+     "base_color": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/texture_0.png?Expires=1793909148&Signature=Pt3MgSDYol6nJfLejEaKiWBMnc685T6ZMkabrmjptoaHzLzJQy2FHSnOu5N92lYGJyLBR45N2x~vNfgdDrdZZcjtBdduzWhYIdCEB40n9T~aHXcdIOXkNmqoXVKut0fZicAlheMgivMG6xTOQLsv4K79ONGEgI00WXs2rBcfWUCpWtJn8FSdLQ46toWotcXW2CkZomz3T1GbZ8ZKwo8qZlGCS2k-R2tL9BO5mlPn0A2UNSmIIG9UgtCsWWOM5WkDH-LC5V5zsy40gWat9eMpVhATycTTE4Ap2PWPrEl7L5QNx~Ywf7m0YQ9kOYGbHYbxvuTUAdpsLPbuTwjQaScqcA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "metallic": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/texture_0_metallic.png?Expires=1793909148&Signature=hdG3nDiVfgpE4qSUYV07lr-oDXb8~c2YNVe~-0hqZ7j~-LZOx7Xc-2u8XlYJTw8y3JzYSciy42aHNBcirUga7qUPkRVZpVaBgdJdoAHWsPfZ7otiZ~JFgMXy8mHoyK7rJ6tSfz436XOfTLPVZrKQXCMEY0huFXGZPNfidKR9rSwCt-1ZK7EW6GQQohbEa0OUs8A-ESLUI1RLpzuPgl7XN093MeLTu1q9TfwOJ30WvfysVL~z6Ftt681JYE8mpF6I1-QZgLVd4ahMHEgEQzWJL~LrVTA~vnCMQA6e6b5Qaak7Ny19aAqfvpkC2yyrK8GtY-jr-VlJnWc1wt91ne1-jw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "roughness": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/texture_0_roughness.png?Expires=1793909148&Signature=A~4yAylruDMpYDSjd3CrAPN5zgGD~O5Ahyy9RVParxfHnDH-iQOadTWxFoCzrN~FqM6vpxC0hBCZ7mMXjENHV-YWQea0myfH9yMGGuYprMnGYn413KhW37NuFf17jrF-KnrnUNTyACSGDWo9jpygkaE5nC3aviS8qjMmb-bwGclTOhLxswMU4rXmVqJhOirl2hDIh2~xzeuVVNYN6kR8R7UHSbcL4sD2M3mi~xyBuICvcfqbi4ZozlAyNQP6SMCGF5iu5YMN265M~CHAHU0jhtHe4pCTyb88vZnz6LwsnBG3S6-l0cs4HnrYpWc3z4mKUK9hjNqO1SAEP6hGWd~Snw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "normal": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ddd-1598-7006-96d7-b606b5b620cf/output/texture_0_normal.png?Expires=1793909148&Signature=YDwtId90s1HY0CTGcWpqq425RsBy5GS7VdEyu0R9~FpjbDD5qzcv40OoLOIln~g-qG2hosHaNaX3AwwMXMaYQhHd8UV5k1-7479NdTQblIIlgcCEBtI0rnUQ9XSADLUDKiM4mktoKjsUVpxxL47aAImyss5nV7572fR38JoNgdCBUDyrBKvX6znoarJzsNyS5flASeQEqMtCTmchqBb1AspsR6DFP414u2YXNRFyvXCeeZWDof2a8jgKOnF-CG0sObtejJwrZs6juLQ79a0IGKBxAftHDksLWNNBPlmlnLI7NO0CjDwvubuPAqAc3PyztR0yVEprhgdwzaCn-Siltg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+   ],
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "POST",
+   "/retexture",
+   {
+    "model_url": "https://raw.githubusercontent.com/alexbl2802-hue/-/e5c7cc0e62d1f5984c75b2e79f5dc8ce9d4835e0/godot/models/hero.glb",
+    "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+    "enable_original_uv": true,
+    "enable_pbr": true,
+    "ai_model": "latest",
+    "texture_resolution": "4k",
+    "target_formats": [
+     "glb"
+    ]
+   }
+  ],
+  "response": {
+   "result": "01a19dde-66dd-7115-8241-a0973b3a9e96"
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 0,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 0,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 0,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 0,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 0,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 34,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 49,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793649963947,
+   "progress": 87,
+   "started_at": 1793649963970,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "model_url": "",
+   "model_urls": {},
+   "thumbnail_url": "",
+   "texture_urls": null,
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/retexture/01a19dde-66dd-7115-8241-a0973b3a9e96",
+   null
+  ],
+  "response": {
+   "id": "01a19dde-66dd-7115-8241-a0973b3a9e96",
+   "type": "retexture",
+   "name": "",
+   "art_style": "realistic",
+   "object_prompt": "",
+   "style_prompt": "",
+   "negative_prompt": "",
+   "texture_prompt": "",
+   "texture_image_url": "",
+   "text_style_prompt": "Anime fantasy MMO holy knight commander wearing polished white steel plate armor with crimson red accents and gold edges: white breastplate, white pauldrons, white gauntlets, white greaves and sabatons, crimson red hooded long cloak-coat with white and gold trim. Clean anime game style, shiny metal, crisp details.",
+   "image_style_url": "",
+   "status": "SUCCEEDED",
+   "created_at": 1793649963947,
+   "progress": 100,
+   "started_at": 1793649963970,
+   "finished_at": 1793650045160,
+   "expires_at": 1793909245160,
+   "task_error": null,
+   "model_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/model.glb?Expires=1793909245&Signature=PXU9hz~kq1-dyuZp3f2Cz8MDnp6O1Z1lh39YUO-BChf3ABiPvygEm9bz16wu8KL4klU7tMnMN-sIh09dOvCdUNC1bf9tvxneMpueWsNYG~q7mGe9ufJ27zZiOJ-aQyYHGdXIlonp588ZHtFH-CxhmQRtyljvE-P3q4Q2-cqRUxgdLRgM~SUTmr2i4INyXH5yhOt1Q1KFORmRkzwn~DbyaoeOPx9gG18y5DqvImybq3rCj6hyMHjPMIdzKvvrv9IBiOHbNbULl9~xc96Jii8wqiisnJsCuvfI8KqSaEBc0Ay9cmfcVc6LJDvIvpPlW3EJ6Xz69uB3npSTRrqqy6vy2g__&Key-Pair-Id=K1VGYTHIYLM9UM",
+   "model_urls": {
+    "glb": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/model.glb?Expires=1793909245&Signature=PXU9hz~kq1-dyuZp3f2Cz8MDnp6O1Z1lh39YUO-BChf3ABiPvygEm9bz16wu8KL4klU7tMnMN-sIh09dOvCdUNC1bf9tvxneMpueWsNYG~q7mGe9ufJ27zZiOJ-aQyYHGdXIlonp588ZHtFH-CxhmQRtyljvE-P3q4Q2-cqRUxgdLRgM~SUTmr2i4INyXH5yhOt1Q1KFORmRkzwn~DbyaoeOPx9gG18y5DqvImybq3rCj6hyMHjPMIdzKvvrv9IBiOHbNbULl9~xc96Jii8wqiisnJsCuvfI8KqSaEBc0Ay9cmfcVc6LJDvIvpPlW3EJ6Xz69uB3npSTRrqqy6vy2g__&Key-Pair-Id=K1VGYTHIYLM9UM"
+   },
+   "thumbnail_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/preview.png?Expires=1793909245&Signature=MSPypCeuwWUhU7XkpltwICycmZe8BXGvYCK87q3G5GXhZ8k6ZMPr1yVpFEE6juWBEjaz6tm6Tc~e1RqaP7332cdMWPlC~cZtVCttt8rC28DBp5x1DlMRwjgSjT2GEXO-PHxRvXv4N4bmTDkgKbGsjrr7eUJ9SMrAsOow3yPPTl6wMxhqC3~50U3bKxr-bva0wHmzFOjoqX2HoTe4I48bK2vcXScUPkj4m6NOOVlmzbItZdIOimHCLzxHHYccRGmQbX3EXS2XUNjj8AvekjX38V8JLH0VAUg0YzqpHgGqSPOMCgUrOlirsTC~7OMxBhnlBwo29bTY4hNnZSPJGbkbYQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+   "texture_urls": [
+    {
+     "base_color": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/texture_0.png?Expires=1793909245&Signature=TH5Q4m9HUTCLq0widFomu0kncfSCMLQmU6DsPkGHRp0jHUpmq6bw16XVbxEefoMAOuEcFhxtzjf62DWjpyK2mJpBDj30AxhCl6tYeUnrLZlQfQnQxvKfns50coUtKjumhrVkrUXGHta7oLJvgm0QBiWhFaQw0NdXuUHUl29-DBov-~IpdqBTB4PMEUPgJz28nN6e2Bqd2ZueGmyXbu4uZepmGQ1DnudNI3AhpUAo8GVsdI-37rkjp07paV0NHJGrSnyM3LTg~qjXMo2ixmc8uNsqYiRIwVAUCEpaL8zhqoZ7fUmZL3JK9~0x~v8-SoEXEyFN50fvvGi1eykjo4AXRA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "metallic": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/texture_0_metallic.png?Expires=1793909245&Signature=XzH4FJZVP7njIEWlrsV8s9R5YsWU6VLyMtl2oWWUr2usu1OeOlAmTD9hE9~HhAWSRmJyjEQKUzUpLr9FNzg~vKy4pZh2faWNotfhTiVmxqmoURYMXKXJ8MJ5DTcqpFYDfZN7OHztRnbKADzcNdV~T3oAa3zzJx6Vzv5ySvdbLckVM3ZoqBBmjrqGr-TaBhjuVitR2lqzAnW0cf30YNaMhDpMVphi2H3GVmB9Lr28UCZb4Uo~ahw9wrty-6l5kLBytfMH7i8FTObKwN3otgn2CRWR1PdT3m8NToViVcWDgs9yL5KIwGbTUH2V5QOlz0faZuJTYb2Hsa-6ucJ9gvdFuA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "roughness": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/texture_0_roughness.png?Expires=1793909245&Signature=aH8OLRrPW8ATxPHaef4UUYwcsQA5pd7-u9Y8KB6ym8MK3au4TSdHUHy4Q41As370vcdR5xu8olMUegTmhCxHzHGi~7iw4i8BS6g8IeDdPzG~jXh7-oL52zncK7yktD6NNNmHkiOv-NhwmJAvP39isnzFo04MU99Wj3u2S~z3DF69VYPOHBBixq~6s-r-KloYzjuB9RFqMdn-Z9rUGUWBBq2al~1I~e12M1lIEoTg37YMyw~rEQw~GVIbSGo0LrP27yK4MF-dEfX2KzymaSYkoZpYWhUOaZEfkg2Xi1IpeWvVgHYsbY-MBVDojEW7Ik0KVr1BD1uGk3M-5y~iSaWtNg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "normal": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19dde-66dd-7115-8241-a0973b3a9e96/output/texture_0_normal.png?Expires=1793909245&Signature=h5Z8Xx1ZZY0jNERFevXfcsdi1SAyLBRPlETFCyX1OKpT5GWXd~VVCAA0sZp5oCwzY33At-2uE3XSC-znJyCIUfQg40EpZjFtNTSxBHF9PH3E2vBB8Zj6odyyUHUOQXIg16YpafZSKlVACDsNnYF5qIMSbJZfVErh~tJEtr8HzpucifDAC~4hIotI9de4rWjjMXcTE9E89~wGfPKTv0MO-0XenvoAnpJ1S6119nFTxLe46gF~rBT7dGzGxw1FIYKQJEmTZWKSVvz~xxJfnppIUAyDW6CbiCYjLWYERG9zbbslrJzJrclBobuMozE1iOtbT5RVljnvp32EzEUfr5JGHA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+   ],
+   "hd_texture": true,
+   "texture_resolution": "4k",
+   "consumed_credits": 10
+  }
+ }
+]
