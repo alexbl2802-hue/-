@@ -1,0 +1,1323 @@
+[
+ {
+  "request": [
+   "POST",
+   "/rigging",
+   {
+    "model_url": "https://raw.githubusercontent.com/alexbl2802-hue/-/adf9a8745896ba792dc74f109b09f4d65be8b7eb/godot/models/hero.glb",
+    "height_meters": 1.8
+   }
+  ],
+  "response": {
+   "result": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1"
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 0,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 31,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 57,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 84,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 90,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 90,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793598979853,
+   "progress": 90,
+   "started_at": 1793598979890,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "",
+    "rigged_character_glb_url": "",
+    "basic_animations": null
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/rigging/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   null
+  ],
+  "response": {
+   "id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+   "type": "rig",
+   "name": "",
+   "status": "SUCCEEDED",
+   "created_at": 1793598979853,
+   "progress": 100,
+   "started_at": 1793598979890,
+   "finished_at": 1793599042532,
+   "expires_at": 1793858242532,
+   "task_error": null,
+   "result": {
+    "rigged_character_fbx_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Character_output.fbx?Expires=1793858242&Signature=lvn80HzVGupClGX-0xxn144V3MjvXGuUvq~19Joe~zENPUg2QgR1hWoyfvKFnJfjdL~c8MAvZDh5mrTwsMneCfbkNTZg~QmzP~fdbd72jSxdqLIlUNpw4ScCVtVgbVpfCvMi3R6Oq9u~bctgaDA3Sa11FH6LNMUMO~BP9VKgUtUa~CT4rsK2PqyGKdiyjzRMX22Ja~eyX30Hnvxwx1Z8YyqFrN6eBzFQd7Nuq3pUjFVXYysQeXQ6WD6b5t~yJDeGclGqRyZCw3ytGtROztq0K~HysAA1H8~JTBaQ2pvArHyJbL7Z1u0xXHlBOVyng6HKD3ydM7j23iOuon33L1EBpA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "rigged_character_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Character_output.glb?Expires=1793858242&Signature=U2uYwb390rtWPsE20ctwJFqo2DwEX5mFEnBHc9CsDceETKvCg0Tn5UensK1lAPdVCJ88ZgBx0~EoR5VZ68a2mxE53EbnPGldKX5D4l8RZGBs2h9b5KkvA9hDWvPD6XRVqMuQgxam6mcZEjooeI7j2E3bbl~mdIBf7ONRYXjx4~fK-OUWjE9A0UXmEEaHcEbypgF26hXsQZa-A2mFkQz5Y2BCm3k3bXGa3AISej~HNjB5A5jN5e0avWr9ZsNNxXc-Dj-VLOqvNJflSH9tEBXeps5NF4~by6hrhlgPsWjBMprDAEOvnFsw-pZwXsc136DXsrb6c2211Fqav0nIo8n5Gw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "basic_animations": {
+     "walking_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Animation_Walking_withSkin.glb?Expires=1793858242&Signature=lwcy0g1~8aU1YFxbRc42imD8hcMz1acMUbRCogg0etXnkeXv7Vwlc9dY3EJTT6mnV-9VQTnNFnav1R8GEpljaXGp67b0jAHW8wJf2Yxxyz5MUMCw96NVTBsaJIkE-cpr29ZhyIXPzKzbZaeha5bwm3-bxVRIrA3ZY~ly21C2os05XJbdqE5SwY0THcRexXX-mXj6UQ38rTRNeIB7OQYUB~5V00WAC4-wByRmuPbw3HqSI06BbQdPjhZZORh14Sq6eL1dy9i5Y-E2pYe71Q0K8SauyzNOn1Zdt6zhT~usvgW6o0Zkq9kmYGugxZBw2hL0pdGX8UJCBkfDLdSdaP6d5w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "walking_fbx_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Animation_Walking_withSkin.fbx?Expires=1793858242&Signature=naoS6M8YXlq8gX6z-wp~sJaCAnyljEXdgikGdVyFxRjR7oijHIpMieKB5u7TCCGgUi6O6ymtulp8DUavycMl4AshyPNDXCMQwCAAvXCbKDDn-klRD56IZQLKHV6ruLDzi9EIJKcl4PsWuM-oXCESB~FUIx5RYNUbmuCD0SSzlKndg3dsNOeaGeSogyGIGfeQM7-9On7yoiRXaOv4Nn8RWtiScBEJQXpYEshuvq69HHD8KaI3ZlROpgWMNPV81u1HG1K-Ay8pcz1qKOxuG~hYVfcHfoFsfmj-DR70e1-CbA0K8fiF7MPQ1kQLl7K2iy6PgIfGCHS-mvxVZxLD~nXN8w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "walking_armature_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Animation_Walking_withSkin_armature.glb?Expires=1793858242&Signature=mUD6gQOjpTMD~r5s4BmYqehialgyAgl~~-MvAuMOox2bwCN2y2sjuXGNvXsyELqopTLmdKEfhWvISblxlEY2y7yr4xRhAWcrLuUQnPKwbUumbueaO7ZqqK266ZsscIa0FifhGuTwIxFymoF0qSiYsOy7EfpfxxF~QE43y1rLezGYR~Ki0UDpVXAnXK7WU2lSYgoT52q4NFID2sPglruGwFGnj~lPz3vjmNzxwIqjd7lnT8ca7xzrd71ayyJO051Bcwmck86Z6eo0mmAaTSd1ExbFTf3vFgr7f4iEU8KDu~Q33-0G8LqnhXBLx43s3bnWq2oQU6rKSYXkcvzjakOZ4g__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "running_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Animation_Running_withSkin.glb?Expires=1793858242&Signature=bKPRY4EGgAT2lnqjM8uo9pZlbfy6u~hwQ9WY05KYQxmN0SO1kTPc4s80G5cwKagAvfi7RqveBb0bkuMoMzbuu-9fFCV5VMFWNpiD1DUIOJeHFJN-9g3WnODR2EUzk3rfz-YaE~lh-i8zYJXgJ4YSPhtIJUh8xzhQ-xRH2wh1Z9kNFTXdVpmQSb1jniYUE~0AvnChaSsw-IV7fJ3CMfsAgJwhkqVdb5K0o1VP-CSVfVshM~B4otqOv~Kfj34KbD2cJzZTSaG-GKLMQOwMPz0bvhnmgEzPkTQDimo8OSDoO0RsPtndRZuugM0JX5whoFysO0swNyueLb8kI6jHy77TaQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "running_fbx_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Animation_Running_withSkin.fbx?Expires=1793858242&Signature=kDoVuSVn2F9WkhWgEJSG3ZVkHfwMB2xbbOH1M6OtKJaRGl0rLY78yziQ5K-xEEiCBauTFToYUAWFdfTLxanoBb4QjBhMgBUcqqNRzVPwW~O8KZevnlK6IA9pHKl7HPKWseyvYILcha4my9eW-MTDAkOPgnbbOQIjtrxLGGKGUsVvlDTwqXUl0NpaP7atniuzSq1wYjOe4z4vn7Fekz-CZ0RVi-DslZPPdovlve1pGc0wBBo2bDhiyNyyRvPY654lXRNWda~olHk2lVK7ZleoPsWxUnzCD4MxpO9ixeqvgy3KQ9aj1QSuAfz9zqGHmFcBQaGOL1EayRdqjLHXg7F7gg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+     "running_armature_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad4-26c4-7440-bd9f-dd1b791d3bb1/output/Animation_Running_withSkin_armature.glb?Expires=1793858242&Signature=OCcFahvswirIFrDx2wMAm3KCvuW4y5aDdtzlYm7ehzlHQiXPKVYDdNHR2UZxpuHJ5Qs8oTMG0L3Bzjh4ZmiCDgMUjmg1zvfX-qF8IDDoriWQuLkYD-sR-DKD1xqLxK76Xk6DcHsF2PfbfV5jMCqVYRbp3NT-h4MdushAi8bLmmy9l~L-xBmuVQVNvbGvGQdEtpGlKgMtgodqQ5Sy6aEKAKjIfVi-EwebDvBvoJXsi~l~O4c2e7MtH7NFQ0f93TZthqIEfTyqe~kLrj~6zPOFFODVIKCRG6d~0yKbK-PRdh~i~cj3hGJyDnpnKruXyQ3TXLL1jjyNvTCQIMaIGjoeuA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+   },
+   "consumed_credits": 5
+  }
+ },
+ {
+  "request": [
+   "POST",
+   "/animations",
+   {
+    "rig_task_id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+    "action_ids": [
+     92,
+     105,
+     97,
+     240,
+     221,
+     102,
+     86,
+     91,
+     147,
+     89
+    ]
+   }
+  ],
+  "response": {
+   "result": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3"
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 1,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 1,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 1,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 38,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 38,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 66,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 66,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 81,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 83,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 86,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 88,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 91,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 93,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 95,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 95,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 95,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 95,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 95,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599054845,
+   "progress": 95,
+   "started_at": 1793599054852,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   null
+  ],
+  "response": {
+   "id": "01a19ad5-a16b-73b4-9fe2-9da3524fd9c3",
+   "type": "animate",
+   "name": "",
+   "status": "SUCCEEDED",
+   "created_at": 1793599054845,
+   "progress": 100,
+   "started_at": 1793599054852,
+   "finished_at": 1793599248708,
+   "expires_at": 1793858448708,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3/output/merged_animations.glb?Expires=1793858448&Signature=cLYNT5qfYg1hS~6alqdS7krB91MiacXKVsUNxrLtuh7ORy3n3o~wdnR1Ru~TjGIn5nLeSekM6fMLpmfGWMQySA~BsFjY6mWeqkokz4DkAobUbZydHEUZWn~ToUXt5lZQPoqd3tQLW6rJTD0VJaK0ErnaUtAbddmWb9YDOAxIAD5AuNfOTOW~CZAryB-HLyzGHU7qejZQObiKZ3teFrMJTHDyMDWb2ZpM56rDZWO~gdYiLSThkDAGQGStpn2zgrA9glAKja-yUA6GA0zA~3ua5L7SKnq~MKIyCNR1EvBQbQ~13LIuFj03A~Q1CfL1KgB~JQEwo0yE7ZIwv9WeUcvK1Q__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "animation_fbx_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad5-a16b-73b4-9fe2-9da3524fd9c3/output/merged_animations.fbx?Expires=1793858448&Signature=gKmt-8oByrtQ0OaDncFwYDmxWgMQ3UdkK3AxX2ES9fo8hsNdCIcVJG2ur-0rmAEqhs8XmosNNA0FzuBm4YbtHVFf0D9ZxAZQjRr9k~m3mlqGhtngym55e-Wre5W4~~bRumr4lDs40--XaPY8xmnJEvyY78~6wEnWWmghjR-ZOkrTNJ7frSC0GZ4AXglbVNv6YAEOOvsfc~1XUd1WEZHeTie5xRfYRc05kbX3mWLmMUYBnc6XdogIhlVb6-F5sVCDQnOOml0w-AwzuzePfN2owZgntcE44wWXDO33PPDBEeixWTEPouP3Jt613Ddn7KUbjncUXKXiyCpTsg0nyUgkOA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "POST",
+   "/animations",
+   {
+    "rig_task_id": "01a19ad4-26c4-7440-bd9f-dd1b791d3bb1",
+    "action_ids": [
+     158,
+     156,
+     384,
+     509,
+     21,
+     10,
+     178,
+     187,
+     100,
+     148
+    ]
+   }
+  ],
+  "response": {
+   "result": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887"
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 1,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 1,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 1,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 38,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 38,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 66,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 66,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 81,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 84,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 86,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 89,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 91,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 94,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 95,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 95,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 95,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 95,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "IN_PROGRESS",
+   "created_at": 1793599251117,
+   "progress": 95,
+   "started_at": 1793599251123,
+   "finished_at": 0,
+   "expires_at": 0,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "",
+    "animation_fbx_url": "",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ },
+ {
+  "request": [
+   "GET",
+   "/animations/01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   null
+  ],
+  "response": {
+   "id": "01a19ad8-9f9a-7642-aa2b-938e1cfdb887",
+   "type": "animate",
+   "name": "",
+   "status": "SUCCEEDED",
+   "created_at": 1793599251117,
+   "progress": 100,
+   "started_at": 1793599251123,
+   "finished_at": 1793599427941,
+   "expires_at": 1793858627941,
+   "task_error": null,
+   "result": {
+    "animation_glb_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad8-9f9a-7642-aa2b-938e1cfdb887/output/merged_animations.glb?Expires=1793858627&Signature=Yat~EUl0~9nW6V8O0Dp1ttqpvbYuiPJ4rTWTDa4DiUNkyycbdD7lL9W9Jy3JoSgAQnsiZLoWDwZ2qci38KZst73k-U2nkkp6bkQDEnY2nVeCOscAbq5ghFA7ZQBQVT3tw3tIjj2wL~AXPjdhp-4dbmxMsJ0uXL8taZlUPAFIRq-gisvIpa3rcKMbd3ArzKVICy9Zw-eHTIwdYRFeM4t6OaQ3RphoF33-wOQ9sRJ8hbKqPzSay95WEqunfijXLPA8S9~sdaZ-eheQArMSdVMvvWCBOyxk7IqTys~6HvH0PFfmsFMMeoewa1wFNhL1QwazopdJ8g4lHcgSWlRhmGemjQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "animation_fbx_url": "https://assets.meshy.ai/8bfc959a-29e1-498b-82a5-5b417c71ede8/tasks/01a19ad8-9f9a-7642-aa2b-938e1cfdb887/output/merged_animations.fbx?Expires=1793858627&Signature=NF2pty2FM9H6IBZcCAVrDNXiibTtoYNorQ9~w8ioA-T3cbaOWyuvFpT7aiIAw45~qMKRdn6l01-XWyh5mKbO4v0y1wR6ACZJQLLVYqivk9ry6n6L01qCbJxxPmblF8wnTzbyq3pZkdMjosHXS4wLIw8pp83C6y0Ezzcn-7r9Rj--1PRkBuDQClO6gJbo~pAZkPXS-j9edOKRpRseDTRF6gSolhmPi5AosQD3naGjnR~Nhs8We1UmjfcIfT6IDXVGAR1Dan1Lt9Q~G3oe7liFPxMzyhelLhjFdWLk5WVshet50-7bVvRO6Xr5dMWkfwZQEf5mPKF0lEI8v5qBj0JqiA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "processed_usdz_url": "",
+    "processed_armature_fbx_url": "",
+    "processed_animation_fps_fbx_url": ""
+   },
+   "consumed_credits": 30
+  }
+ }
+]
