@@ -91,6 +91,13 @@ func _set_upper_filter(sk: Skeleton3D, player: AnimationPlayer) -> void:
 			stack.append(c)
 
 ## Ходьба: скорость героя (м/с) и темп анимации шага
+## Заменить анимацию точки ходьбы (например, бег: спринт ↔ бег с мечом наготове в бою)
+func set_loco_anim(point: int, anim_name: String) -> void:
+	var loco: AnimationNodeBlendSpace1D = (tree.tree_root as AnimationNodeBlendTree).get_node("loco")
+	var node := loco.get_blend_point_node(point) as AnimationNodeAnimation
+	if node and node.animation != StringName(anim_name):
+		node.animation = anim_name
+
 func locomotion(speed: float, stride_scale: float) -> void:
 	tree.set("parameters/loco/blend_position", speed)
 	tree.set("parameters/loco_ts/scale", stride_scale)

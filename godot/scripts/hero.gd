@@ -179,6 +179,8 @@ const LOCO_WALK_FROM := 0.6    # м/с: с этой скорости — шаг
 const LOCO_FAST_FROM := 2.6    # отсюда шаг плавно переходит в бег
 const LOCO_FAST_FULL := 4.0
 var _trail: SwordTrail
+var _fight_check := 0.0
+var _in_fight := false
 var _arms_mod: PoseOffsets
 var _arm_axes := []
 var _arms_w := 0.0
@@ -203,6 +205,8 @@ func _attach_character() -> void:
 			_anim.get_animation(n).loop_mode = Animation.LOOP_NONE
 	if _anim.has_animation(A_STANCE):
 		_anim.get_animation(A_STANCE).loop_mode = Animation.LOOP_LINEAR
+	if _anim.has_animation(RUN_FIGHT):
+		_anim.get_animation(RUN_FIGHT).loop_mode = Animation.LOOP_LINEAR
 		_tilt_arm(_anim.get_animation(A_STANCE), _char.find_children("*", "Skeleton3D", true, false)[0], "LeftArm", STANCE_LEFT_ARM_DOWN)
 	_has_idle = _anim.has_animation(A_IDLE)
 	if _has_idle:
@@ -271,6 +275,11 @@ func _attach_character() -> void:
 				acts["art_" + k] = ART_CLIPS[k][0]
 		if _anim.has_animation(BLOCK_CLIP[0]):
 			acts["block"] = BLOCK_CLIP[0]
+		# Вихрь — удар в прыжке с разворотом, прыжок — прыжок с ударом вниз
+		if _anim.has_animation(WHIRL_CLIP[0]):
+			acts["whirl"] = WHIRL_CLIP[0]
+		if _anim.has_animation(JUMP_CLIP[0]):
+			acts["air"] = JUMP_CLIP[0]
 		# Ходьба по скорости: стойка → шаг → бег (свои анимации, scripts/anim/hero_moves.gd)
 		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], ["sao/walk", LOCO_WALK_FROM], ["sao/walk", LOCO_FAST_FROM], ["sao/run", LOCO_FAST_FULL]], RUN)
 	# След клинка
@@ -478,7 +487,17 @@ func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	# Темп шага — по длине шага модели, чтобы стопы не скользили
 	var fast := clampf((_speed_now - LOCO_FAST_FROM) / (LOCO_FAST_FULL - LOCO_FAST_FROM), 0.0, 1.0)
-	var stride_t := _speed_now / lerpf(HeroMoves.walk_stride, HeroMoves.run_stride, fast)
+	# Рядом враги — бег с мечом наготове, иначе — спринт
+	var run_stride: float = HeroMoves.run_stride
+	if _anim.has_animation(RUN_FIGHT) and enemies:
+		_fight_check -= dt
+		if _fight_check <= 0.0:
+			_fight_check = 0.5
+			_in_fight = not enemies.alive_near(global_position, FIGHT_NEAR).is_empty()
+			_ha.set_loco_anim(3, RUN_FIGHT if _in_fight else "sao/run")
+		if _in_fight:
+			run_stride = RUN_FIGHT_STRIDE
+	var stride_t := _speed_now / lerpf(HeroMoves.walk_stride, run_stride, fast)
 	_ha.locomotion(_speed_now, lerpf(1.0, stride_t, clampf(_speed_now / LOCO_WALK_FROM, 0.0, 1.0)))
 	var upper := on_floor and moving and _speed_now > 1.0
 	if _move != "":
@@ -512,7 +531,10 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 			else:
 				_ha.act("slash", -1.0, sp)
 	elif _spin_t >= 0.0:
-		_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
+		if _ha._names.get("whirl", "") == WHIRL_CLIP[0]:
+			_ha.act("whirl", WHIRL_CLIP[1] if _new_swing or _ha.current() != "whirl" else -1.0, WHIRL_CLIP[2])
+		else:
+			_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
 	elif _dash_t >= 0.0:
 		_ha.act("dash", 0.0 if _ha.current() != "dash" else -1.0, _anim.get_animation(A_DASH).length / DASH_TIME)
 	elif attack_t >= 0.0:
@@ -527,7 +549,11 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		else:
 			_ha.act("slash", 0.08 if _new_swing or _ha.current() != "slash" else -1.0, sp, upper)
 	elif not on_floor:
-		_ha.act("air", 0.17, 0.0)   # в прыжке — поза полёта из бега
+		if _ha._names.get("air", "") == JUMP_CLIP[0]:
+			# Прыжок с ударом: отрезок клипа от толчка, проигрывается один раз
+			_ha.act("air", JUMP_CLIP[1] if _ha.current() != "air" else -1.0, JUMP_CLIP[2])
+		else:
+			_ha.act("air", 0.17, 0.0)   # в прыжке — поза полёта из бега
 	else:
 		_ha.stop()
 	_new_swing = false
@@ -747,7 +773,7 @@ const MOVES := {
 	"hit_heavy": {"len": 0.8, "speed": 2.0, "from": 0.0, "to": 0.35},
 	"stun": {"len": 0.9},
 	"knockdown": {"len": 1.4, "speed": 3.0, "from": 0.05, "to": 0.5, "inv": [0.0, 1.4], "next": "getup"},
-	"getup": {"len": 0.8, "inv": [0.0, 0.8]},
+	"getup": {"len": 1.2, "inv": [0.0, 1.2]},
 	"horizontal": {"len": HeroMoves.HZ_LEN, "speed": 3.0, "from": HeroMoves.HZ_CHARGE, "to": HeroMoves.HZ_HIT + 0.05},
 }
 const DODGE_CD := 0.7
@@ -760,7 +786,13 @@ const MESHY_MOVES := {
 	"switch": ["Sword_Parry_Backward", 0.0, 2.0],
 	"hit_heavy": ["Hit_Reaction", 0.0, 2.0],
 	"knockdown": ["Knock_Down", 0.0, 1.8],
+	"getup": ["Rightward_Spin", 2.0, 2.9],   # перекат по земле и подъём в стойку
 }
+const WHIRL_CLIP := ["Double_Blade_Spin", 0.6, 1.25]   # [клип, с какой секунды, темп]
+const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
+const RUN_FIGHT := "ForwardRight_Run_Fight"            # бег, когда рядом враги — меч наготове
+const RUN_FIGHT_STRIDE := 3.0
+const FIGHT_NEAR := 12.0
 ## Комбо из трёх ударов: [клип, момент удара в клипе (с)]
 const ATTACK_CLIPS := [["Left_Slash", 0.7], ["Double_Combo_Attack", 0.63], ["Charged_Upward_Slash", 1.03]]
 const ATTACK_SEG := 0.8        # сколько секунд клипа занимает один удар героя
