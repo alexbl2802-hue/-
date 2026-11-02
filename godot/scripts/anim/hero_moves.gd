@@ -324,6 +324,9 @@ static func all() -> Dictionary:
 
 const GOBLIN_PATH := "res://models/goblin.glb"
 static var walk_stride := WALK_STRIDE
+static var run_stride := RUN_STRIDE
+const MESHY_RUN_STRIDE := 3.2    # спринт Meshy: 3,2 м за секунду анимации (замер tests/pose_view.tscn)
+const MESHY_WALK_STRIDE := 0.6   # боевой шаг Meshy: 0,6 м/с
 
 ## Собрать библиотеку анимаций для скелета героя. player — анимации модели героя (бег)
 static func library(sk: Skeleton3D, player: AnimationPlayer, ref: Animation, ref_t: float, prefix: String, blade: Vector3) -> AnimationLibrary:
@@ -334,14 +337,23 @@ static func library(sk: Skeleton3D, player: AnimationPlayer, ref: Animation, ref
 		if PoseLib.aim_log:
 			print(name)
 		lib.add_animation(name, PoseLib.build(sk, m[0], BASE, m[1], m[2], ref, ref_t, prefix, blade))
-	# Бег: запись модели героя + своя правая рука с опущенным мечом
-	if player.has_animation("Running"):
-		var run_src := player.get_animation("Running")
+	# Бег: спринт из библиотеки Meshy (корпус вперёд) или запись модели героя + своя правая рука
+	# с опущенным мечом (хват как на фото)
+	var run_name := "Lean_Forward_Sprint" if player.has_animation("Lean_Forward_Sprint") else "Running"
+	run_stride = MESHY_RUN_STRIDE if run_name == "Lean_Forward_Sprint" else RUN_STRIDE
+	if player.has_animation(run_name):
+		var run_src := player.get_animation(run_name)
+		run_src.loop_mode = Animation.LOOP_LINEAR
 		if PoseLib.aim_log:
 			print("run")
 		lib.add_animation("run", PoseLib.override(run_src, sk, _arm_keys(run_src.length, 18, 6, 18, RUN_SWORD), {}, prefix, blade))
-	# Ходьба: запись ходьбы гоблина, перенесённая на скелет героя
-	if ResourceLoader.exists(GOBLIN_PATH):
+	# Ходьба: боевой шаг из библиотеки Meshy (меч поднят наготове) — или ходьба гоблина
+	if player.has_animation("Walk_Fight_Forward"):
+		var wf := player.get_animation("Walk_Fight_Forward").duplicate(true) as Animation
+		wf.loop_mode = Animation.LOOP_LINEAR
+		lib.add_animation("walk", wf)
+		walk_stride = MESHY_WALK_STRIDE
+	elif ResourceLoader.exists(GOBLIN_PATH):
 		var g: Node = (load(GOBLIN_PATH) as PackedScene).instantiate()
 		var gsk: Skeleton3D = g.find_children("*", "Skeleton3D", true, false)[0]
 		var gap: AnimationPlayer = g.find_children("*", "AnimationPlayer", true, false)[0]

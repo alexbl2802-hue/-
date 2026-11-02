@@ -106,11 +106,16 @@ func _ready() -> void:
 	_check("slam → knockdown", h._move == "knockdown", h._move)
 	await _frames(40)
 	await _shot("knockdown")
-	await _frames(15)
-	_check("then getup", h._move == "getup", h._move)
-	await _frames(20)
-	await _shot("getup")
-	await _frames(40)
+	var seen_getup := false
+	for i in 200:
+		await get_tree().physics_frame
+		if h._move == "getup" and not seen_getup:
+			seen_getup = true
+			await _frames(15)
+			await _shot("getup")
+		if h._move == "":
+			break
+	_check("then getup", seen_getup, "")
 	_check("stands again", h._move == "", h._move)
 	# Сильный удар
 	h._invuln = 0.0

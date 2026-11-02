@@ -70,7 +70,7 @@ func _ready() -> void:
 	h.touch.block = true
 	for i in 20:
 		await get_tree().physics_frame
-	_check("block pose", h._ha.current() == "slash" and h._ha.act_scale == 0.0, h._ha.current())
+	_check("block pose", h._ha.current() in ["slash", "block"] and h._ha.act_scale == 0.0, h._ha.current())
 	await shot.call("block")
 	h.touch.block = false
 	for i in 30:

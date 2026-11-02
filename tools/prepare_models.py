@@ -335,24 +335,38 @@ def add_animation(j, bld, name, times, tracks):
     j.setdefault("animations", []).append({"name": name, "samplers": samplers, "channels": channels})
 
 
-def retarget(tj, src_path):
-    """Анимации из src переносятся на скелет tj (одинаковые имена костей Mixamo).
+def retarget(tj, src_path, name_map=None):
+    """Анимации из src переносятся на скелет tj (одинаковые имена костей Mixamo; иначе — name_map
+    «имя в источнике → имя в цели»).
     Мировой поворот кости цели = мировой поворот источника · (мировой покой источника)⁻¹ · мировой покой цели."""
     sj, sb = read_glb(src_path)
+    if name_map:
+        for n in sj["nodes"]:
+            if n.get("name") in name_map:
+                n["name"] = name_map[n["name"]]
     s_names, s_parent = bone_tree(sj)
     t_names, t_parent = bone_tree(tj)
     common = [n for n in t_names if n in s_names]
     out = []
     for anim in sj["animations"]:
         rot, tr = {}, {}
-        times = None
+        raw = []
         for ch in anim["channels"]:
             smp = anim["samplers"][ch["sampler"]]
             node = ch["target"]["node"]
             nm = sj["nodes"][node].get("name", "").split(":")[-1]
-            times = accessor(sj, sb, smp["input"]).astype(np.float64)
+            t_ = accessor(sj, sb, smp["input"]).astype(np.float64)
             vals = accessor(sj, sb, smp["output"]).astype(np.float64)
-            (rot if ch["target"]["path"] == "rotation" else tr)[nm] = vals
+            if ch["target"]["path"] in ("rotation", "translation"):
+                raw.append((nm, ch["target"]["path"], t_, vals))
+        # Дорожки с разным числом ключей приводим к общей сетке кадров (самой подробной)
+        times = max((r[2] for r in raw), key=len)
+        for nm, path, t_, vals in raw:
+            if len(t_) != len(times) or not np.allclose(t_, times):
+                vals = np.stack([np.interp(times, t_, vals[:, c]) for c in range(vals.shape[1])], 1)
+                if path == "rotation":
+                    vals /= np.linalg.norm(vals, axis=1, keepdims=True)
+            (rot if path == "rotation" else tr)[nm] = vals
         F = len(times)
         # Мировые повороты источника по кадрам
         s_order = sorted(s_names, key=lambda n: _depth(s_names[n], s_parent))
@@ -424,6 +438,51 @@ def warden_full(stance_path):
     anims = retarget(j, old) if old.exists() else []
     bld = rebuild(j, b)
     for name, times, tracks in anims:
+        add_animation(j, bld, name, times, tracks)
+    j["bufferViews"] = bld.views
+    print("анимации:", [a["name"] for a in j["animations"]])
+    write_glb(OUT / "hero.glb", j, bld.blob)
+
+
+# Скелет Meshy (риггинг по API) → имена костей Mixamo нашего героя
+MESHY_TO_MIXAMO = {"Spine02": "Spine", "Spine01": "Spine1", "Spine": "Spine2", "neck": "Neck", "head_end": "HeadTop_End"}
+
+
+def meshy_clips(*paths):
+    """Клипы из файлов Meshy (meshy/<имя>/anim_*.glb) переносятся на скелет героя (godot/models/hero.glb):
+    кости — по MESHY_TO_MIXAMO, пальцы (у скелета Meshy их нет) — хват меча из удара героя,
+    таз — без перемещения вперёд и вбок (героя двигает игра). Клип с таким же именем заменяется."""
+    j, b = read_glb(OUT / "hero.glb")
+    names, _ = bone_tree(j)
+    hips = names["Hips"]
+    # Пальцы: поворот в первом кадре удара героя
+    fingers = []
+    slash = [a for a in j["animations"] if a["name"] == "Right_Hand_Sword_Slash"][0]
+    for ch in slash["channels"]:
+        nm = j["nodes"][ch["target"]["node"]].get("name", "")
+        if ch["target"]["path"] == "rotation" and any(f in nm for f in ("Thumb", "Index", "Middle", "Ring", "Pinky")):
+            v = accessor(j, b, slash["samplers"][ch["sampler"]]["output"])[0]
+            fingers.append((ch["target"]["node"], v))
+    clips = []
+    for pth in paths:
+        for name, times, tracks in retarget(j, pth, MESHY_TO_MIXAMO):
+            if name == "Combat_Stance":
+                continue   # стойка уже есть (из файла героя)
+            out = []
+            rest_h = np.array(j["nodes"][hips].get("translation", [0, 1, 0]), np.float64)
+            for n, kind, v in tracks:
+                if n == hips and kind == "translation":
+                    v = v.copy()
+                    v[:, 0] = rest_h[0]   # таз над местом героя: без сдвига вперёд и вбок
+                    v[:, 2] = rest_h[2]
+                out.append((n, kind, v))
+            for n, v in fingers:
+                out.append((n, "rotation", np.repeat(np.asarray(v, np.float64)[None], len(times), 0)))
+            clips.append((name, times - times[0], out))
+    keep = {c[0] for c in clips}
+    bld = rebuild(j, b)
+    j["animations"] = [a for a in j["animations"] if a["name"] not in keep]
+    for name, times, tracks in clips:
         add_animation(j, bld, name, times, tracks)
     j["bufferViews"] = bld.views
     print("анимации:", [a["name"] for a in j["animations"]])
@@ -748,6 +807,8 @@ if __name__ == "__main__":
         warden(*sys.argv[2:6])
     elif sys.argv[1] == "warden_full":
         warden_full(sys.argv[2])
+    elif sys.argv[1] == "meshy_clips":
+        meshy_clips(*sys.argv[2:])
     elif sys.argv[1] == "bunny":
         bunny(*sys.argv[2:5])
     elif sys.argv[1] == "env":

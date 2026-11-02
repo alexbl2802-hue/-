@@ -188,7 +188,9 @@ APK собирается **по команде**: вкладка **Actions** →
 
 ## Анимации из Meshy по API
 - Сценарий GitHub Actions **Meshy animations** (`.github/workflows/meshy-animations.yml`, вкладка Actions → Run workflow): ставит скелет на модель из репозитория (или берёт готовый `rig_task_id`) и запрашивает движения из библиотеки Meshy по номерам. Готовые `.glb` и полный журнал ответов Meshy складываются в `meshy/<имя>/` и отправляются в репозиторий.
-- Ключ — секрет репозитория `MESHY_API_KEY`. Скрипт: `tools/meshy_fetch.py`. Каждый запрос тратит кредиты аккаунта Meshy.
+- Ключ — секрет репозитория `MESHY_API_KEY`. Скрипт: `tools/meshy_fetch.py`. Каждый запрос тратит кредиты аккаунта Meshy. Режим «только документация» скачивает каталог движений (`meshy/docs/animations_library.json`, 680 движений) без кредитов.
+- Клипы переносятся на героя: `python3 tools/prepare_models.py meshy_clips meshy/hero/anim_*.glb` (кости Meshy → Mixamo, пальцы — хват меча, таз без сдвига).
+- **Движения героя в стиле Кирито (из Meshy):** комбо — Left Slash → Double Combo Attack → Charged Upward Slash; блок — Sword Parry; приёмы — Thrust Slash (меч), Sword Judgment (двуручник), Triple Combo Attack (рапира), Double Combo Attack (кинжал); уклоны — Stand Dodge (назад), Quick Step and Spin Dodge (вбок), Roll Dodge (кувырок); Switch — Sword Parry Backward; реакции — Hit Reaction, Knock Down; бег — Lean Forward Sprint (правая рука опущена, хват как на фото); ходьба — Walk Fight Forward (меч наготове).
 
 ## Камни, горы и вода
 - **Камни** — модели Meshy: маленькие — Mossy Stone Outcrop (`rock_small.glb`), большие — Mossclad Monolith и Mossbound Stone Steps по очереди (`rock_big1.glb`, `rock_big2.glb`); у каждого три версии: до 50 м — подробная (~40 тыс. треугольников, у маленького ~25 тыс., текстуры 2048), до 130 м — средняя (~6 тыс.), дальше — простая (~1 тыс.) до границы «Дальности прорисовки». Камни собраны по участкам 50×50 м.

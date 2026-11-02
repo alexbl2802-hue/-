@@ -259,6 +259,18 @@ func _attach_character() -> void:
 		var acts := {"slash": A_SLASH, "whirl": A_WHIRL, "dash": A_DASH, "air": "sao/run"}
 		for m in MOVES:
 			acts[m] = "sao/" + m
+		# Движения из библиотеки Meshy (сценарий «Meshy animations», tools/prepare_models.py meshy_clips)
+		for m in MESHY_MOVES:
+			if _anim.has_animation(MESHY_MOVES[m][0]):
+				acts[m] = MESHY_MOVES[m][0]
+		for i in ATTACK_CLIPS.size():
+			if _anim.has_animation(ATTACK_CLIPS[i][0]):
+				acts["atk%d" % i] = ATTACK_CLIPS[i][0]
+		for k in ART_CLIPS:
+			if _anim.has_animation(ART_CLIPS[k][0]):
+				acts["art_" + k] = ART_CLIPS[k][0]
+		if _anim.has_animation(BLOCK_CLIP[0]):
+			acts["block"] = BLOCK_CLIP[0]
 		# Ходьба по скорости: стойка → шаг → бег (свои анимации, scripts/anim/hero_moves.gd)
 		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], ["sao/walk", LOCO_WALK_FROM], ["sao/walk", LOCO_FAST_FROM], ["sao/run", LOCO_FAST_FULL]], RUN)
 	# След клинка
@@ -466,15 +478,28 @@ func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	# Темп шага — по длине шага модели, чтобы стопы не скользили
 	var fast := clampf((_speed_now - LOCO_FAST_FROM) / (LOCO_FAST_FULL - LOCO_FAST_FROM), 0.0, 1.0)
-	var stride_t := _speed_now / lerpf(HeroMoves.WALK_STRIDE, HeroMoves.RUN_STRIDE, fast)
+	var stride_t := _speed_now / lerpf(HeroMoves.walk_stride, HeroMoves.run_stride, fast)
 	_ha.locomotion(_speed_now, lerpf(1.0, stride_t, clampf(_speed_now / LOCO_WALK_FROM, 0.0, 1.0)))
 	var upper := on_floor and moving and _speed_now > 1.0
 	if _move != "":
 		# Уклонения, Switch, реакции, «Горизонталь» — анимация целиком, с начала
-		_ha.act(_move, 0.0 if _move_new else -1.0, 1.0)
+		var start := 0.0
+		var sc := 1.0
+		if MESHY_MOVES.has(_move) and _ha._names.get(_move, "") == MESHY_MOVES[_move][0]:
+			start = MESHY_MOVES[_move][1]
+			sc = MESHY_MOVES[_move][2]
+		_ha.act(_move, start if _move_new else -1.0, sc)
 		_move_new = false
 	elif blocking:
-		_ha.act("slash", BLOCK_POSE, 0.0, upper)
+		if _ha._names.has("block"):
+			_ha.act("block", BLOCK_CLIP[1], 0.0, upper)   # меч вертикально перед собой
+		else:
+			_ha.act("slash", BLOCK_POSE, 0.0, upper)
+	elif _art_t >= 0.0 and _ha._names.has("art_" + _art):
+		# Приём — клип Meshy: удар клипа совпадает с моментом удара приёма
+		var ac: Array = ART_CLIPS[_art]
+		var start: float = maxf(0.0, ac[1] - (ART_CHARGE + 0.08) * ac[2])
+		_ha.act("art_" + _art, start if _new_swing or _ha.current() != "art_" + _art else -1.0, ac[2])
 	elif _art_t >= 0.0:
 		if _art_t < ART_CHARGE:   # стойка: меч отведён для удара
 			_ha.act("slash", 0.4, 0.0)
@@ -493,7 +518,14 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	elif attack_t >= 0.0:
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
 		var sp: float = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
-		_ha.act("slash", 0.08 if _new_swing or _ha.current() != "slash" else -1.0, sp, upper)
+		var key := "atk%d" % combo
+		if _ha._names.has(key):
+			# Удар — отрезок клипа Meshy вокруг момента удара (удар героя — на 0,2 из 0,48)
+			var hit: float = ATTACK_CLIPS[combo][1]
+			var seg := ATTACK_SEG
+			_ha.act(key, maxf(0.0, hit - seg * 0.2 / 0.48) if _new_swing or _ha.current() != key else -1.0, sp * seg / 1.5, upper)
+		else:
+			_ha.act("slash", 0.08 if _new_swing or _ha.current() != "slash" else -1.0, sp, upper)
 	elif not on_floor:
 		_ha.act("air", 0.17, 0.0)   # в прыжке — поза полёта из бега
 	else:
@@ -707,18 +739,34 @@ func update_look() -> void:
 # ---------- Уклонения, Switch, реакции на удары, приём «Горизонталь»
 ## Движение: длина (с), скорость (м/с) с from по to, неуязвимость [с, по], что дальше
 const MOVES := {
-	"dodge_back": {"len": 0.55, "speed": 7.5, "from": 0.07, "to": 0.36, "inv": [0.03, 0.36]},
-	"dodge_left": {"len": 0.5, "speed": 7.0, "from": 0.06, "to": 0.32, "inv": [0.03, 0.32]},
-	"dodge_right": {"len": 0.5, "speed": 7.0, "from": 0.06, "to": 0.32, "inv": [0.03, 0.32]},
-	"roll": {"len": 0.72, "speed": 6.5, "from": 0.08, "to": 0.6, "inv": [0.05, 0.5]},
-	"switch": {"len": 0.5, "speed": 6.0, "from": 0.06, "to": 0.32, "inv": [0.0, 0.32]},
-	"hit_heavy": {"len": 0.55, "speed": 2.5, "from": 0.0, "to": 0.3},
+	"dodge_back": {"len": 0.7, "speed": 6.0, "from": 0.08, "to": 0.45, "inv": [0.03, 0.45]},
+	"dodge_left": {"len": 0.58, "speed": 6.5, "from": 0.06, "to": 0.36, "inv": [0.03, 0.36]},
+	"dodge_right": {"len": 0.58, "speed": 6.5, "from": 0.06, "to": 0.36, "inv": [0.03, 0.36]},
+	"roll": {"len": 0.9, "speed": 6.0, "from": 0.1, "to": 0.65, "inv": [0.05, 0.6]},
+	"switch": {"len": 0.65, "speed": 5.0, "from": 0.06, "to": 0.4, "inv": [0.0, 0.4]},
+	"hit_heavy": {"len": 0.8, "speed": 2.0, "from": 0.0, "to": 0.35},
 	"stun": {"len": 0.9},
-	"knockdown": {"len": 0.65, "speed": 3.0, "from": 0.05, "to": 0.35, "inv": [0.0, 0.65], "next": "getup"},
+	"knockdown": {"len": 1.4, "speed": 3.0, "from": 0.05, "to": 0.5, "inv": [0.0, 1.4], "next": "getup"},
 	"getup": {"len": 0.8, "inv": [0.0, 0.8]},
 	"horizontal": {"len": HeroMoves.HZ_LEN, "speed": 3.0, "from": HeroMoves.HZ_CHARGE, "to": HeroMoves.HZ_HIT + 0.05},
 }
 const DODGE_CD := 0.7
+## Клипы Meshy для движений: действие → [клип, с какой секунды, темп]
+const MESHY_MOVES := {
+	"dodge_back": ["Stand_Dodge", 0.0, 2.0],
+	"dodge_left": ["Quick_Step_and_Spin_Dodge", 0.0, 2.0],
+	"dodge_right": ["Quick_Step_and_Spin_Dodge", 0.0, 2.0],
+	"roll": ["Roll_Dodge", 0.0, 2.0],
+	"switch": ["Sword_Parry_Backward", 0.0, 2.0],
+	"hit_heavy": ["Hit_Reaction", 0.0, 2.0],
+	"knockdown": ["Knock_Down", 0.0, 1.8],
+}
+## Комбо из трёх ударов: [клип, момент удара в клипе (с)]
+const ATTACK_CLIPS := [["Left_Slash", 0.7], ["Double_Combo_Attack", 0.63], ["Charged_Upward_Slash", 1.03]]
+const ATTACK_SEG := 0.8        # сколько секунд клипа занимает один удар героя
+## Приёмы меча: тип оружия → [клип, момент (первого) удара, темп]
+const ART_CLIPS := {"sword": ["Thrust_Slash", 0.73, 1.0], "great": ["Sword_Judgment", 1.0, 1.0], "rapier": ["Triple_Combo_Attack", 0.77, 2.4], "dagger": ["Double_Combo_Attack", 0.63, 1.4]}
+const BLOCK_CLIP := ["Sword_Parry", 0.6]
 const REACTIONS := ["hit_heavy", "stun", "knockdown", "getup"]
 var _move := ""
 var _move_t := 0.0
