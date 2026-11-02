@@ -22,8 +22,8 @@ func _ready() -> void:
 	cam.current = true
 	var td: Vector3 = main.world.tower["door"]
 	main.hero.global_position = td + Vector3(2, 0.3, -6)
-	cam.global_position = td + Vector3(22, 7, -16)
-	cam.look_at(main.world.tower["pos"] + Vector3(0, 16, 0))
+	cam.global_position = td + Vector3(60, 25, -110)
+	cam.look_at(main.world.tower["pos"] + Vector3(0, main.world.tower.get("height", 40.0) * 0.5, 0))
 	for i in 30:
 		await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png(out + "look_tower.png")
@@ -32,7 +32,7 @@ func _ready() -> void:
 	for i in 10:
 		await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png(out + "look_door.png")
-	for f in [1, 3, 4]:
+	for f in [1, 7, 10]:
 		var idx := DungeonDefs.floor_index(f)
 		main.enter_floor(f)
 		for i in 80:

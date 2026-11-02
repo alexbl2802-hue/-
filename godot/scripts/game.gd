@@ -9,7 +9,8 @@ signal message(text: String, color: Color, pos: Vector3)  # всплывающа
 const SAVE_PATH := "user://save.json"
 ## Опыт за монстра: случайно в пределах [от, до]
 const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270],
-	"alpha_wolf": [180, 200], "goblin_chief": [190, 210], "sand_scorpion": [200, 220], "frost_king": [210, 230], "kobold_warlord": [230, 250]}
+	"alpha_wolf": [180, 200], "goblin_chief": [190, 210], "sand_scorpion": [200, 220], "frost_king": [210, 230], "kobold_warlord": [230, 250],
+	"swamp_mother": [250, 270], "lava_lord": [270, 290], "crystal_guard": [290, 310], "shadow_wolf": [310, 330], "sky_king": [350, 380]}
 
 static func enemy_xp(kind: String) -> int:
 	var r: Array = ENEMY_XP.get(kind, [10, 10])

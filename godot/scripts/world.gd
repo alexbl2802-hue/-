@@ -8,7 +8,9 @@ var entrances: Array = []   # [{name, door: Vector3, dir: Vector3}]
 var town_map: Array = []    # прямоугольники построек для миникарты
 var campfire: Node3D
 var tower := {}             # башня этажей: {door, dir, pos}
-const TOWER_POS := Vector2(-8.0, 66.0)   # к югу от городских ворот, на ровном месте
+const TOWER_POS := Vector2(-8.0, 70.0)   # к югу от городских ворот, на ровном месте
+const TOWER_R := 11.0
+const TOWER_ABOVE_PEAKS := 15.0           # вершина башни на 15 м выше самой высокой горы
 var _fire_light: OmniLight3D
 var _fire_flame: MeshInstance3D
 var _time := 0.0
@@ -31,6 +33,10 @@ const TREE_MID := 130.0         # до сюда — средняя (~8 тыс.),
 var _tree_far_nodes: Array = []
 
 ## Модель дерева: lod 0 — вблизи, 1 — среднее расстояние, 2 — вдали
+## Внутри основания башни и у входа ничего не растёт
+func _near_tower(p: Vector3) -> bool:
+	return Vector2(p.x - TOWER_POS.x, p.z - TOWER_POS.y).length() < TOWER_R + 6.0
+
 func _tree_path(name: String, lod: int) -> String:
 	return "res://models/tree_%s%s.glb" % [name, ["", "_mid", "_far"][lod]]
 
@@ -272,11 +278,15 @@ func _build_vegetation() -> void:
 	var placed := {"pine": [], "oak": []}   # [позиция, поворот, высота]
 	for t in p["pines"]:
 		var pos := Vector3(t[0], t[2], t[1])
+		if _near_tower(pos):
+			continue
 		var s: float = t[3] * TREE_SCALE
 		placed["pine"].append([pos, t[4], PINE_HEIGHT * s])
 		_tree_collider(body, pos, 0.3 * s)
 	for t in p["oaks"]:
 		var pos := Vector3(t[0], t[2], t[1])
+		if _near_tower(pos):
+			continue
 		var s: float = t[3] * TREE_SCALE
 		placed["oak"].append([pos, t[4], OAK_HEIGHT * s])
 		_tree_collider(body, pos, 0.33 * s)
@@ -284,6 +294,8 @@ func _build_vegetation() -> void:
 	# Трава
 	var tufts := []
 	for t in p["tufts"]:
+		if _near_tower(Vector3(t[0], 0, t[1])):
+			continue
 		var s: float = t[3]
 		tufts.append([Vector3(t[0], t[2] - 0.05, t[1]), t[4], Vector3(s, s, s) * 1.15, WorldGen.hex(int(t[5]))])
 	var grass := ShaderMaterial.new()
@@ -355,6 +367,8 @@ func _build_rocks() -> void:
 	var chunks := {}   # [ключ участка, модель] → [Transform3D]
 	var n_big := 0
 	for r in WorldGen.props["rocks"]:
+		if _near_tower(Vector3(r[0], 0, r[1])):
+			continue
 		var s: float = r[3]
 		var kind := 0
 		if s > 0.9:
@@ -507,96 +521,164 @@ func _build_tower() -> void:
 	var x := TOWER_POS.x
 	var z := TOWER_POS.y
 	var base := 99.0
-	for a in 12:
-		var ang := TAU * a / 12.0
-		base = minf(base, WorldGen.ground_at(x + cos(ang) * 8.0, z + sin(ang) * 8.0))
+	for a in 16:
+		var ang := TAU * a / 16.0
+		base = minf(base, WorldGen.ground_at(x + cos(ang) * 13.0, z + sin(ang) * 13.0))
 	var g := Node3D.new()
 	g.position = Vector3(x, base - 0.5, z)
 	add_child(g)
-	var stone := Mats.tiled(Mats.brick_texture(), 0x9a9288)
-	var dark_stone := Mats.lp(0x5a544c)
-	var R := 7.0
-	var H := 38.0
-	var body := MeshInstance3D.new()
-	body.mesh = _cyl(R * 0.9, R, H, 16)
-	body.material_override = stone
-	body.position.y = H / 2.0
-	g.add_child(body)
-	# Пояса и зубцы наверху
-	for yy in [10.0, 20.0, 30.0]:
-		var belt := MeshInstance3D.new()
-		belt.mesh = _cyl(R * (1.0 - yy / H * 0.1) + 0.3, R * (1.0 - yy / H * 0.1) + 0.3, 0.6, 16)
-		belt.material_override = dark_stone
-		belt.position.y = yy
-		g.add_child(belt)
-	var top := MeshInstance3D.new()
-	top.mesh = _cyl(R * 0.95 + 0.6, R * 0.9, 1.6, 16)
-	top.material_override = stone
-	top.position.y = H + 0.8
-	g.add_child(top)
-	for k in 12:
-		var a := TAU * k / 12.0
-		_box(g, Vector3(1.4, 1.4, 0.8), stone, Vector3(cos(a) * (R * 0.95 + 0.2), H + 2.3, sin(a) * (R * 0.95 + 0.2))).rotation.y = -a + PI / 2.0
-	var roof := MeshInstance3D.new()
-	roof.mesh = _cyl(0.0, R * 0.8, 9.0, 16)
-	roof.material_override = Mats.lp(0x3a4a6a)
-	roof.position.y = H + 5.5
-	g.add_child(roof)
-	# Окна светятся тёплым светом
-	var win := Mats.glow(0xffb860)
+	# Высота: на 15 м выше самой высокой горы
+	var peak := 0.0
+	for hv in WorldGen.heights:
+		peak = maxf(peak, hv)
+	var H: float = peak + TOWER_ABOVE_PEAKS - g.position.y
+	var R := TOWER_R
+	var stone := Mats.tiled(Mats.brick_texture(), 0xa8a094, 0.18)       # кладка с рельефом (карта нормалей)
+	var dark_stone := Mats.tiled(Mats.brick_texture(), 0x6a645c, 0.3)
+	var trim := Mats.lp(0x8a8478, 0.8)
+	var gold := Mats.lp(0xe0b040, 0.35, 0.7, 0xa07010, 0.4)
+	var win := Mats.glow(0xffc070)
+	var roof_mat := Mats.lp(0x2e3e66, 0.6)
+	var cyl := func(r0: float, r1: float, h: float, y: float, mat: Material, segs := 28) -> MeshInstance3D:
+		var mi := MeshInstance3D.new()
+		mi.mesh = _cyl(r1, r0, h, segs)
+		mi.material_override = mat
+		mi.position.y = y + h / 2.0
+		g.add_child(mi)
+		return mi
+	# Цоколь, тело башни (чуть сужается кверху), пояса этажей
+	cyl.call(R + 2.0, R + 1.6, 2.2, 0.0, dark_stone)
+	cyl.call(R + 1.2, R + 1.0, 1.0, 2.2, trim)
+	var r_top := R * 0.86
+	cyl.call(R, r_top, H, 0.0, stone)
+	var floors := DungeonDefs.TOWER.size()
+	for f in floors:
+		var y := 6.0 + (H - 10.0) * float(f) / floors
+		var rr := lerpf(R, r_top, y / H)
+		# Пояс-карниз и балкон с зубцами через этаж
+		cyl.call(rr + 0.7, rr + 0.5, 0.7, y, trim)
+		if f % 2 == 1:
+			cyl.call(rr + 1.6, rr + 1.6, 0.35, y + 0.7, dark_stone)
+			for k in 16:
+				var a := TAU * k / 16.0
+				var tooth := _box(g, Vector3(0.6, 0.9, 0.3), dark_stone, Vector3(cos(a) * (rr + 1.45), y + 1.5, sin(a) * (rr + 1.45)))
+				tooth.rotation.y = -a + PI / 2.0
+		# Арочные окна: светятся тёплым светом
+		for k in 6:
+			var a := TAU * k / 6.0 + f * 0.5
+			var wy := y + 3.0
+			var wr := lerpf(R, r_top, wy / H) + 0.03
+			var w := _box(g, Vector3(1.0, 2.2, 0.12), win, Vector3(sin(a) * wr, wy, cos(a) * wr))
+			w.rotation.y = a
+			var arch := MeshInstance3D.new()
+			arch.mesh = _cyl(0.5, 0.5, 0.12, 10)
+			arch.material_override = win
+			arch.rotation = Vector3(PI / 2.0, a, 0)
+			arch.position = Vector3(sin(a) * wr, wy + 1.1, cos(a) * wr)
+			g.add_child(arch)
+			var frame := _box(g, Vector3(1.4, 0.25, 0.3), trim, Vector3(sin(a) * (wr + 0.1), wy - 1.2, cos(a) * (wr + 0.1)))
+			frame.rotation.y = a
+	# Контрфорсы у основания
 	for k in 8:
-		var a := TAU * k / 8.0 + 0.4
-		var yy := 8.0 + (k % 4) * 7.5
-		var rr := R * (1.0 - yy / H * 0.1) + 0.02
-		var w := _box(g, Vector3(0.9, 1.6, 0.1), win, Vector3(sin(a) * rr, yy, cos(a) * rr))
-		w.rotation.y = a
-	# Дверь со стороны города (на север, к −z), ступени и факелы
+		var a := TAU * k / 8.0 + PI / 8.0
+		var b := _box(g, Vector3(1.6, 18.0, 3.0), dark_stone, Vector3(sin(a) * (R + 1.0), 9.0, cos(a) * (R + 1.0)))
+		b.rotation.y = a
+		var cap := _box(g, Vector3(1.6, 1.0, 1.6), trim, Vector3(sin(a) * (R + 0.6), 18.5, cos(a) * (R + 0.6)))
+		cap.rotation.y = a
+	# Венец: широкая площадка с зубцами, шатровая крыша со шпилем и маяком
+	cyl.call(r_top + 2.2, r_top + 0.4, 2.5, H, dark_stone)
+	cyl.call(r_top + 2.2, r_top + 2.2, 0.6, H + 2.5, trim)
+	for k in 24:
+		var a := TAU * k / 24.0
+		var t2 := _box(g, Vector3(1.1, 1.4, 0.6), dark_stone, Vector3(cos(a) * (r_top + 1.9), H + 3.8, sin(a) * (r_top + 1.9)))
+		t2.rotation.y = -a + PI / 2.0
+	var roof := MeshInstance3D.new()
+	roof.mesh = _cyl(0.0, r_top * 0.95, r_top * 1.8, 24)
+	roof.material_override = roof_mat
+	roof.position.y = H + 3.1 + r_top * 0.9
+	g.add_child(roof)
+	var spire := MeshInstance3D.new()
+	spire.mesh = _cyl(0.0, 0.35, 8.0, 8)
+	spire.material_override = gold
+	spire.position.y = H + 3.1 + r_top * 1.8 + 4.0
+	g.add_child(spire)
+	var orb := MeshInstance3D.new()
+	orb.mesh = _blob(0.9, 12, 6)
+	orb.material_override = Mats.glow(0xffe8a0)
+	orb.position.y = H + 3.1 + r_top * 1.8 + 1.0
+	g.add_child(orb)
+	var beacon := OmniLight3D.new()
+	beacon.light_color = WorldGen.hex(0xffe0a0)
+	beacon.light_energy = 3.0
+	beacon.omni_range = 40.0
+	beacon.position = orb.position
+	g.add_child(beacon)
+	# Знамёна: длинные полотнища под венцом
+	var cloth := StandardMaterial3D.new()
+	cloth.albedo_color = WorldGen.hex(0x8a1c24)
+	cloth.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cloth.roughness = 0.9
+	for k in 4:
+		var a := TAU * k / 4.0 + PI / 4.0
+		var q := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(2.4, 12.0)
+		q.mesh = qm
+		q.material_override = cloth
+		var br := r_top + 0.25
+		q.position = Vector3(sin(a) * br, H - 6.5, cos(a) * br)
+		q.rotation.y = a
+		g.add_child(q)
+		var emblem := _box(g, Vector3(1.0, 1.0, 0.06), gold, Vector3(sin(a) * (br + 0.05), H - 3.5, cos(a) * (br + 0.05)))
+		emblem.rotation = Vector3(0, a, PI / 4.0)
+	# Дверь со стороны города (на север, к −z): арка, ступени и факелы
 	var dir := Vector3(0, 0, -1)
-	var door_pos := Vector3(0, 0, -R)
-	var arch := Node3D.new()
-	arch.position = door_pos
-	arch.rotation.y = PI
-	g.add_child(arch)
-	for sx in [-1.7, 1.7]:
-		_box(arch, Vector3(0.8, 4.4, 1.2), dark_stone, Vector3(sx, 2.2 + 0.5, 0.2))
-	_box(arch, Vector3(4.2, 0.9, 1.3), dark_stone, Vector3(0, 5.1, 0.2))
+	var door_pos := Vector3(0, 0, -R - 1.6)
+	var arch_n := Node3D.new()
+	arch_n.position = door_pos
+	arch_n.rotation.y = PI
+	g.add_child(arch_n)
+	for sx in [-2.2, 2.2]:
+		_box(arch_n, Vector3(1.2, 6.0, 1.8), dark_stone, Vector3(sx, 3.0 + 0.5, 0.2))
+	_box(arch_n, Vector3(5.6, 1.2, 2.0), dark_stone, Vector3(0, 6.8, 0.2))
+	_box(arch_n, Vector3(1.0, 1.0, 0.2), gold, Vector3(0, 6.8, 1.25)).rotation.z = PI / 4.0
 	var dark := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(2.6, 4.0)
-	dark.mesh = q
+	var q2 := QuadMesh.new()
+	q2.size = Vector2(3.2, 5.6)
+	dark.mesh = q2
 	dark.material_override = Mats.glow(0x000000)
-	dark.position = Vector3(0, 2.5, 0.75)
-	arch.add_child(dark)
-	for i in 3:
-		_box(arch, Vector3(3.4, 0.3, 0.7), dark_stone, Vector3(0, 0.35 - i * 0.2, 1.1 + i * 0.6))
-	for sx in [-2.5, 2.5]:
+	dark.position = Vector3(0, 3.3, 1.0)
+	arch_n.add_child(dark)
+	for i in 4:
+		_box(arch_n, Vector3(4.6, 0.3, 0.8), dark_stone, Vector3(0, 0.55 - i * 0.2, 1.4 + i * 0.7))
+	for sx in [-3.2, 3.2]:
 		var post := MeshInstance3D.new()
-		post.mesh = _cyl(0.08, 0.1, 2.0, 5)
+		post.mesh = _cyl(0.1, 0.13, 2.4, 6)
 		post.material_override = Mats.lp(0x4a3220)
-		post.position = Vector3(sx, 1.5, 1.3)
-		arch.add_child(post)
+		post.position = Vector3(sx, 1.7, 1.6)
+		arch_n.add_child(post)
 		var fl := MeshInstance3D.new()
-		fl.mesh = _cyl(0.0, 0.17, 0.45, 5)
+		fl.mesh = _cyl(0.0, 0.2, 0.55, 6)
 		fl.material_override = Mats.glow(0xffb040)
-		fl.position = Vector3(sx, 2.7, 1.3)
-		arch.add_child(fl)
+		fl.position = Vector3(sx, 3.2, 1.6)
+		arch_n.add_child(fl)
 	var light := OmniLight3D.new()
 	light.light_color = WorldGen.hex(0xff9a3c)
-	light.light_energy = 1.5
-	light.omni_range = 10.0
-	light.position = Vector3(0, 3.5, 2.5)
-	arch.add_child(light)
+	light.light_energy = 1.8
+	light.omni_range = 12.0
+	light.position = Vector3(0, 4.0, 3.0)
+	arch_n.add_child(light)
 	var sb := StaticBody3D.new()
 	add_child(sb)
 	var sh := CylinderShape3D.new()
-	sh.radius = R
+	sh.radius = R + 1.0
 	sh.height = H
 	var cs := CollisionShape3D.new()
 	cs.shape = sh
 	cs.position = g.position + Vector3(0, H / 2.0, 0)
 	sb.add_child(cs)
-	var door := g.position + door_pos + dir * 1.2
-	tower = {"door": Vector3(door.x, WorldGen.ground_at(door.x, door.z), door.z), "dir": dir, "pos": g.position}
+	var door := g.position + door_pos + dir * 1.6
+	tower = {"door": Vector3(door.x, WorldGen.ground_at(door.x, door.z), door.z), "dir": dir, "pos": g.position, "height": H}
 
 func _box(parent: Node3D, size: Vector3, mat: Material, pos: Vector3) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

@@ -28,6 +28,16 @@ const TYPES := {
 		"slam": {"radius": 5.5, "cd": 6.0, "aim": 0.9, "dmg": 36}},
 	"kobold_warlord": {"name": "Полководец кобольдов", "model": "kobold", "tint": 0xb07050, "boss": true, "hp": 800, "dmg": 32, "speed": 4.4, "r": 0.8, "aggro": 16.0, "reach": 2.9, "cd": 0.9, "windup": 0.35, "bar": 3.6, "scale": 1.7,
 		"slam": {"radius": 5.5, "cd": 6.0, "aim": 0.8, "dmg": 40}},
+	"swamp_mother": {"name": "Болотная матка", "model": "spider", "tint": 0x7aa060, "boss": true, "hp": 660, "dmg": 27, "speed": 4.8, "r": 1.3, "aggro": 16.0, "reach": 3.0, "cd": 1.0, "windup": 0.4, "bar": 3.0, "scale": 2.3, "lunge": true,
+		"spit": {"near": 4.0, "far": 17.0, "cd": 3.2, "aim": 0.6, "count": 7, "speed": 17.0}},
+	"lava_lord": {"name": "Огненный повелитель", "model": "kobold", "tint": 0xff7050, "boss": true, "hp": 760, "dmg": 31, "speed": 4.6, "r": 0.85, "aggro": 16.0, "reach": 3.0, "cd": 0.9, "windup": 0.35, "bar": 3.8, "scale": 1.85,
+		"slam": {"radius": 6.0, "cd": 5.5, "aim": 0.8, "dmg": 40}},
+	"crystal_guard": {"name": "Кристальный страж", "model": "skeleton_king", "tint": 0xb090ff, "boss": true, "hp": 820, "dmg": 32, "speed": 4.0, "r": 0.9, "aggro": 16.0, "reach": 3.0, "cd": 1.1, "windup": 0.5, "bar": 4.3, "scale": 2.0,
+		"slam": {"radius": 6.0, "cd": 5.5, "aim": 0.85, "dmg": 42}},
+	"shadow_wolf": {"name": "Теневой волк", "model": "wolf", "tint": 0x3a3a50, "boss": true, "hp": 720, "dmg": 33, "speed": 7.4, "r": 1.0, "aggro": 18.0, "reach": 3.0, "cd": 0.8, "windup": 0.25, "bar": 3.1, "scale": 1.9,
+		"spikes": {"near": 5.0, "far": 18.0, "cd": 3.0, "aim": 0.5, "count": 7, "speed": 26.0}},
+	"sky_king": {"name": "Небесный король", "model": "skeleton_king", "tint": 0xffe090, "boss": true, "hp": 950, "dmg": 35, "speed": 4.2, "r": 0.95, "aggro": 18.0, "reach": 3.2, "cd": 1.0, "windup": 0.45, "bar": 4.5, "scale": 2.2,
+		"slam": {"radius": 6.5, "cd": 5.0, "aim": 0.8, "dmg": 46}},
 	"kobold": {"name": "Кобольд", "hp": 130, "dmg": 23, "speed": 4.2, "r": 0.45, "aggro": 13.0, "reach": 2.0, "cd": 0.85, "windup": 0.06, "bar": 2.1},
 }
 const GRAVITY := 25.0

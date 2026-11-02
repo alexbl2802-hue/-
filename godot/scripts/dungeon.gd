@@ -93,6 +93,7 @@ func build(d: Dictionary, idx: int) -> void:
 	_build_decor(floors)
 	_build_exit()
 	if tower:
+		_build_tower_decor(floors)
 		_find_room()
 		for g in gate_cells:
 			_build_gate(g)
@@ -571,6 +572,94 @@ func _build_chest(c: Vector3) -> void:
 	add_child(light)
 	_col_cyl(c, 0.75, 1.0)
 	chest = {"pos": c, "lid": lid, "light": light, "opened": false, "t": 0.0}
+
+# ---------- Убранство этажей башни: знамёна в цветах этажа, витражи, подсвечники
+func _build_tower_decor(floors: Array) -> void:
+	var wall_c := WorldGen.hex(def["wall"])
+	var light_c := WorldGen.hex(def["light"])
+	var cloth := StandardMaterial3D.new()
+	cloth.albedo_color = Color(wall_c.r * 0.5 + 0.35, wall_c.g * 0.25, wall_c.b * 0.25)
+	cloth.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cloth.roughness = 0.95
+	var gold := Mats.lp(0xd8a840, 0.35, 0.7, 0x805010, 0.5)
+	var glass := StandardMaterial3D.new()
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.albedo_color = light_c.lerp(Color.WHITE, 0.2)
+	var frame := Mats.lp(0x2a2622, 0.6, 0.6)
+	var r := RandomNumberGenerator.new()
+	r.seed = 501 + index
+	var banners := []
+	var windows := []
+	var candles := []
+	for f in floors:
+		var c := ch(f.x, f.y)
+		if c in ["S", "G", "U", "B"]:
+			continue
+		for dv in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if not solid(f.x + dv.x, f.y + dv.y):
+				continue
+			var roll := r.randf()
+			var cc := cell_center(f.x, f.y)
+			var into := Vector3(dv.x, 0, dv.y)
+			var wall := cc + into * (CELL / 2.0 - 0.04)
+			var yaw := atan2(-into.x, -into.z)
+			if roll < 0.14:
+				banners.append([wall, yaw])
+			elif roll < 0.24:
+				windows.append([wall, yaw])
+			elif roll < 0.3:
+				candles.append([wall, yaw, into])
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.3, 3.0)
+	for b in banners:
+		var n := Node3D.new()
+		n.position = b[0] + Vector3(0, Y + 2.6, 0) - Vector3(0, Y, 0)
+		n.rotation.y = b[1]
+		add_child(n)
+		var q := MeshInstance3D.new()
+		q.mesh = quad
+		q.material_override = cloth
+		n.add_child(q)
+		_box(Vector3(1.6, 0.1, 0.1), gold, Vector3(0, 1.55, 0.02), n)        # перекладина
+		_box(Vector3(0.45, 0.45, 0.03), gold, Vector3(0, 0.4, 0.02), n).rotation.z = PI / 4.0   # знак
+	var wq := QuadMesh.new()
+	wq.size = Vector2(1.1, 2.0)
+	for w in windows:
+		var n := Node3D.new()
+		n.position = w[0] + Vector3(0, 2.6, 0)
+		n.rotation.y = w[1]
+		add_child(n)
+		var q := MeshInstance3D.new()
+		q.mesh = wq
+		q.material_override = glass
+		n.add_child(q)
+		var arch := MeshInstance3D.new()
+		arch.mesh = _cyl(0.55, 0.55, 0.02, 12)
+		arch.material_override = glass
+		arch.rotation.x = PI / 2.0
+		arch.position = Vector3(0, 1.0, 0)
+		n.add_child(arch)
+		for x in [-0.6, 0.6]:
+			_box(Vector3(0.1, 2.2, 0.08), frame, Vector3(x, 0, 0.03), n)
+		_box(Vector3(1.3, 0.1, 0.08), frame, Vector3(0, -1.05, 0.03), n)
+		_box(Vector3(0.05, 2.0, 0.06), frame, Vector3(0, 0, 0.04), n)       # переплёт
+		_box(Vector3(1.1, 0.05, 0.06), frame, Vector3(0, 0.2, 0.04), n)
+	for cd in candles:
+		var n := Node3D.new()
+		n.position = cd[0] + Vector3(0, 1.9, 0) - (cd[2] as Vector3) * 0.15
+		add_child(n)
+		_box(Vector3(0.3, 0.06, 0.3), gold, Vector3.ZERO, n)
+		for k in 3:
+			var cdl := MeshInstance3D.new()
+			cdl.mesh = _cyl(0.035, 0.035, 0.22, 6)
+			cdl.material_override = Mats.lp(0xf0e6d0)
+			cdl.position = Vector3((k - 1) * 0.1, 0.14, 0)
+			n.add_child(cdl)
+			var fl := MeshInstance3D.new()
+			fl.mesh = _cyl(0.0, 0.03, 0.08, 5)
+			fl.material_override = Mats.glow(0xffc060)
+			fl.position = Vector3((k - 1) * 0.1, 0.3, 0)
+			n.add_child(fl)
 
 # ---------- Комната стража этажа: ворота и лестница
 ## Клетки комнаты — всё, куда можно дойти от места стража, не проходя ворота

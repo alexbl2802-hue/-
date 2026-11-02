@@ -52,7 +52,7 @@ func spawn_dungeon(d: Node3D) -> void:
 		var b: CharacterBody3D = script.new()
 		b.in_dungeon = true
 		b.dungeon_idx = d.index
-		b.setup(d.def["boss"], c + to_start.normalized() * 3.5 + Vector3(0, 0.3, 0), hero)
+		b.setup(d.def["boss"], c + to_start.normalized() * 3.5 + Vector3(0, 0.3, 0), hero, lvl + 2)
 		add_child(b)
 		list.append(b)
 

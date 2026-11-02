@@ -128,6 +128,11 @@ const LOOT := {
 	"sand_scorpion": {"mat": "mat_ember", "gold": [1.0, 140, 190], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_crystal", "amulet_crystal", "boots_wind", "rapier_star", "dagger_venom", "shield_tower"], "shard": [1.0, 6, 8]},
 	"frost_king": {"mat": "mat_frost", "gold": [1.0, 160, 220], "potion": 1.0, "item": 1.0, "items": 2, "pool": ["sword_crystal", "armor_plate", "great_obsidian", "amulet_crystal", "cloak_shadow", "ring_ruby"], "shard": [1.0, 7, 9]},
 	"kobold_warlord": {"mat": "mat_banner", "gold": [1.0, 200, 260], "potion": 1.0, "item": 1.0, "items": 3, "pool": ["great_obsidian", "rapier_star", "armor_plate", "shield_tower", "amulet_crystal", "ring_ruby", "cloak_shadow", "boots_wind"], "shard": [1.0, 8, 10]},
+	"swamp_mother": {"mat": "mat_chitin", "gold": [1.0, 220, 280], "potion": 0.0, "item": 1.0, "items": 2, "pool": ["dagger_venom", "rapier_star", "boots_wind", "cloak_shadow", "ring_ruby", "amulet_crystal"], "shard": [1.0, 8, 10]},
+	"lava_lord": {"mat": "mat_ember", "gold": [1.0, 240, 300], "potion": 0.0, "item": 1.0, "items": 2, "pool": ["great_obsidian", "armor_plate", "shield_tower", "helm_iron", "ring_ruby"], "shard": [1.0, 9, 11]},
+	"crystal_guard": {"mat": "mat_frost", "gold": [1.0, 260, 320], "potion": 0.0, "item": 1.0, "items": 3, "pool": ["sword_crystal", "rapier_star", "amulet_crystal", "armor_plate", "cloak_shadow"], "shard": [1.0, 10, 12]},
+	"shadow_wolf": {"mat": "mat_fang", "gold": [1.0, 280, 340], "potion": 0.0, "item": 1.0, "items": 3, "pool": ["dagger_venom", "cloak_shadow", "boots_wind", "ring_ruby", "sword_bone"], "shard": [1.0, 11, 13]},
+	"sky_king": {"mat": "mat_crown", "gold": [1.0, 400, 500], "potion": 0.0, "item": 1.0, "items": 3, "pool": ["great_obsidian", "sword_crystal", "rapier_star", "armor_plate", "shield_tower", "amulet_crystal", "ring_ruby"], "shard": [1.0, 14, 16]},
 	"kobold": {"gold": [0.85, 12, 24], "potion": 0.35, "item": 0.35, "pool": ["sword_steel", "sword_bone", "armor_chain", "helm_iron", "armor_plate", "amulet_life", "amulet_crystal", "ring_ruby", "cloak_shadow", "shield_tower", "boots_wind", "great_obsidian", "rapier_star"], "shard": [0.8, 2, 3]},
 }
 
