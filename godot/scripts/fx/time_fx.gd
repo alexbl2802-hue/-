@@ -8,7 +8,9 @@ const STOP_SCALE := 0.04
 const SLOW_SCALE := 0.35
 static var _stop_end := 0
 static var _slow_end := 0
-static var enabled := true
+## В проверках (tests/*, запуск с аргументами) кадры идут быстрее реального времени —
+## там эффекты времени выключены, чтобы счёт кадров не зависел от стоп-кадров
+static var enabled := OS.get_cmdline_user_args().is_empty()
 
 static func hitstop(sec: float) -> void:
 	_stop_end = maxi(_stop_end, Time.get_ticks_msec() + int(sec * 1000.0))

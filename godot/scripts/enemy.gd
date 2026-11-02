@@ -810,6 +810,7 @@ func _start_attack() -> void:
 	_extra_hits = []
 	_atk = "slash"
 	_hop_plan = false
+	_swing = false   # новый удар — анимация с начала, даже если прошлый ещё не закончился
 	if model == "goblin" and _char:
 		_atk = ["slash", "overhead", "side"][randi() % 3]
 	elif model == "kobold":

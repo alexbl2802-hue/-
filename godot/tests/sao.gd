@@ -24,6 +24,7 @@ func _frames(n: int) -> void:
 
 func _ready() -> void:
 	out = OS.get_cmdline_user_args()[0] + "/"
+	TimeFx.enabled = true   # здесь проверяем стоп-кадр и замедление
 	Game.bosses = []
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
@@ -127,7 +128,12 @@ func _ready() -> void:
 			targets.append(e)
 	h.global_position = p
 	h.facing = 0.0
-	var offs := [Vector3(-1.4, 0, 1.8), Vector3(0, 0, 2.2), Vector3(1.5, 0, 1.6)]
+	# Посторонних монстров — подальше, чтобы герой разворачивался к нашим целям
+	for e in main.enemies.list:
+		if not targets.has(e) and e.global_position.distance_to(p) < 20.0:
+			e.home = p + Vector3(60, 0, 60)
+			e.global_position = e.home
+	var offs := [Vector3(-0.9, 0, 2.0), Vector3(0, 0, 2.4), Vector3(1.0, 0, 2.0)]
 	for i in targets.size():
 		var e: Node3D = targets[i]
 		e.home = p + offs[i]
@@ -152,6 +158,8 @@ func _ready() -> void:
 			await _shot("horizontal")
 	var hit_n := 0
 	for i in targets.size():
+		var v: Vector3 = targets[i].global_position - h.global_position
+		print("target ", i, " dist ", Vector2(v.x, v.z).length(), " angle ", rad_to_deg(angle_difference(h.facing, atan2(v.x, v.z))), " hp ", hp0[i], " → ", targets[i].hp)
 		if targets[i].hp < hp0[i]:
 			hit_n += 1
 	_check("horizontal hits all in front", hit_n == targets.size(), "%d/%d" % [hit_n, targets.size()])
