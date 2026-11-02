@@ -153,6 +153,7 @@ const GRIP_PATH := "res://models/hero_grip.json"
 const SWORD_PATH := "res://models/longsword.glb"
 const RUST_TEX := "res://models/longsword_rust.jpg"
 const CHAR_SCALE := 1.05
+const GRIP_TILT := 10.0      # наклон клинка от поперечного к пальцам, градусы
 const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
@@ -224,8 +225,12 @@ func _attach_character() -> void:
 		var hg := HandGrip.new()
 		sk.add_child(hg)
 		if hg.setup(sk, "Right"):
-			var blade := hg.grip_axis
-			var width := (hg.fingers_dir - blade * hg.fingers_dir.dot(blade)).normalized()
+			# Хват как у человека: при прямом запястье клинок выходит из кулака со стороны
+			# большого и указательного пальцев поперёк кисти (чуть наклонён вперёд, к пальцам)
+			var axis := Vector3.UP   # ось кисти (от запястья к пальцам) в системе кости
+			var blade := (hg.grip_axis - axis * hg.grip_axis.dot(axis)).normalized()
+			blade = blade.rotated(blade.cross(axis).normalized(), deg_to_rad(GRIP_TILT)).normalized()
+			var width := (axis - blade * axis.dot(blade)).normalized()
 			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), hg.grip_point)
 	_sword.scale = Vector3.ONE / CHAR_SCALE
 	_attach_blades()
@@ -237,7 +242,7 @@ func _attach_character() -> void:
 	var ref := _anim.get_animation(A_SLASH)
 	var prefix := String(ref.track_get_path(0)).get_slice(":", 0)
 	var blade := _sword.transform.basis.y.normalized()   # клинок в системе кости кисти
-	_anim.add_animation_library("sao", HeroMoves.library(sk, ref, 0.0, prefix, blade))
+	_anim.add_animation_library("sao", HeroMoves.library(sk, _anim, ref, 0.0, prefix, blade))
 	# Дерево анимаций: плавные переходы и удар на бегу (только верх тела)
 	if _has_idle and _anim.has_animation(A_WHIRL) and _anim.has_animation(A_DASH):
 		_ha = HeroAnim.new()

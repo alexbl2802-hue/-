@@ -11,8 +11,8 @@ const BASE := {
 }
 
 ## Длина шага: метров за секунду анимации (для темпа шага по скорости героя)
-const WALK_STRIDE := 1.15
-const RUN_STRIDE := 3.5
+const WALK_STRIDE := 1.37   # ходьба гоблина на скелете героя: 1,37 м за секунду анимации (замер tests/pose_view.tscn)
+const RUN_STRIDE := 4.8     # бег модели героя: 4,8 м за секунду анимации (замер tests/gait.tscn)
 
 static func _k(t: float, p: Dictionary, hips := Vector3.ZERO, sword = null) -> Dictionary:
 	var k := {"t": t, "p": p, "hips": hips}
@@ -45,69 +45,22 @@ static func stance() -> Array:
 		_k(2.4, p, STANCE_HIPS, STANCE_SWORD),
 	]
 
-# ---------- Ходьба: спокойный шаг, меч опущен остриём назад-вниз
-static func walk() -> Array:
-	var contact := {
-		"Spine": Vector3(4, 6, 0), "Spine2": Vector3(0, 4, 0), "Neck": Vector3(0, -6, 0),
-		"LeftUpLeg": Vector3(-26, 0, 0), "LeftLeg": Vector3(6, 0, 0), "LeftFoot": Vector3(14, 0, 0),
-		"RightUpLeg": Vector3(16, 0, 0), "RightLeg": Vector3(12, 0, 0), "RightFoot": Vector3(-24, 0, 0),
-		"LeftArm": Vector3(18, 15, -64), "LeftForeArm": Vector3(-12, 0, 0),
-		"RightArm": Vector3(4, -15, 58), "RightForeArm": Vector3(-12, 0, 0),
-	}
-	var passing := {
-		"Spine": Vector3(4, 0, 0), "Spine2": Vector3(0, 0, 0),
-		"LeftUpLeg": Vector3(2, 0, 0), "LeftLeg": Vector3(6, 0, 0), "LeftFoot": Vector3(-8, 0, 0),
-		"RightUpLeg": Vector3(-20, 0, 0), "RightLeg": Vector3(48, 0, 0), "RightFoot": Vector3(-14, 0, 0),
-		"LeftArm": Vector3(0, 15, -64), "LeftForeArm": Vector3(-12, 0, 0),
-		"RightArm": Vector3(8, -15, 58), "RightForeArm": Vector3(-12, 0, 0),
-	}
-	var sw := Vector3(-0.15, -0.8, 0.55)   # меч опущен вдоль ноги, остриём вниз-вперёд
-	var m_contact := PoseLib.mirror(contact)
-	var m_passing := PoseLib.mirror(passing)
-	# Рука с мечом качается меньше: зеркальная поза — со своим положением правой руки
-	m_contact["RightArm"] = Vector3(10, -15, 58)
-	m_contact["RightForeArm"] = Vector3(-12, 0, 0)
-	m_passing["RightArm"] = Vector3(8, -15, 58)
-	m_passing["RightForeArm"] = Vector3(-12, 0, 0)
-	return [
-		_k(0.0, contact, Vector3(0, -0.035, 0), sw),
-		_k(0.25, passing, Vector3(0, 0.0, 0), sw),
-		_k(0.5, m_contact, Vector3(0, -0.035, 0), sw),
-		_k(0.75, m_passing, Vector3(0, 0.0, 0), sw),
-		_k(1.0, contact, Vector3(0, -0.035, 0), sw),
-	]
+# ---------- Ходьба и бег: ноги и корпус — из записей живых движений (ходьба гоблина
+# переносится на героя, бег — собственная запись модели героя), а правая рука — своя:
+# опущена вдоль тела, запястье прямое, меч смотрит вперёд (как держит человек, фото-образец)
+const WALK_SWORD := Vector3(-0.12, -0.2, 1.0)
+const RUN_SWORD := Vector3(-0.15, -0.25, 1.0)
 
-# ---------- Бег: корпус вперёд, меч отведён назад, левая рука работает
-static func run() -> Array:
-	var contact := {
-		"Spine": Vector3(16, 8, 0), "Spine1": Vector3(6, 0, 0), "Neck": Vector3(-14, -8, 0), "Head": Vector3(-6, 0, 0),
-		"LeftUpLeg": Vector3(-38, 0, 0), "LeftLeg": Vector3(18, 0, 0), "LeftFoot": Vector3(10, 0, 0),
-		"RightUpLeg": Vector3(26, 0, 0), "RightLeg": Vector3(55, 0, 0), "RightFoot": Vector3(-30, 0, 0),
-		"LeftArm": Vector3(30, 10, -62), "LeftForeArm": Vector3(-70, 0, 0),
-		"RightArm": Vector3(28, -10, 50), "RightForeArm": Vector3(-10, 0, 0),
-	}
-	var flight := {
-		"Spine": Vector3(18, 0, 0), "Spine1": Vector3(6, 0, 0), "Neck": Vector3(-14, 0, 0), "Head": Vector3(-6, 0, 0),
-		"LeftUpLeg": Vector3(4, 0, 0), "LeftLeg": Vector3(30, 0, 0), "LeftFoot": Vector3(-20, 0, 0),
-		"RightUpLeg": Vector3(-48, 0, 0), "RightLeg": Vector3(95, 0, 0), "RightFoot": Vector3(-10, 0, 0),
-		"LeftArm": Vector3(0, 10, -62), "LeftForeArm": Vector3(-80, 0, 0),
-		"RightArm": Vector3(30, -10, 50), "RightForeArm": Vector3(-10, 0, 0),
-	}
-	var m_contact := PoseLib.mirror(contact)
-	var m_flight := PoseLib.mirror(flight)
-	m_contact["LeftArm"] = Vector3(-45, 10, -55)
-	m_flight["LeftArm"] = Vector3(-20, 10, -60)
-	for m in [m_contact, m_flight]:
-		m["RightArm"] = Vector3(32, -10, 50)
-		m["RightForeArm"] = Vector3(-10, 0, 0)
-	var sw := Vector3(-0.2, -0.85, 0.45)   # меч опущен вниз сбоку, остриём вниз-вперёд
-	return [
-		_k(0.0, contact, Vector3(0, -0.06, 0), sw),
-		_k(0.17, flight, Vector3(0, 0.0, 0), sw),
-		_k(0.34, m_contact, Vector3(0, -0.06, 0), sw),
-		_k(0.51, m_flight, Vector3(0, 0.0, 0), sw),
-		_k(0.68, contact, Vector3(0, -0.06, 0), sw),
-	]
+static func _arm_keys(length: float, arm_back: float, arm_fwd: float, elbow: float, sword: Vector3, left_swing := 0.0) -> Array:
+	var a := {"RightArm": Vector3(arm_back, -12, 58), "RightForeArm": Vector3(-elbow, 0, 0)}
+	var b := {"RightArm": Vector3(arm_fwd, -12, 58), "RightForeArm": Vector3(-elbow - 6, 0, 0)}
+	if left_swing > 0.0:
+		# Левая рука опущена и качается в такт шагу (навстречу правой ноге)
+		a["LeftArm"] = Vector3(-left_swing, 12, -62)
+		a["LeftForeArm"] = Vector3(-18, 0, 0)
+		b["LeftArm"] = Vector3(left_swing, 12, -62)
+		b["LeftForeArm"] = Vector3(-10, 0, 0)
+	return [_k(0.0, a, Vector3.ZERO, sword), _k(length * 0.5, b, Vector3.ZERO, sword), _k(length, a, Vector3.ZERO, sword)]
 
 # ---------- Уклонения
 static func _crouch(depth: float) -> Dictionary:
@@ -352,8 +305,6 @@ static func horizontal() -> Array:
 static func all() -> Dictionary:
 	return {
 		"stance": [stance(), 2.4, true],
-		"walk": [walk(), 1.0, true],
-		"run": [run(), 0.68, true],
 		"dodge_back": [dodge_back(), 0.55, false],
 		"dodge_left": [dodge_left(), 0.5, false],
 		"dodge_right": [dodge_right(), 0.5, false],
@@ -366,8 +317,11 @@ static func all() -> Dictionary:
 		"horizontal": [horizontal(), HZ_LEN, false],
 	}
 
-## Собрать библиотеку анимаций для скелета героя
-static func library(sk: Skeleton3D, ref: Animation, ref_t: float, prefix: String, blade: Vector3) -> AnimationLibrary:
+const GOBLIN_PATH := "res://models/goblin.glb"
+static var walk_stride := WALK_STRIDE
+
+## Собрать библиотеку анимаций для скелета героя. player — анимации модели героя (бег)
+static func library(sk: Skeleton3D, player: AnimationPlayer, ref: Animation, ref_t: float, prefix: String, blade: Vector3) -> AnimationLibrary:
 	var lib := AnimationLibrary.new()
 	var moves := all()
 	for name in moves:
@@ -375,4 +329,47 @@ static func library(sk: Skeleton3D, ref: Animation, ref_t: float, prefix: String
 		if PoseLib.aim_log:
 			print(name)
 		lib.add_animation(name, PoseLib.build(sk, m[0], BASE, m[1], m[2], ref, ref_t, prefix, blade))
+	# Бег: запись модели героя + своя правая рука с опущенным мечом
+	if player.has_animation("Running"):
+		var run_src := player.get_animation("Running")
+		if PoseLib.aim_log:
+			print("run")
+		lib.add_animation("run", PoseLib.override(run_src, sk, _arm_keys(run_src.length, 18, 6, 18, RUN_SWORD), {}, prefix, blade))
+	# Ходьба: запись ходьбы гоблина, перенесённая на скелет героя
+	if ResourceLoader.exists(GOBLIN_PATH):
+		var g: Node = (load(GOBLIN_PATH) as PackedScene).instantiate()
+		var gsk: Skeleton3D = g.find_children("*", "Skeleton3D", true, false)[0]
+		var gap: AnimationPlayer = g.find_children("*", "AnimationPlayer", true, false)[0]
+		if gap.has_animation("Walking"):
+			var w := PoseLib.retarget(gsk, gap.get_animation("Walking"), sk, prefix)
+			w.loop_mode = Animation.LOOP_LINEAR
+			_shift_hips(w, Vector3(0, -0.06, 0))   # ноги гоблина короче — опускаем таз, чтобы стопы стояли на земле
+			if PoseLib.aim_log:
+				print("walk")
+			w = PoseLib.override(w, sk, _arm_keys(w.length, 10, -4, 14, WALK_SWORD, 16.0), {}, prefix, blade)
+			# Пальцы, которых нет у гоблина, — из образца (хват меча)
+			_add_missing(w, sk, ref, ref_t)
+			lib.add_animation("walk", w)
+		g.free()
 	return lib
+
+static func _shift_hips(anim: Animation, d: Vector3) -> void:
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) == Animation.TYPE_POSITION_3D:
+			for k in anim.track_get_key_count(t):
+				anim.track_set_key_value(t, k, (anim.track_get_key_value(t, k) as Vector3) + d)
+
+## Кости, которых нет в анимации (пальцы), — постоянной позой из образца
+static func _add_missing(anim: Animation, sk: Skeleton3D, ref: Animation, ref_t: float) -> void:
+	var have := {}
+	for t in anim.get_track_count():
+		have[String(anim.track_get_path(t))] = true
+	for t in ref.get_track_count():
+		if ref.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+			continue
+		var path := String(ref.track_get_path(t))
+		if have.has(path) or path.ends_with("Hips"):
+			continue
+		var tr := anim.add_track(Animation.TYPE_ROTATION_3D)
+		anim.track_set_path(tr, NodePath(path))
+		anim.rotation_track_insert_key(tr, 0.0, ref.rotation_track_interpolate(t, ref_t))
