@@ -211,6 +211,8 @@ func _attach_character() -> void:
 			_anim.get_animation(n).loop_mode = Animation.LOOP_NONE
 	if _anim.has_animation(A_STANCE):
 		_anim.get_animation(A_STANCE).loop_mode = Animation.LOOP_LINEAR
+	if _anim.has_animation(BACKSTEP_CLIP):
+		_anim.get_animation(BACKSTEP_CLIP).loop_mode = Animation.LOOP_LINEAR
 	if _anim.has_animation(RUN_FIGHT):
 		_anim.get_animation(RUN_FIGHT).loop_mode = Animation.LOOP_LINEAR
 		_tilt_arm(_anim.get_animation(A_STANCE), _char.find_children("*", "Skeleton3D", true, false)[0], "LeftArm", STANCE_LEFT_ARM_DOWN)
@@ -452,6 +454,10 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		if _in_fight:
 			run_stride = RUN_FIGHT_STRIDE
 	var stride_t := _speed_now / lerpf(HeroMoves.walk_stride, run_stride, fast)
+	if _anim.has_animation(BACKSTEP_CLIP):
+		var walk_anim := BACKSTEP_CLIP if _backstep else "sao/walk"
+		_ha.set_loco_anim(1, walk_anim)
+		_ha.set_loco_anim(2, walk_anim)
 	_ha.locomotion(_speed_now, lerpf(1.0, stride_t, clampf(_speed_now / LOCO_WALK_FROM, 0.0, 1.0)))
 	var upper := on_floor and moving and _speed_now > 1.0
 	if _move != "":
@@ -766,6 +772,8 @@ const MOVES := {
 	"knockdown": {"len": 1.4, "speed": 3.0, "from": 0.05, "to": 0.5, "inv": [0.0, 1.4], "next": "getup"},
 	"getup": {"len": 1.2, "inv": [0.0, 1.2]},
 	"horizontal": {"len": HeroMoves.HZ_LEN, "speed": 3.0, "from": HeroMoves.HZ_CHARGE, "to": HeroMoves.HZ_HIT + 0.05},
+	"stop": {"len": 0.7, "speed": 3.5, "from": 0.0, "to": 0.3},     # резкая остановка после спринта
+	"land": {"len": 0.4},                                           # приземление после высокого падения
 }
 const DODGE_CD := 0.7
 ## Клипы Meshy для движений: действие → [клип, с какой секунды, темп]
@@ -778,7 +786,13 @@ const MESHY_MOVES := {
 	"hit_heavy": ["Hit_Reaction", 0.0, 2.0],
 	"knockdown": ["Knock_Down", 0.0, 1.8],
 	"getup": ["Rightward_Spin", 2.0, 2.9],   # перекат по земле и подъём в стойку
+	"horizontal": ["Reaping_Swing", 2.6, 1.8],   # широкий взмах по дуге: удар клипа ≈3,3 с = HZ_HIT
+	"stop": ["Sprint_and_Sudden_Stop", 0.6, 1.4],
+	"land": ["Dive_Down_and_Land", 1.25, 0.9],
 }
+const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
+const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
+const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
 const WHIRL_CLIP := ["Double_Blade_Spin", 0.6, 1.25]   # [клип, с какой секунды, темп]
 const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
 const RUN_FIGHT := "ForwardRight_Run_Fight"            # бег, когда рядом враги — меч наготове
@@ -788,7 +802,7 @@ const FIGHT_NEAR := 12.0
 const ATTACK_CLIPS := [["Left_Slash", 0.7], ["Double_Combo_Attack", 0.63], ["Charged_Upward_Slash", 1.03]]
 const ATTACK_SEG := 0.8        # сколько секунд клипа занимает один удар героя
 ## Приёмы меча: тип оружия → [клип, момент (первого) удара, темп]
-const ART_CLIPS := {"sword": ["Thrust_Slash", 0.73, 1.0], "great": ["Sword_Judgment", 1.0, 1.0], "rapier": ["Triple_Combo_Attack", 0.77, 2.4], "dagger": ["Double_Combo_Attack", 0.63, 1.4]}
+const ART_CLIPS := {"sword": ["Thrust_Slash", 0.73, 1.0], "great": ["Charged_Slash", 1.2, 1.0], "rapier": ["Triple_Combo_Attack", 0.77, 2.4], "dagger": ["Weapon_Combo_2", 1.3, 1.6]}
 const BLOCK_CLIP := ["Sword_Parry", 0.6]
 const REACTIONS := ["hit_heavy", "stun", "knockdown", "getup"]
 var _move := ""
@@ -796,6 +810,11 @@ var _move_t := 0.0
 var _move_dir := Vector3.ZERO
 var _move_new := false
 var _move_hit := false
+
+## Остановку и приземление можно прервать ударом, уклонением или приёмом
+func _cancel_soft_move() -> void:
+	if _move in ["stop", "land"]:
+		_move = ""
 
 func _start_move(name: String, dir: Vector3) -> void:
 	attack_t = -1.0
@@ -809,6 +828,7 @@ func _start_move(name: String, dir: Vector3) -> void:
 ## Уклонение: куда наклонён джойстик относительно взгляда — назад, вбок или кувырок вперёд;
 ## без наклона — отскок назад. Короткая неуязвимость.
 func dodge() -> void:
+	_cancel_soft_move()
 	if dead or busy or _dash_t >= 0.0 or _spin_t >= 0.0 or _art_t >= 0.0 or cd["dodge"] > 0.0:
 		return
 	if _move != "" and not _move.begins_with("dodge") and _move != "roll":
@@ -883,6 +903,7 @@ func _finisher_fx() -> void:
 		rig.shake(0.09, 0.25)
 
 func attack() -> void:
+	_cancel_soft_move()
 	if _spin_t >= 0.0 or _dash_t >= 0.0 or dead or busy or blocking or _art_t >= 0.0 or _move != "":
 		return
 	# Комбо: нажатие во время удара — следующий удар сразу после этого
@@ -902,6 +923,8 @@ const PARRY_WINDOW := 0.25    # блок, поднятый не раньше ч�
 const PARRY_STUN := 1.2
 var _block_start := -99.0      # кадр удара, где меч поднят перед собой — стойка блока
 var blocking := false
+var _backstep := false      # в блоке идёт назад — ноги шагают назад
+var _fall_top := -INF       # самая высокая точка в полёте (для тяжёлого приземления)
 
 func block_reduce() -> float:
 	return minf(0.9, BLOCK_REDUCE + Game.block_bonus())
@@ -919,6 +942,7 @@ func art_id() -> String:
 	return "art_" + Items.ALL[Game.equip["weapon"]["id"]].get("wt", "sword") if Game.equip["weapon"] != null else ""
 
 func use_art() -> void:
+	_cancel_soft_move()
 	var id := art_id()
 	if id == "" or Game.rank(id) == 0 or cd.get("art", 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0 or _spin_t >= 0.0:
 		return
@@ -1077,6 +1101,7 @@ func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 		Game.hp = minf(Game.max_hp, Game.hp + dmg * vamp)
 
 func use_skill(id: String) -> void:
+	_cancel_soft_move()
 	if id == "art":
 		use_art()
 		return
@@ -1327,12 +1352,19 @@ func _physics_process(dt: float) -> void:
 	var hv := Vector3.ZERO
 	if mag > 0.12:
 		dir = dir.normalized()
-		if attack_t < 0.0 and _move == "":
+		# В блоке герой не разворачивается — смотрит на врага и отступает спиной вперёд
+		if attack_t < 0.0 and _move == "" and not blocking:
 			facing += angle_difference(facing, atan2(dir.x, dir.z)) * minf(1.0, dt * 12.0)
 		hv = dir * speed
 		_speed_now = lerpf(_speed_now, speed, minf(1.0, dt * 10.0))
+		_backstep = blocking and dir.dot(Vector3(sin(facing), 0, cos(facing))) < -0.3
 	else:
+		# Отпустил джойстик на спринте — резкая остановка (клип Meshy)
+		if _speed_now > STOP_FROM and is_on_floor() and _move == "" and attack_t < 0.0 and _art_t < 0.0 \
+				and _spin_t < 0.0 and _dash_t < 0.0 and not blocking and _ha and _ha._names.has("stop"):
+			_start_move("stop", Vector3(sin(facing), 0, cos(facing)))
 		_speed_now = lerpf(_speed_now, 0.0, minf(1.0, dt * 10.0))
+		_backstep = false
 	# Приём меча
 	if _art_t >= 0.0:
 		hv = _art_update(dt)
@@ -1364,7 +1396,14 @@ func _physics_process(dt: float) -> void:
 	if not underground and global_position.y < WorldGen.WATER - 1.1:
 		global_position.y = WorldGen.WATER - 1.1
 		velocity.y = maxf(velocity.y, 0.0)
+	var was_air := not is_on_floor()
 	move_and_slide()
+	if not is_on_floor():
+		_fall_top = maxf(_fall_top, global_position.y)
+	elif was_air:
+		if _fall_top - global_position.y > LAND_FALL and _move == "" and not dead and _ha and _ha._names.has("land"):
+			_start_move("land", Vector3.ZERO)
+		_fall_top = -INF
 	if _dash_t >= 0.0:
 		_dash_hits()
 	if not in_world2:   # во втором мире свои стены по краям плато
