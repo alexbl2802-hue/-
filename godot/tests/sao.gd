@@ -119,6 +119,10 @@ func _ready() -> void:
 	_check("stands again", h._move == "", h._move)
 	# Сильный удар
 	h._invuln = 0.0
+	for sl in ["armor", "helm", "boots", "shield", "cloak", "ring", "amulet"]:
+		Game.equip[sl] = null
+	Game.stats["vit"] = 0
+	Game.refresh()
 	h.take_damage(roundi(Game.max_hp * 0.4), p + Vector3(0, 0, 2))
 	_check("heavy hit reaction", h._move == "hit_heavy", h._move)
 	await _frames(6)
