@@ -1081,9 +1081,15 @@ func use_skill(id: String) -> void:
 		_dash_hit = []
 		_dash_speed = SkillDefs.dash_stats(Game.skills)["speed"]
 		cd["dash"] = SkillDefs.dash_stats(Game.skills)["cd"]
-		if SkillDefs.dash_form(Game.skills) == "blink":
-			# Мерцание: вспышка там, где герой исчез
-			Fx.ring(global_position + Vector3(0, 0.1, 0), Color("#b9a8ff"), 2.0, 0.4, true)
+		# Аниме-рывок: герой исчезает со вспышкой там, где стоял (с места или на бегу)
+		Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.0, 0.4, true)
+
+## Цвет вспышек рывка: обычный — голубой, скользящий шаг — белый, прорыв — фиолетовый
+func _dash_color() -> Color:
+	match SkillDefs.dash_form(Game.skills):
+		"blink": return Color("#b9a8ff")
+		"slide": return Color("#e8f4ff")
+	return Color("#8fd8ff")
 
 func use_horizontal() -> void:
 	var r := Game.rank("horizontal")
@@ -1298,14 +1304,13 @@ func _physics_process(dt: float) -> void:
 		_dash_t += dt
 		hv = _dash_dir * DASH_SPEED * _dash_speed
 		_invuln = maxf(_invuln, 0.1)
-		# Мерцание: герой исчезает на время рывка и появляется со вспышкой
-		var blink := SkillDefs.dash_form(Game.skills) == "blink"
-		_model.visible = not (blink and _dash_t > 0.03)
+		# Аниме-рывок (tools/godot_anime_dash): герой исчезает на время рывка и появляется в конце
+		# пути со вспышкой; сквозь стены не проходит — движение физическое (move_and_slide)
+		_model.visible = _dash_t <= 0.03
 		if _dash_t >= DASH_TIME:
 			_dash_t = -1.0
 			_model.visible = true
-			if blink:
-				Fx.ring(global_position + Vector3(0, 0.1, 0), Color("#b9a8ff"), 2.5, 0.45, true)
+			Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
 	hv += _push
 	_push *= exp(-dt * 7.0)
 	velocity.x = hv.x
