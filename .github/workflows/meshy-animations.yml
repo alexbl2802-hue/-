@@ -88,6 +88,7 @@ jobs:
           IN_ACTIONS: ${{ inputs.actions }}
           IN_HEIGHT: ${{ inputs.height }}
           IN_RETEX: ${{ inputs.retexture }}
+          REPO_RAW: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/
         run: |
           python3 tools/meshy_fetch.py --name "$IN_NAME" --model-url "$IN_MODEL" \
             --rig-task "$IN_RIG" --actions "$IN_ACTIONS" --height "$IN_HEIGHT" --retexture "$IN_RETEX"

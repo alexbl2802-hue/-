@@ -86,10 +86,14 @@ def download(url, dst):
 def retexture(out_dir, model_url, sets):
     """Перекраска модели (Retexture): сетка и UV те же, новые текстуры по описанию.
     sets — {имя: описание}. Кладёт meshy/<имя>/<набор>_base_color.png, _normal, _metallic, _roughness."""
-    for key, prompt in sets.items():
-        print("Перекраска", key)
+    raw = os.environ.get("REPO_RAW", "")
+    for key, spec in sets.items():
+        # spec — описание или {"prompt": ..., "model": путь к модели в репозитории}
+        prompt = spec if isinstance(spec, str) else spec["prompt"]
+        url = model_url if isinstance(spec, str) else raw + spec["model"]
+        print("Перекраска", key, url)
         r = call("POST", "/retexture", {
-            "model_url": model_url, "text_style_prompt": prompt[:800], "enable_original_uv": True,
+            "model_url": url, "text_style_prompt": prompt[:800], "enable_original_uv": True,
             "enable_pbr": True, "ai_model": "latest", "texture_resolution": "4k", "target_formats": ["glb"],
         })
         task_id = r.get("result") or r.get("id")
