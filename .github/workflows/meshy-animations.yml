@@ -24,6 +24,10 @@ on:
       retexture:
         description: "Файл JSON {набор: описание} — перекрасить модель (Retexture) вместо анимаций"
         default: ""
+      list_only:
+        description: "Только список моделей аккаунта (без кредитов) в meshy/<имя>/list.json"
+        type: boolean
+        default: false
       docs_only:
         description: "Только скачать документацию Meshy (список движений) в meshy/docs — без кредитов"
         type: boolean
@@ -91,7 +95,7 @@ jobs:
           REPO_RAW: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/
         run: |
           python3 tools/meshy_fetch.py --name "$IN_NAME" --model-url "$IN_MODEL" \
-            --rig-task "$IN_RIG" --actions "$IN_ACTIONS" --height "$IN_HEIGHT" --retexture "$IN_RETEX"
+            --rig-task "$IN_RIG" --actions "$IN_ACTIONS" --height "$IN_HEIGHT" --retexture "$IN_RETEX" ${{ inputs.list_only && '--list' || '' }}
 
       - name: Commit results
         if: always()

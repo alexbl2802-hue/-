@@ -115,10 +115,28 @@ def main():
     ap.add_argument("--actions", default="")
     ap.add_argument("--height", type=float, default=1.8)
     ap.add_argument("--fps", type=int, default=0)   # 0 — без пересчёта частоты кадров
-    ap.add_argument("--retexture", default="")      # файл JSON {набор: описание} — перекраска модели
+    ap.add_argument("--retexture", default="")
+    ap.add_argument("--list", action="store_true")   # список моделей аккаунта (без кредитов)      # файл JSON {набор: описание} — перекраска модели
     a = ap.parse_args()
     out_dir = ROOT / "meshy" / a.name
     out_dir.mkdir(parents=True, exist_ok=True)
+    if a.list:
+        found = {}
+        for path in ["/text-to-3d", "/image-to-3d", "/multi-image-to-3d", "/remesh", "/retexture", "/rigging"]:
+            base = BASE.replace("/v1", "/v2") if path == "/text-to-3d" else BASE
+            try:
+                req = urllib.request.Request(base + path + "?page_size=50&sort_by=-created_at",
+                                             headers={"Authorization": "Bearer " + os.environ["MESHY_API_KEY"]})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    found[path] = json.loads(r.read().decode())
+            except Exception as e:
+                found[path] = str(e)
+            items = found[path] if isinstance(found[path], list) else []
+            print(path, len(items))
+            for t in items:
+                print("  ", t.get("id"), t.get("status"), (t.get("prompt") or t.get("text_style_prompt") or "")[:80], t.get("thumbnail_url", "")[:60])
+        (out_dir / "list.json").write_text(json.dumps(found, ensure_ascii=False, indent=1))
+        return
     if a.retexture:
         try:
             retexture(out_dir, a.model_url, json.loads((ROOT / a.retexture).read_text()))
