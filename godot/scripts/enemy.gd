@@ -180,13 +180,19 @@ func _ready() -> void:
 	# Корона у стражей на моделях — поверх модели, в размер стража
 	if _char and (T.get("boss", false) or model == "skeleton_king"):
 		var hgt: float = (1.62 if C["glb"] == GOBLIN_MODEL else 1.85) * C["scale"] * T.get("scale", 1.0)
-		_add_crown(hgt)
+		var at := Vector3.ZERO
+		if C.has("crown"):
+			at = C["crown"] * C["scale"] * T.get("scale", 1.0)
+			hgt = at.y
+		_add_crown(hgt, at)
 		_model.get_child(_model.get_child_count() - 1).scale = Vector3.ONE * T.get("scale", 1.0) * 0.8
 	global_position = home
 
 # ---------- Мобы на моделях Meshy: все движения — клипы Meshy (свои у модели или перенесённые
 # с героя: tools/prepare_models.py meshy_to), раскраска — перекраска Meshy в аниме-стиле.
 const HERO_MODEL := "res://models/hero.glb"
+const WOLF_MODEL := "res://models/wolf.glb"
+const SPIDER_MODEL := "res://models/spider.glb"
 const SKIN_DIR := "res://models/skins/"
 const CHAR_ATK := {"slash": ["Charged_Slash", 1.1], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}
 const CHARS := {
@@ -195,6 +201,10 @@ const CHARS := {
 	"golem": {"glb": GOBLIN_MODEL, "skin": "golem", "scale": 1.55, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "", "atk": {"slash": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
 	"skeleton": {"glb": HERO_MODEL, "skin": "skeleton", "scale": 1.0, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "sword", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
 	"skeleton_king": {"glb": HERO_MODEL, "skin": "skeleton", "scale": 1.1, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "great", "atk": {"slash": ["Charged_Slash", 1.2], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
+	# Звери — свои модели и анимации из Blender (tools/blender/beasts.py): Meshy по API их не анимирует
+	"wolf": {"glb": WOLF_MODEL, "skin": "", "scale": 1.0, "stance": "Idle", "walk": ["Walk", 1.47], "run": ["Run", 4.1], "weapon": "", "atk": {"slash": ["Attack", 0.45]}, "hit": "Hit", "aim": "Aim", "tail": "tail_tip", "crown": Vector3(0, 1.5, 0.74)},
+	"spider": {"glb": SPIDER_MODEL, "skin": "", "scale": 1.0, "stance": "Idle", "walk": ["Walk", 2.1], "run": ["Walk", 2.1], "weapon": "", "atk": {"slash": ["Attack", 0.35]}, "hit": "Hit", "aim": "Rear", "crown": Vector3(0, 0.98, 0.18)},
+	"spider_queen": {"glb": SPIDER_MODEL, "skin": "", "scale": 1.3, "stance": "Idle", "walk": ["Walk", 2.1], "run": ["Walk", 2.1], "weapon": "", "atk": {"slash": ["Attack", 0.35]}, "hit": "Hit", "aim": "Rear", "crown": Vector3(0, 0.98, 0.18)},
 	"rabbit": {"glb": BUNNY_MODEL, "skin": "bunny", "scale": 0.9, "walk": ["Walking", 0.9], "run": ["Running", 3.0], "weapon": "", "atk": {"slash": ["Boxing_Guard_Prep_Straight_Punch", 0.75], "kick": ["Flying_Fist_Kick", 0.9]}},
 }
 var C: Dictionary = {}        # описание модели моба из CHARS
@@ -208,41 +218,62 @@ func _attach_char() -> void:
 	_model.add_child(_char)
 	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
 	_ap.playback_default_blend_time = 0.15
-	for n in ["Combat_Stance", C["walk"][0], C["run"][0]]:
+	for n in [_stance(), C["walk"][0], C["run"][0]]:
 		if _ap.has_animation(n):
 			_ap.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	for k in C["atk"]:
 		if _ap.has_animation(C["atk"][k][0]):
 			_ap.get_animation(C["atk"][k][0]).loop_mode = Animation.LOOP_NONE
-	_ap.play("Combat_Stance")
+	for n in [C.get("aim", ""), C.get("hit", "")]:
+		if _ap.has_animation(n):
+			_ap.get_animation(n).loop_mode = Animation.LOOP_NONE
+	_ap.play(_stance())
 	_ap.seek(randf() * 1.5, true)
 	_apply_skin()
 	_setup_flash()
 	match C["weapon"]:
 		"club": _attach_club()
 		"sword", "great": _attach_blade(C["weapon"])
+	# Кончик хвоста волка — оттуда вылетают шипы
+	if C.has("tail"):
+		var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
+		var b := sk.find_bone(C["tail"])
+		if b >= 0:
+			var att := BoneAttachment3D.new()
+			sk.add_child(att)
+			att.bone_name = C["tail"]
+			att.bone_idx = b
+			_tail_tip = Node3D.new()
+			att.add_child(_tail_tip)
+			_tail_tip.position = Vector3(0, 0.3, 0)
+
+func _stance() -> String:
+	return C.get("stance", "Combat_Stance")
 
 ## Раскраска модели (models/skins/<имя>_base_color.jpg) и оттенок стража этажа
 func _apply_skin() -> void:
-	var base: String = SKIN_DIR + C["skin"] + "_base_color.jpg"
+	var skin: String = C["skin"]
+	var base: String = SKIN_DIR + skin + "_base_color.jpg"
+	var nrm: String = SKIN_DIR + skin + "_normal.jpg"
 	for m in _char.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
-		var src := mi.get_active_material(0)
-		if not (src is StandardMaterial3D):
-			continue
-		var mat := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
-		if ResourceLoader.exists(base):
-			mat.albedo_texture = load(base)
-			var nrm: String = SKIN_DIR + C["skin"] + "_normal.jpg"
-			if ResourceLoader.exists(nrm):
-				mat.normal_enabled = true
-				mat.normal_texture = load(nrm)
-			mat.metallic = 0.0
-			mat.roughness = 0.8
-		if T.has("tint"):
-			mat.albedo_color = WorldGen.hex(T["tint"]).lerp(Color.WHITE, 0.35)
-		Mats.toon(mat)
-		mi.material_override = mat
+		for si in mi.mesh.get_surface_count():
+			var src := mi.get_active_material(si)
+			if not (src is StandardMaterial3D):
+				continue
+			var mat := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
+			if skin != "" and ResourceLoader.exists(base):
+				mat.albedo_texture = load(base)
+				if ResourceLoader.exists(nrm):
+					mat.normal_enabled = true
+					mat.normal_texture = load(nrm)
+				mat.metallic = 0.0
+				mat.roughness = 0.8
+			if T.has("tint") and not mat.emission_enabled:
+				var tint := WorldGen.hex(T["tint"])
+				mat.albedo_color = mat.albedo_color * (tint.lerp(Color.WHITE, 0.35) if skin != "" else tint)
+			Mats.toon(mat)
+			mi.set_surface_override_material(si, mat)
 
 ## Белая вспышка при попадании — полупрозрачный слой поверх модели
 func _setup_flash() -> void:
@@ -331,7 +362,7 @@ func set_active(on: bool) -> void:
 ## Анимация моба на модели: стойка, шаг/бег по скорости, удар (момент удара клипа совпадает
 ## с концом замаха), отскок/кувырок, реакция на удар (оглушение), прыжок-удар кролика
 func _animate_char() -> void:
-	var want := "Combat_Stance"
+	var want := _stance()
 	var speed := 1.0
 	if st != "windup" and st != "recover" and st != "leap":
 		_swing = false
@@ -342,9 +373,16 @@ func _animate_char() -> void:
 			_ap.seek(0.0, true)
 		_ap.speed_scale = 2.0
 		return
-	if st == "stun" and _ap.has_animation("Hit_Reaction"):
-		if _ap.current_animation != "Hit_Reaction":
-			_ap.play("Hit_Reaction", 0.08)
+	var hit_anim: String = C.get("hit", "Hit_Reaction")
+	if st == "aim" and _ap.has_animation(C.get("aim", "")):
+		if _ap.current_animation != C["aim"]:
+			_ap.play(C["aim"], 0.1)
+			_ap.seek(0.0, true)
+		_ap.speed_scale = _ap.get_animation(C["aim"]).length / maxf(0.2, _special().get("aim", 0.6))
+		return
+	if st == "stun" and _ap.has_animation(hit_anim):
+		if _ap.current_animation != hit_anim:
+			_ap.play(hit_anim, 0.08)
 			_ap.seek(0.0, true)
 		_ap.speed_scale = 1.4
 		return

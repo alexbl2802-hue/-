@@ -15,7 +15,7 @@ func _ready() -> void:
 		e.visible = false
 	Game.time_of_day = 0.4
 	main.day_night.apply()
-	var kinds := ["goblin", "kobold", "skeleton", "rabbit", "stone_golem", "frost_king", "wolf", "spider"]
+	var kinds := ["wolf", "storm_wolf", "alpha_wolf", "spider", "venom_spider", "sand_scorpion", "goblin", "skeleton"]
 	var base := Vector3(-60, 0, -120)
 	var script := preload("res://scripts/enemy.gd")
 	var list := []
