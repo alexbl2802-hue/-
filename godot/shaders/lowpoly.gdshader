@@ -2,7 +2,7 @@
 // цвет материала умножается на цвет экземпляра (MultiMesh) или вершины.
 // detail > 0 — лёгкая фактура (кора, листва, камень) по мировым координатам.
 shader_type spatial;
-render_mode cull_back;
+render_mode cull_back, diffuse_toon, specular_toon;
 
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);

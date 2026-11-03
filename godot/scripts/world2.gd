@@ -295,6 +295,7 @@ func _build_trees_and_rocks() -> void:
 	var sc: Node3D = (load(path) as PackedScene).instantiate()
 	var mi: MeshInstance3D = sc.find_children("*", "MeshInstance3D", true, false)[0]
 	var mesh: Mesh = mi.mesh
+	Mats.toon_mesh(mesh)
 	var aabb := mesh.get_aabb()
 	sc.free()
 	var items := []

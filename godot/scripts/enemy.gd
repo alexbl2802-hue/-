@@ -90,13 +90,6 @@ var _swing := false
 
 const GOBLIN_MODEL := "res://models/goblin.glb"
 const BUNNY_MODEL := "res://models/bunny.glb"
-# Боевой кролик (Meshy): стойка, удар рукой и удар ногой в прыжке, кувырок-уклонение.
-# Времена — секунды внутри анимаций: петля стойки и момент удара.
-const B_PUNCH := "Boxing_Guard_Prep_Straight_Punch"
-const B_DODGE := "Roll_Dodge_2"
-const B_STANCE := 0.5             # кадр боксёрской стойки
-const B_GUARD := [0.1, 1.5]       # петля стойки в начале анимации удара рукой
-var _moves: BunnyMoves       # движения кролика по раскадровке
 var _wind_len := 0.0         # замах до первого удара (у кролика — свой у каждой атаки)
 var _rec_len := 0.0          # отдых после удара
 var _extra_hits := []        # следующие удары комбо: время от первого удара
@@ -107,7 +100,11 @@ var _spike_cd := 1.0
 var _tail: Node3D          # хвост волка (поднимается при выстреле)
 var _tail_tip: Node3D      # откуда вылетают шипы
 
-var _bunny := false
+var _leap_atk := false
+var _leap_dist := 0.0
+const LEAP_DUR := 0.95
+const LEAP_AIR := [0.28, 0.78]
+const LEAP_HIT := 0.8
 var _dodge_t := -1.0
 
 ## Сила монстра по уровню: здоровье +35%, урон +20% за каждый уровень выше первого
@@ -176,83 +173,76 @@ func _ready() -> void:
 		for c in _model.get_children():
 			c.scale *= T["scale"]
 			c.position *= T["scale"]
-	if model == "goblin" and ResourceLoader.exists(GOBLIN_MODEL):
-		_attach_goblin()
-	elif model == "rabbit" and ResourceLoader.exists(BUNNY_MODEL):
-		_attach_bunny()
+	if CHARS.has(model) and ResourceLoader.exists(CHARS[model]["glb"]):
+		_attach_char()
 	if _char and T.has("scale"):
 		_char.scale *= T["scale"]
-	# Корона у гоблина-вождя — поверх модели, в размер вождя
-	if type == "goblin_chief" and _char:
-		_add_crown(1.62 * T["scale"])
-		_model.get_child(_model.get_child_count() - 1).scale = Vector3.ONE * T["scale"] * 0.8
+	# Корона у стражей на моделях — поверх модели, в размер стража
+	if _char and (T.get("boss", false) or model == "skeleton_king"):
+		var hgt: float = (1.62 if C["glb"] == GOBLIN_MODEL else 1.85) * C["scale"] * T.get("scale", 1.0)
+		_add_crown(hgt)
+		_model.get_child(_model.get_child_count() - 1).scale = Vector3.ONE * T.get("scale", 1.0) * 0.8
 	global_position = home
 
-# ---------- Боевой кролик: в лапах свои когти, оружие не нужно
-func _attach_bunny() -> void:
+# ---------- Мобы на моделях Meshy: все движения — клипы Meshy (свои у модели или перенесённые
+# с героя: tools/prepare_models.py meshy_to), раскраска — перекраска Meshy в аниме-стиле.
+const HERO_MODEL := "res://models/hero.glb"
+const SKIN_DIR := "res://models/skins/"
+const CHAR_ATK := {"slash": ["Charged_Slash", 1.1], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}
+const CHARS := {
+	"goblin": {"glb": GOBLIN_MODEL, "skin": "goblin", "scale": 0.92, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "club", "atk": CHAR_ATK},
+	"kobold": {"glb": GOBLIN_MODEL, "skin": "kobold", "scale": 1.0, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Running", 3.45], "weapon": "sword", "atk": CHAR_ATK},
+	"golem": {"glb": GOBLIN_MODEL, "skin": "golem", "scale": 1.55, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "", "atk": {"slash": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
+	"skeleton": {"glb": HERO_MODEL, "skin": "skeleton", "scale": 1.0, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "sword", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
+	"skeleton_king": {"glb": HERO_MODEL, "skin": "skeleton", "scale": 1.1, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "great", "atk": {"slash": ["Charged_Slash", 1.2], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
+	"rabbit": {"glb": BUNNY_MODEL, "skin": "bunny", "scale": 0.9, "walk": ["Walking", 0.9], "run": ["Running", 3.0], "weapon": "", "atk": {"slash": ["Boxing_Guard_Prep_Straight_Punch", 0.75], "kick": ["Flying_Fist_Kick", 0.9]}},
+}
+var C: Dictionary = {}        # описание модели моба из CHARS
+
+func _attach_char() -> void:
+	C = CHARS[model]
 	for c in _model.get_children():
 		c.visible = false
-	_char = (load(BUNNY_MODEL) as PackedScene).instantiate()
-	_char.scale = Vector3.ONE * 0.9
-	_model.add_child(_char)
-	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
-	_ap.playback_default_blend_time = 0.12
-	for n in _ap.get_animation_list():
-		_ap.get_animation(n).loop_mode = Animation.LOOP_NONE
-	_ap.play(B_PUNCH)
-	_ap.seek(B_STANCE, true)
-	_bunny = true
-	_setup_flash()
-	_moves = BunnyMoves.new()
-	if not _moves.setup(_char):
-		_moves = null
-
-func _animate_bunny(dt: float) -> void:
-	# Кувырок после пропущенного удара — своя анимация; в остальное время — боксёрская стойка,
-	# а шаги, прыжки и удары поверх неё делает BunnyMoves
-	if _dodge_t >= 0.0:
-		_dodge_t += dt
-		if _dodge_t > 0.9:
-			_dodge_t = -1.0
-	if _dodge_t < 0.0:
-		# Стойка — одна неподвижная поза из анимации: петля по кадрам перескакивала и дёргала кролика
-		# Скорость 1 и возврат к кадру: при скорости 0 плавный переход (после кувырка) не завершается
-		if _ap.current_animation != B_PUNCH:
-			_ap.play(B_PUNCH, 0.15)
-			_ap.seek(B_STANCE, true)
-		elif absf(_ap.current_animation_position - B_STANCE) > 0.005:
-			_ap.seek(B_STANCE, false)
-		_ap.speed_scale = 1.0
-	if _moves:
-		# Стойка с поднятыми кулаками — только в бою: рядом с героем, в ударе и в прыжке-атаке
-		var near := st == "chase" and hero.global_position.distance_to(global_position) < 5.0
-		var fight := near or st == "windup" or st == "recover" or st == "leap"
-		_moves.update(dt, _moving and (st == "idle" or st == "chase" or st == "return"), _speed_now, _dodge_t >= 0.0, fight)
-
-func _dodge() -> void:
-	_dodge_t = 0.0
-	if _moves:
-		_moves.reset()
-	_ap.play(B_DODGE, 0.05)
-	_ap.seek(0.35, true)
-	_ap.speed_scale = 1.6
-
-# ---------- Модель гоблина (Meshy): блочное тело прячем, в правую руку — дубина
-func _attach_goblin() -> void:
-	for c in _model.get_children():
-		c.visible = false
-	_char = (load(GOBLIN_MODEL) as PackedScene).instantiate()
-	_char.scale = Vector3.ONE * 0.92
+	_char = (load(C["glb"]) as PackedScene).instantiate()
+	_char.scale = Vector3.ONE * C["scale"]
 	_model.add_child(_char)
 	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
 	_ap.playback_default_blend_time = 0.15
-	for n in ["Combat_Stance", "Slow_Orc_Walk", "Running"]:
-		_ap.get_animation(n).loop_mode = Animation.LOOP_LINEAR
-	_ap.get_animation("Charged_Slash").loop_mode = Animation.LOOP_NONE
+	for n in ["Combat_Stance", C["walk"][0], C["run"][0]]:
+		if _ap.has_animation(n):
+			_ap.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+	for k in C["atk"]:
+		if _ap.has_animation(C["atk"][k][0]):
+			_ap.get_animation(C["atk"][k][0]).loop_mode = Animation.LOOP_NONE
 	_ap.play("Combat_Stance")
 	_ap.seek(randf() * 1.5, true)
+	_apply_skin()
 	_setup_flash()
-	_attach_club()
+	match C["weapon"]:
+		"club": _attach_club()
+		"sword", "great": _attach_blade(C["weapon"])
+
+## Раскраска модели (models/skins/<имя>_base_color.jpg) и оттенок стража этажа
+func _apply_skin() -> void:
+	var base: String = SKIN_DIR + C["skin"] + "_base_color.jpg"
+	for m in _char.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		var src := mi.get_active_material(0)
+		if not (src is StandardMaterial3D):
+			continue
+		var mat := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
+		if ResourceLoader.exists(base):
+			mat.albedo_texture = load(base)
+			var nrm: String = SKIN_DIR + C["skin"] + "_normal.jpg"
+			if ResourceLoader.exists(nrm):
+				mat.normal_enabled = true
+				mat.normal_texture = load(nrm)
+			mat.metallic = 0.0
+			mat.roughness = 0.8
+		if T.has("tint"):
+			mat.albedo_color = WorldGen.hex(T["tint"]).lerp(Color.WHITE, 0.35)
+		Mats.toon(mat)
+		mi.material_override = mat
 
 ## Белая вспышка при попадании — полупрозрачный слой поверх модели
 func _setup_flash() -> void:
@@ -264,15 +254,14 @@ func _setup_flash() -> void:
 		m.material_overlay = _flash_mat
 		m.visibility_range_end = 130.0
 
-## Дубина гоблина: рукоять поперёк ладони, толстый конец выходит над большим пальцем
-func _attach_club() -> void:
+func _hand_attachment() -> Array:
 	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
 	var hand := -1
 	for i in sk.get_bone_count():
 		if sk.get_bone_name(i).ends_with("RightHand"):
 			hand = i
 	if hand < 0:
-		return
+		return []
 	var att := BoneAttachment3D.new()
 	sk.add_child(att)
 	att.bone_name = sk.get_bone_name(hand)
@@ -284,6 +273,24 @@ func _attach_club() -> void:
 	dir = (dir - fingers * dir.dot(fingers)).normalized()
 	var flat := fingers.cross(dir).normalized()
 	var grip := fingers * ((idx + pinky) / 2.0).length() * 0.7 - flat * 0.02
+	return [att, fingers, dir, flat, grip]
+
+## Меч (скелеты, кобольды): клинок из sao_gear, рукоять в кулаке, клинок над большим пальцем
+func _attach_blade(kind: String) -> void:
+	var h := _hand_attachment()
+	if h.is_empty():
+		return
+	var b := SaoGear.blade(kind)
+	SaoGear.paint_blade(b, Color("#b8c0c8") if model != "skeleton_king" else Color("#d8d0ff"), Color("#4a4048"), Color("#2a1e16"), Color.BLACK, 0.0)
+	h[0].add_child(b)
+	b.transform = Transform3D(Basis(h[1], h[2], h[3]), h[4] + h[2] * 0.05)
+	b.scale = Vector3.ONE / C["scale"]
+
+## Дубина гоблина: рукоять поперёк ладони, толстый конец выходит над большим пальцем
+func _attach_club() -> void:
+	var h := _hand_attachment()
+	if h.is_empty():
+		return
 	var club := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.12
@@ -292,12 +299,8 @@ func _attach_club() -> void:
 	cm.radial_segments = 7
 	club.mesh = cm
 	club.material_override = Mats.lp(0x5a3a1c, 0.95, 0.0, -1, 0.0, 0.45, 3.0)
-	att.add_child(club)
-	club.transform = Transform3D(Basis(fingers, dir, flat), grip + dir * 0.32)
-	# Свои удары гоблина (scripts/anim/goblin_moves.gd): кисть поворачивается по оси дубины
-	var ref := _ap.get_animation("Charged_Slash")
-	var prefix := String(ref.track_get_path(0)).get_slice(":", 0)
-	_ap.add_animation_library("gob", GoblinMoves.library(sk, ref, prefix, dir))
+	h[0].add_child(club)
+	club.transform = Transform3D(Basis(h[1], h[2], h[3]), h[4] + h[2] * 0.32)
 	for k in 3:   # сучки-шипы на толстом конце
 		var spike := MeshInstance3D.new()
 		var sm := CylinderMesh.new()
@@ -325,51 +328,52 @@ func set_active(on: bool) -> void:
 		_anim_on = on
 		_ap.active = on
 
-const G_WALK_STRIDE := 0.27   # м/с: столько проходит гоблин за секунду анимации Slow_Orc_Walk
-const G_RUN_STRIDE := 3.45    # то же для Running
-
+## Анимация моба на модели: стойка, шаг/бег по скорости, удар (момент удара клипа совпадает
+## с концом замаха), отскок/кувырок, реакция на удар (оглушение), прыжок-удар кролика
 func _animate_char() -> void:
 	var want := "Combat_Stance"
 	var speed := 1.0
-	if st != "windup" and st != "recover":
+	if st != "windup" and st != "recover" and st != "leap":
 		_swing = false
-	# Свои движения: удар сверху, боковой взмах, отскок
-	if _hop_t >= 0.0 and _hop_t < 0.5:
-		if _ap.current_animation != "gob/hop_back":
-			_ap.play("gob/hop_back", 0.08)
+	if (_hop_t >= 0.0 and _hop_t < 0.5) or _dodge_t >= 0.0:
+		var dn := "Roll_Dodge_2" if model == "rabbit" and _dodge_t >= 0.0 else "Stand_Dodge"
+		if _ap.current_animation != dn:
+			_ap.play(dn, 0.08)
 			_ap.seek(0.0, true)
-		_ap.speed_scale = 1.0
+		_ap.speed_scale = 2.0
 		return
-	if _atk != "slash" and (st == "windup" or (st == "recover" and _t < 0.6)):
-		want = "gob/" + _atk
+	if st == "stun" and _ap.has_animation("Hit_Reaction"):
+		if _ap.current_animation != "Hit_Reaction":
+			_ap.play("Hit_Reaction", 0.08)
+			_ap.seek(0.0, true)
+		_ap.speed_scale = 1.4
+		return
+	if st == "leap" and _ap.has_animation("Flying_Fist_Kick"):
+		if _ap.current_animation != "Flying_Fist_Kick":
+			_ap.play("Flying_Fist_Kick", 0.08)
+			_ap.seek(0.3, true)
+		_ap.speed_scale = 1.3
+		return
+	var atk: Array = C["atk"].get(_atk, C["atk"].values()[0])
+	if (st == "windup" or (st == "recover" and _t < 0.6)) and _ap.has_animation(atk[0]):
+		var hit: float = atk[1]
+		var start := maxf(0.0, hit - 0.45)
 		if st == "windup" and not _swing:
 			_swing = true
-			_ap.play(want, 0.1)
-			_ap.seek(0.0, true)
-		_ap.speed_scale = GoblinMoves.HIT[_atk] / maxf(0.15, _wind_len) if st == "windup" else 1.0
+			_ap.play(atk[0], 0.1)
+			_ap.seek(start, true)
+		_ap.speed_scale = (hit - start) / maxf(0.12, _wind_len) if st == "windup" else 1.0
 		return
-	if st == "windup" or (st == "recover" and _t < 0.45):
-		want = "Charged_Slash"
-		# Удар в анимации приходится примерно на середину (1,1 с) — совмещаем с концом замаха
-		speed = 0.8 / maxf(0.15, T["windup"])
-	elif _moving:
-		# Скорость анимации — по длине шага (замер: tests/gait.tscn), иначе ноги скользят:
-		# быстро — бегом, медленно — шагом вразвалку
+	if _moving:
+		# Темп шага по длине шага клипа — ноги не скользят
 		if _speed_now > 1.4:
-			want = "Running"
-			speed = _speed_now / G_RUN_STRIDE
+			want = C["run"][0]
+			speed = _speed_now / C["run"][1]
 		else:
-			want = "Slow_Orc_Walk"
-			speed = maxf(0.3, _speed_now / G_WALK_STRIDE)
-	if st == "windup" and not _swing:
-		# Каждый новый удар — анимация с начала замаха
-		_swing = true
-		_ap.play(want, 0.1)
-		_ap.seek(0.3, true)
-	elif _ap.current_animation != want:
+			want = C["walk"][0]
+			speed = maxf(0.3, _speed_now / C["walk"][1])
+	if _ap.current_animation != want:
 		_ap.play(want)
-	if st != "windup" and st != "recover":
-		_swing = false
 	_ap.speed_scale = speed
 
 # ---------- Модели
@@ -781,8 +785,6 @@ func stun(t: float, vulnerable := false) -> void:
 	_t = 0.0
 	_stun_len = t
 	_extra_hits = []
-	if _moves:
-		_moves.cancel_attack()
 	if vulnerable:
 		_vuln_t = t + 0.4
 	Fx.ring(global_position + Vector3(0, T["bar"] - 0.4, 0), Color("#ffe060"), 0.6, 0.5)
@@ -810,12 +812,10 @@ func hit(dmg: int, dir: Vector3, crit := false) -> void:
 		st = "recover"
 		_t = _rec_len - 0.45
 		_extra_hits = []
-		if _moves:
-			_moves.cancel_attack()
 	elif st == "idle" or st == "return":
 		st = "chase"
-	if _bunny and _dodge_t < 0.0 and randf() < 0.3 and st != "stun":
-		_dodge()
+	if model == "rabbit" and _char and _dodge_t < 0.0 and randf() < 0.3 and st != "stun":
+		_dodge_t = 0.0
 
 ## Замах: у кролика — следующая атака по очереди (джеб, прямой, крюк, комбо)
 ## Вид удара: у гоблина — сверху / сбоку / обычный, у кобольда — мечом / щитом / боковой
@@ -834,21 +834,17 @@ func _start_attack() -> void:
 	_atk = "slash"
 	_hop_plan = false
 	_swing = false   # новый удар — анимация с начала, даже если прошлый ещё не закончился
-	if model == "goblin" and _char:
-		_atk = ["slash", "overhead", "side"][randi() % 3]
+	if _char:
+		var kinds: Array = C["atk"].keys()
+		_atk = kinds[randi() % kinds.size()]
 	elif model == "kobold":
 		_atk = ["slash", "bash", "sweep"][randi() % 3]
 	if model in ["goblin", "kobold"] and not T.get("boss", false):
 		_hop_plan = randf() < 0.35
 	if _atk == "overhead":
 		_wind_len *= 1.3   # тяжёлый удар — замах дольше
-	if _moves:
-		var kind := _moves.next_attack()
-		var hits: Array = _moves.start_attack(kind)
-		_wind_len = hits[0]
-		for i in range(1, hits.size()):
-			_extra_hits.append(hits[i] - hits[0])
-		_rec_len = maxf(T["cd"], _moves.attack_dur(kind) - hits[0] + 0.15)
+	if model == "rabbit" and _char:
+		_wind_len = maxf(_wind_len, 0.35)   # кролик: удар кулаком с подготовкой из клипа
 
 func knock(mult: float) -> void:
 	_kb *= mult
@@ -880,8 +876,6 @@ func revive() -> void:
 	hp = T["hp"]
 	st = "idle"
 	_kb = Vector3.ZERO
-	if _moves:
-		_moves.reset()
 	global_position = home + Vector3(0, 0.5, 0)
 	velocity = Vector3.ZERO
 	collision_layer = 4
@@ -896,8 +890,6 @@ func reset_home() -> void:
 	hp = T["hp"]
 	st = "idle"
 	_kb = Vector3.ZERO
-	if _moves:
-		_moves.reset()
 	global_position = home + Vector3(0, 0.5, 0)
 	velocity = Vector3.ZERO
 
@@ -963,15 +955,15 @@ func _physics_process(dt: float) -> void:
 				# Королева-паучиха встаёт на задние лапы и плюётся ядом
 				st = "aim"
 				_t = 0.0
-			elif _moves and _leap_cd <= 0.0 and dist > 2.6 and dist < 6.5:
+			elif model == "rabbit" and _char and _leap_cd <= 0.0 and dist > 2.6 and dist < 6.5:
 				# Прыжок к герою: вблизи — удар в прыжке, подальше — просто сократить расстояние
 				st = "leap"
 				_t = 0.0
 				_leap_dir = to_hero / dist
 				_leap_hit_done = false
 				_leap_cd = randf_range(2.5, 4.5)
-				var atk := dist < 4.6
-				_moves.start_leap(clampf(dist - (1.0 if atk else 2.2), 1.2, 4.5), atk)
+				_leap_atk = dist < 4.6
+				_leap_dist = clampf(dist - (1.0 if _leap_atk else 2.2), 1.2, 4.5)
 			else:
 				mv = to_hero / dist
 				sp = T["speed"]
@@ -1000,13 +992,14 @@ func _physics_process(dt: float) -> void:
 		"leap":
 			facing += angle_difference(facing, atan2(to_hero.x, to_hero.z)) * minf(1.0, dt * 6.0)
 			mv = _leap_dir
-			sp = _moves.leap_speed() if _moves else 0.0
-			if _moves and _moves.leap_attack and not _leap_hit_done and _moves.leap_t >= _moves.LEAP_HIT:
+			# Прыжок-удар (клип Meshy Flying Fist Kick): в воздухе с 0,28 по 0,78 с, удар на 0,8 с
+			sp = _leap_dist / (LEAP_AIR[1] - LEAP_AIR[0]) if _t >= LEAP_AIR[0] and _t < LEAP_AIR[1] else 0.0
+			if _leap_atk and not _leap_hit_done and _t >= LEAP_HIT:
 				_leap_hit_done = true
 				if can_see and dist < T["reach"] + 0.8:
 					hero.take_damage(T["dmg"], global_position, self)
-			if not _moves or not _moves.leaping():
-				if _moves and _moves.leap_attack:
+			if _t >= LEAP_DUR:
+				if _leap_atk:
 					st = "recover"
 					_t = 0.0
 					_rec_len = T["cd"]
@@ -1121,9 +1114,10 @@ func _crown_at() -> Vector3:
 	return Vector3(0, 1.93, 0)
 
 func _animate(dt: float) -> void:
-	if _bunny:
-		_animate_bunny(dt)
-		return
+	if _dodge_t >= 0.0:
+		_dodge_t += dt
+		if _dodge_t > 0.6:
+			_dodge_t = -1.0
 	if _char:
 		_animate_char()
 		return

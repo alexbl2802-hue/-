@@ -1,7 +1,7 @@
 // Трава: пучок тонких травинок, качается на ветру. Чем выше точка травинки — тем сильнее;
 // фаза зависит от места пучка, поэтому по лугу бегут волны ветра.
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, diffuse_toon, specular_toon;
 
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform float wind_strength = 0.18;

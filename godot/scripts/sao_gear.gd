@@ -137,6 +137,7 @@ static func _metal(c: Color) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.metallic = 0.8
 	m.roughness = 0.3
+	Mats.toon(m)
 	return m
 
 static func _box(st: SurfaceTool, c: Vector3, s: Vector3) -> void:
@@ -265,6 +266,7 @@ static func paint_blade(root: Node3D, blade_col: Color, guard_col: Color, grip_c
 	bm.metallic = 0.9
 	bm.roughness = 0.18
 	bm.metallic_specular = 0.8
+	Mats.toon(bm)
 	if glow_energy > 0.0:
 		bm.emission_enabled = true
 		bm.emission = glow

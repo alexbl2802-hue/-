@@ -25,6 +25,22 @@ static func lp(color: int, rough := 0.9, metal := 0.0, emit := -1, emit_energy :
 	_cache[key] = m
 	return m
 
+## Аниме-стиль: свет и блики ступенями (тун), мягкая подсветка контура
+static func toon(m: Material) -> void:
+	if not (m is BaseMaterial3D):
+		return
+	var b := m as BaseMaterial3D
+	b.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	b.specular_mode = BaseMaterial3D.SPECULAR_TOON
+	b.rim_enabled = true
+	b.rim = 0.25
+	b.rim_tint = 0.6
+
+## Тун для всех материалов модели (деревья, камни, постройки из .glb)
+static func toon_mesh(mesh: Mesh) -> void:
+	for i in mesh.get_surface_count():
+		toon(mesh.surface_get_material(i))
+
 ## Материал рельефа: газон, земля, камень гор (shaders/terrain.gdshader, textures/*)
 static func terrain() -> ShaderMaterial:
 	if _cache.has("terrain"):
@@ -100,6 +116,7 @@ static func tiled(tex: Texture2D, tint: int, scale := 0.25, rough := 0.95) -> St
 	m.uv1_scale = Vector3(scale, scale, scale)
 	m.roughness = rough
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	toon(m)
 	if tex.has_meta("normal"):
 		m.normal_enabled = true
 		m.normal_texture = tex.get_meta("normal")

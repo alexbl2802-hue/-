@@ -162,7 +162,6 @@ const GRIP_TILT := 10.0      # наклон клинка от поперечно
 const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
 const A_STANCE := "Combat_Stance"   # боевая стойка с мечом — анимация модели Shadowwarden
-const STANCE_LEFT_ARM_DOWN := 10.0  # в стойке левая рука опущена ниже, чем в анимации, градусы
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
@@ -173,9 +172,6 @@ const WHIRL_TIME := 0.75
 const WHIRL_HIT := 0.5
 const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
-const ARMS_OUT_CALM := 0.12    # локти чуть отведены от тела всегда (кроме ударов и приёмов), рад
-const ARMS_OUT_WALK := 0.0     # ходьба и бег — клипы Meshy как есть, руки не отводим
-const ARMS_OUT_RUN := 0.0
 var _sk: Skeleton3D
 var in_world2 := false       # герой на Плато ветров (второй мир над башней)
 var _ragdoll := Ragdoll.new()  # падение по физике при гибели
@@ -187,10 +183,6 @@ const LOCO_FAST_FULL := 4.0
 var _trail: SwordTrail
 var _fight_check := 0.0
 var _in_fight := false
-var _arms_mod: PoseOffsets
-var _arm_axes := []
-var _arms_w := 0.0
-var _arms_calm := 0.0
 
 func _attach_character() -> void:
 	if not ResourceLoader.exists(CHAR_PATH):
@@ -215,7 +207,9 @@ func _attach_character() -> void:
 		_anim.get_animation(BACKSTEP_CLIP).loop_mode = Animation.LOOP_LINEAR
 	if _anim.has_animation(RUN_FIGHT):
 		_anim.get_animation(RUN_FIGHT).loop_mode = Animation.LOOP_LINEAR
-		_tilt_arm(_anim.get_animation(A_STANCE), _char.find_children("*", "Skeleton3D", true, false)[0], "LeftArm", STANCE_LEFT_ARM_DOWN)
+	for n in [WALK_CLIP, RUN_CLIP]:
+		if _anim.has_animation(n):
+			_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	_has_idle = _anim.has_animation(A_IDLE)
 	if _has_idle:
 		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
@@ -246,6 +240,7 @@ func _attach_character() -> void:
 		sk.add_child(hg)
 		hg.setup(sk, "Right")
 		var fist := _fist_grip(sk, _anim.get_animation(A_SLASH), hg)
+		hg.queue_free()   # пальцы — только из клипов Meshy, без своей позы
 		if not fist.is_empty():
 			var axis := Vector3.UP   # ось кисти (от запястья к пальцам) в системе кости
 			var across: Vector3 = fist[1]
@@ -256,21 +251,14 @@ func _attach_character() -> void:
 	_sword.scale = Vector3.ONE / CHAR_SCALE
 	_attach_blades()
 	_build_gear(sk)
-	_setup_arms(sk)
 	_anim.play(A_IDLE if _has_idle else A_SLASH)
 	_anim.seek(0.0, true)
-	# Свои движения (стойка, ходьба, бег, уклонения, реакции, приёмы) — scripts/anim/hero_moves.gd
-	var ref := _anim.get_animation(A_SLASH)
-	var prefix := String(ref.track_get_path(0)).get_slice(":", 0)
-	var blade := _sword.transform.basis.y.normalized()   # клинок в системе кости кисти
-	_anim.add_animation_library("sao", HeroMoves.library(sk, _anim, ref, 0.0, prefix, blade))
+	# Все движения — клипы Meshy (сценарий «Meshy animations» → tools/prepare_models.py meshy_clips)
 	# Дерево анимаций: плавные переходы и удар на бегу (только верх тела)
 	if _has_idle and _anim.has_animation(A_WHIRL) and _anim.has_animation(A_DASH):
 		_ha = HeroAnim.new()
 		add_child(_ha)
-		var acts := {"slash": A_SLASH, "whirl": A_WHIRL, "dash": A_DASH, "air": "sao/run"}
-		for m in MOVES:
-			acts[m] = "sao/" + m
+		var acts := {"slash": A_SLASH, "whirl": A_WHIRL, "dash": A_DASH, "air": RUN_CLIP}
 		# Движения из библиотеки Meshy (сценарий «Meshy animations», tools/prepare_models.py meshy_clips)
 		for m in MESHY_MOVES:
 			if _anim.has_animation(MESHY_MOVES[m][0]):
@@ -288,8 +276,8 @@ func _attach_character() -> void:
 			acts["whirl"] = WHIRL_CLIP[0]
 		if _anim.has_animation(JUMP_CLIP[0]):
 			acts["air"] = JUMP_CLIP[0]
-		# Ходьба по скорости: стойка → шаг → бег (свои анимации, scripts/anim/hero_moves.gd)
-		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], ["sao/walk", LOCO_WALK_FROM], ["sao/walk", LOCO_FAST_FROM], ["sao/run", LOCO_FAST_FULL]], RUN)
+		# Ходьба по скорости: стойка → боевой шаг → спринт (клипы Meshy)
+		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], [WALK_CLIP, LOCO_WALK_FROM], [WALK_CLIP, LOCO_FAST_FROM], [RUN_CLIP, LOCO_FAST_FULL]], RUN)
 	# След клинка
 	_trail = SwordTrail.new()
 	add_child(_trail)
@@ -345,23 +333,6 @@ func _fist_grip(sk: Skeleton3D, anim: Animation, hg: HandGrip) -> Array:
 		c += p
 	c /= pts.size()
 	return [c, (knuckle["Index"] - knuckle["Pinky"]).normalized()]
-
-## Опустить руку в анимации на угол (градусы): поворот плеча вниз вокруг оси «вперёд»
-## персонажа, переведённой в систему родителя (ключицы) — во всех кадрах
-func _tilt_arm(anim: Animation, sk: Skeleton3D, suffix: String, deg: float) -> void:
-	var b := PoseLib.bone(sk, suffix)
-	if b < 0:
-		return
-	var p := sk.get_bone_parent(b)
-	var pg := sk.get_bone_global_rest(p).basis.orthonormalized() if p >= 0 else Basis()
-	# Левая рука опускается поворотом вокруг оси назад (+Z в системе ключицы) на +угол, правая — на −угол
-	var sgn := 1.0 if suffix.begins_with("Left") else -1.0
-	var axis := (pg.inverse() * Vector3.BACK).normalized()
-	var q := Quaternion(axis, deg_to_rad(deg) * sgn)
-	for t in anim.get_track_count():
-		if anim.track_get_type(t) == Animation.TYPE_ROTATION_3D and String(anim.track_get_path(t)).get_slice(":", 1) == sk.get_bone_name(b):
-			for k in anim.track_get_key_count(t):
-				anim.track_set_key_value(t, k, q * (anim.track_get_key_value(t, k) as Quaternion))
 
 ## Модели клинков: у всех клинок по −Y, середина рукояти на y ≈ 0,65, ширина по X.
 ## Переворачиваем клинком вверх и ставим серединой рукояти в начало хвата.
@@ -444,18 +415,18 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	# Темп шага — по длине шага модели, чтобы стопы не скользили
 	var fast := clampf((_speed_now - LOCO_FAST_FROM) / (LOCO_FAST_FULL - LOCO_FAST_FROM), 0.0, 1.0)
 	# Рядом враги — бег с мечом наготове, иначе — спринт
-	var run_stride: float = HeroMoves.run_stride
+	var run_stride: float = RUN_STRIDE_M
 	if _anim.has_animation(RUN_FIGHT) and enemies:
 		_fight_check -= dt
 		if _fight_check <= 0.0:
 			_fight_check = 0.5
 			_in_fight = not enemies.alive_near(global_position, FIGHT_NEAR).is_empty()
-			_ha.set_loco_anim(3, RUN_FIGHT if _in_fight else "sao/run")
+			_ha.set_loco_anim(3, RUN_FIGHT if _in_fight else RUN_CLIP)
 		if _in_fight:
 			run_stride = RUN_FIGHT_STRIDE
-	var stride_t := _speed_now / lerpf(HeroMoves.walk_stride, run_stride, fast)
+	var stride_t := _speed_now / lerpf(WALK_STRIDE_M, run_stride, fast)
 	if _anim.has_animation(BACKSTEP_CLIP):
-		var walk_anim := BACKSTEP_CLIP if _backstep else "sao/walk"
+		var walk_anim := BACKSTEP_CLIP if _backstep else WALK_CLIP
 		_ha.set_loco_anim(1, walk_anim)
 		_ha.set_loco_anim(2, walk_anim)
 	_ha.locomotion(_speed_now, lerpf(1.0, stride_t, clampf(_speed_now / LOCO_WALK_FROM, 0.0, 1.0)))
@@ -518,7 +489,6 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		_ha.stop()
 	_new_swing = false
 	_ha.update(dt)
-	_spread_arms(on_floor and moving and _ha.weight() < 0.5)
 
 func _animate_char(on_floor: bool, moving: bool) -> void:
 	if _ha:
@@ -537,7 +507,6 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		elif absf(_anim.current_animation_position - BLOCK_POSE) > 0.005:
 			_anim.seek(BLOCK_POSE, false)
 		_anim.speed_scale = 1.0
-		_spread_arms(false)
 		return
 	if _art_t >= 0.0:
 		want = A_SLASH
@@ -552,7 +521,6 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 			if _art == "rapier" and _anim.current_animation_position > 1.1:
 				_anim.seek(0.55, false)   # уколы — повтор середины удара
 		_anim.speed_scale = speed
-		_spread_arms(false)
 		return
 	if _spin_t >= 0.0 and _anim.has_animation(A_WHIRL):
 		want = A_WHIRL
@@ -592,38 +560,6 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		_new_swing = false
 	_idle_pose = idle
 	_anim.speed_scale = speed
-	_spread_arms(want != A_SLASH and on_floor and moving)
-
-## На бегу руки модели почти прижаты к телу — отводим плечи наружу
-func _spread_arms(running: bool) -> void:
-	if _arms_mod == null:
-		return
-	var target := clampf(_speed_now / WALK, 0.0, 1.0) if running else 0.0
-	_arms_w = move_toward(_arms_w, target, get_physics_process_delta_time() * 5.0)
-	# Постоянное лёгкое отведение — только когда нет удара или приёма
-	var calm := attack_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _dash_t < 0.0 and _move != "horizontal" and not blocking
-	_arms_calm = move_toward(_arms_calm, ARMS_OUT_CALM if calm else 0.0, get_physics_process_delta_time() * 1.5)
-	var a := lerpf(ARMS_OUT_WALK, ARMS_OUT_RUN, clampf((_speed_now - WALK) / (RUN - WALK), 0.0, 1.0)) * _arms_w
-	a = maxf(a, _arms_calm)
-	for arm in _arm_axes:
-		_arms_mod.set_angle(arm[0], arm[1], a)
-
-func _setup_arms(sk: Skeleton3D) -> void:
-	var hips := -1
-	for i in sk.get_bone_count():
-		if sk.get_bone_name(i).ends_with("Hips"):
-			hips = i
-	for side in ["Left", "Right"]:
-		for i in sk.get_bone_count():
-			if sk.get_bone_name(i).ends_with(side + "Arm"):
-				var out := sk.get_bone_global_rest(i).origin - (sk.get_bone_global_rest(hips).origin if hips >= 0 else Vector3.ZERO)
-				out.y = 0.0
-				out.z = 0.0
-				# Поворот вокруг этой оси уводит опущенную руку в сторону от тела
-				_arm_axes.append([i, Vector3.DOWN.cross(out.normalized())])
-	if _arm_axes.size() == 2:
-		_arms_mod = PoseOffsets.new()
-		sk.add_child(_arms_mod)
 
 ## Полукольцо в вертикальной плоскости: от спины через верх вперёд
 func _half_ring(r0: float, r1: float, segs: int) -> ArrayMesh:
@@ -722,14 +658,18 @@ func _show_armor(a: Dictionary, h: Dictionary) -> void:
 
 ## Раскраска модели под доспех: текстуры из models/armor/<набор>_*.jpg (tools/prepare_models.py armor)
 func _apply_armor_skin(key: String) -> void:
-	if key == _armor_skin:
+	if key == _armor_skin and _body_mi.material_override != null:
 		return
 	_armor_skin = key
+	# Без доспеха — обычная одежда героя (своя аниме-раскраска «base», если есть)
+	if key == "" or not ResourceLoader.exists(ARMOR_DIR + key + "_base_color.jpg"):
+		key = "base"
 	var base := ARMOR_DIR + key + "_base_color.jpg"
-	if key == "" or not ResourceLoader.exists(base):
-		_body_mi.material_override = null
-		return
 	var m := (_body_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+	Mats.toon(m)
+	if not ResourceLoader.exists(base):
+		_body_mi.material_override = m
+		return
 	m.albedo_texture = load(base)
 	m.albedo_color = Color.WHITE
 	if ResourceLoader.exists(ARMOR_DIR + key + "_normal.jpg"):
@@ -771,11 +711,14 @@ const MOVES := {
 	"stun": {"len": 0.9},
 	"knockdown": {"len": 1.4, "speed": 3.0, "from": 0.05, "to": 0.5, "inv": [0.0, 1.4], "next": "getup"},
 	"getup": {"len": 1.2, "inv": [0.0, 1.2]},
-	"horizontal": {"len": HeroMoves.HZ_LEN, "speed": 3.0, "from": HeroMoves.HZ_CHARGE, "to": HeroMoves.HZ_HIT + 0.05},
+	"horizontal": {"len": HZ_LEN, "speed": 3.0, "from": HZ_CHARGE, "to": HZ_HIT + 0.05},
 	"stop": {"len": 0.7, "speed": 3.5, "from": 0.0, "to": 0.3},     # резкая остановка после спринта
 	"land": {"len": 0.4},                                           # приземление после высокого падения
 }
 const DODGE_CD := 0.7
+const HZ_CHARGE := 0.3        # «Горизонталь»: конец замаха
+const HZ_HIT := 0.4           # момент удара
+const HZ_LEN := 0.95
 ## Клипы Meshy для движений: действие → [клип, с какой секунды, темп]
 const MESHY_MOVES := {
 	"dodge_back": ["Stand_Dodge", 0.0, 2.0],
@@ -789,7 +732,12 @@ const MESHY_MOVES := {
 	"horizontal": ["Reaping_Swing", 2.6, 1.8],   # широкий взмах по дуге: удар клипа ≈3,3 с = HZ_HIT
 	"stop": ["Sprint_and_Sudden_Stop", 0.6, 1.4],
 	"land": ["Dive_Down_and_Land", 1.25, 0.9],
+	"stun": ["Hit_Reaction", 0.0, 1.0],      # оглушение — та же реакция медленнее
 }
+const WALK_CLIP := "Walk_Fight_Forward"           # боевой шаг (Meshy)
+const RUN_CLIP := "Lean_Forward_Sprint"            # спринт (Meshy)
+const WALK_STRIDE_M := 0.6     # м за секунду клипа шага (замер tests/pose_view.tscn)
+const RUN_STRIDE_M := 3.2
 const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
 const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
@@ -860,7 +808,7 @@ func _update_move(dt: float) -> Vector3:
 	var hv := Vector3.ZERO
 	if m.has("speed") and _move_t >= m["from"] and _move_t < m["to"]:
 		hv = _move_dir * m["speed"]
-	if _move == "horizontal" and not _move_hit and _move_t >= HeroMoves.HZ_HIT:
+	if _move == "horizontal" and not _move_hit and _move_t >= HZ_HIT:
 		_move_hit = true
 		_horizontal_hit()
 	if _move_t >= m["len"]:
@@ -1218,7 +1166,6 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 	else:
 		Fx.text("−%d" % dmg, global_position, Color("#ff6a5a"))
 	Input.vibrate_handheld(60)
-	_flinch(_flat(global_position - from).normalized(), 0.12 if blocked else 0.3)
 	_react(dmg, blocked, from, attacker, kind)
 	hurt.emit(dmg)
 	if Game.hp <= 0.0:
@@ -1241,7 +1188,7 @@ func _update_trail(dt: float) -> void:
 	var swing := attack_t >= 0.06 and attack_t <= 0.36
 	var c := Color(0.85, 0.95, 1.0, 0.65)
 	if _move == "horizontal":
-		swing = _move_t >= HeroMoves.HZ_CHARGE - 0.02 and _move_t <= 0.62
+		swing = _move_t >= HZ_CHARGE - 0.02 and _move_t <= 0.62
 		c = SkillDefs.ART_COLOR["sword"]
 		c.a = 0.9
 	elif _spin_t >= 0.0:
@@ -1257,32 +1204,6 @@ func _update_trail(dt: float) -> void:
 	_trail.feed(g.origin + g.basis.y.normalized() * 0.15, g.origin + g.basis.y.normalized() * TRAIL_LEN * reach, dt)
 
 # ---------- Реакция на удар: корпус отшатывается от удара и пружиной возвращается
-var _flinch_dir := Vector3.ZERO     # куда толкнуло (в мире)
-var _flinch_a := 0.0                # угол наклона сейчас
-var _spines := []
-
-func _flinch(dir: Vector3, angle: float) -> void:
-	if dir.length() < 0.01:
-		return
-	_flinch_dir = dir
-	_flinch_a = angle
-
-func _update_flinch(dt: float) -> void:
-	if _arms_mod == null or _sk == null:
-		return
-	if _spines.is_empty():
-		for i in _sk.get_bone_count():
-			var n := _sk.get_bone_name(i)
-			if n.ends_with("Spine") or n.ends_with("Spine2"):
-				_spines.append(i)
-	_flinch_a = move_toward(_flinch_a, 0.0, dt * 1.2)
-	var axis := Vector3.RIGHT
-	if _flinch_dir.length() > 0.01:
-		# Ось наклона в системе скелета: вверх × направление толчка
-		var dl := (_sk.global_basis.orthonormalized().inverse() * _flinch_dir).normalized()
-		axis = Vector3.UP.cross(dl)
-	for b in _spines:
-		_arms_mod.set_angle(b, axis, _flinch_a * 0.5)
 
 ## Реакция на удар: сбит с ног (удар о землю), оглушён (босс пробил блок), отброшен (сильный удар)
 func _react(dmg: int, blocked: bool, from: Vector3, attacker: Node3D, kind: String) -> void:
@@ -1490,7 +1411,6 @@ func _animate(dt: float) -> void:
 		bob = 0.0
 		_animate_char(on_floor, moving)
 	_model.position.y = bob
-	_update_flinch(dt)
 	_update_trail(dt)
 	if _feet:
 		var calm := on_floor and _speed_now < 0.8 and not dead and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""

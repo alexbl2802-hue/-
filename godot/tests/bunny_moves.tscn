@@ -1,6 +1,0 @@
-[gd_scene format=3]
-
-[ext_resource type="Script" path="res://tests/bunny_moves.gd" id="1"]
-
-[node name="BunnyMoves" type="Node"]
-script = ExtResource("1")

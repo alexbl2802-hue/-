@@ -3,7 +3,7 @@
 // камень со мхом на склонах гор. Текстуры берутся в двух масштабах — повторы не видны.
 // Нормали гладкие (из сетки) + карты нормалей травы и земли — рельеф выглядит объёмным.
 shader_type spatial;
-render_mode cull_back;
+render_mode cull_back, diffuse_toon, specular_toon;
 
 uniform sampler2D detail : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D macro : hint_default_white, filter_linear_mipmap, repeat_enable;
@@ -14,8 +14,8 @@ uniform sampler2D dirt_tex : source_color, hint_default_white, filter_linear_mip
 uniform sampler2D dirt_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float grass_tile = 3.2;    // метров на один повтор газона
 uniform float dirt_tile = 4.0;
-uniform float grass_lum = 0.153;   // средняя яркость текстур (см. tools/make_ground_textures.py)
-uniform float dirt_lum = 0.090;
+uniform float grass_lum = 0.312;   // средняя яркость текстур (см. tools/make_ground_textures.py)
+uniform float dirt_lum = 0.081;
 // Камень со мхом с модели горы (Mossy Stone Peak) — на склонах гор, наложение с трёх сторон
 uniform sampler2D mountain : source_color, hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform float mountain_tile = 14.0;   // метров на один повтор текстуры
@@ -66,8 +66,8 @@ void fragment() {
 	vec3 dt = two_scale(dirt_tex, world_pos.xz, dirt_tile, far);
 	// Цвет местности сохраняем, текстура даёт рисунок и чуть-чуть своего оттенка
 	float gl = lum(gt) / grass_lum;
-	vec3 gcol = mix(base * gl, gt * (lum(base) / grass_lum), 0.18);
-	gcol = mix(vec3(lum(gcol)), gcol, 0.56) * vec3(0.97, 0.92, 0.8);
+	vec3 gcol = mix(base * gl, gt * (lum(base) / grass_lum), 0.65);   // рисованная трава — больше своего цвета
+	gcol = mix(vec3(lum(gcol)), gcol, 0.95);
 	// Земля: на серых/бурых местах — оттенок местности с рисунком земли, на песке — светлый песок,
 	// в проплешинах среди травы — сама текстура земли
 	float dl = lum(dt) / dirt_lum;

@@ -428,6 +428,7 @@ func _model_mesh(path: String) -> Dictionary:
 			m.metallic = 0.0
 			m.metallic_texture = null
 			m.roughness = maxf(m.roughness, 0.85)
+			Mats.toon(m)
 			mesh.surface_set_material(i, m)
 	return {"mesh": mesh, "local": t, "aabb": t * mesh.get_aabb()}
 

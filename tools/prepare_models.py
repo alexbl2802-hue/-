@@ -489,6 +489,42 @@ def meshy_clips(*paths):
     write_glb(OUT / "hero.glb", j, bld.blob)
 
 
+def meshy_to(target, names, *paths):
+    """Клипы Meshy (meshy/hero/*.glb) переносятся на скелет Mixamo другой модели (гоблин, кролик):
+    names — какие клипы взять (через запятую, «источник=новое_имя» переименовывает).
+    Таз — без перемещения вперёд и вбок; уже имеющиеся у модели клипы с тем же именем заменяются."""
+    tpath = OUT / target
+    j, b = read_glb(tpath)
+    names_t, _ = bone_tree(j)
+    hips = names_t["Hips"]
+    want = {}
+    for part in names.split(","):
+        a, _, bnm = part.partition("=")
+        want[a.strip()] = (bnm or a).strip()
+    clips = []
+    for pth in paths:
+        for name, times, tracks in retarget(j, pth, MESHY_TO_MIXAMO):
+            if name not in want:
+                continue
+            rest_h = np.array(j["nodes"][hips].get("translation", [0, 1, 0]), np.float64)
+            out = []
+            for n, kind, v in tracks:
+                if n == hips and kind == "translation":
+                    v = v.copy()
+                    v[:, 0] = rest_h[0]
+                    v[:, 2] = rest_h[2]
+                out.append((n, kind, v))
+            clips.append((want[name], times - times[0], out))
+    keep = {c[0] for c in clips}
+    bld = rebuild(j, b)
+    j["animations"] = [a for a in j["animations"] if a["name"] not in keep]
+    for name, times, tracks in clips:
+        add_animation(j, bld, name, times, tracks)
+    j["bufferViews"] = bld.views
+    print(target, "анимации:", [a["name"] for a in j["animations"]])
+    write_glb(tpath, j, bld.blob)
+
+
 def bunny(guard, kick, dodge):
     j, b = read_glb(guard)
     imgs = shrink_textures(j, b, {"color": 1024, "normal": 1024, "attrib": 512})
@@ -809,6 +845,8 @@ if __name__ == "__main__":
         warden_full(sys.argv[2])
     elif sys.argv[1] == "meshy_clips":
         meshy_clips(*sys.argv[2:])
+    elif sys.argv[1] == "meshy_to":
+        meshy_to(sys.argv[2], sys.argv[3], *sys.argv[4:])
     elif sys.argv[1] == "bunny":
         bunny(*sys.argv[2:5])
     elif sys.argv[1] == "env":

@@ -40,8 +40,8 @@ func _ready() -> void:
 	var was_leap := false
 	for i in 1500:
 		await get_tree().process_frame
-		if g._moves.attack != "":
-			seen[g._moves.attack] = true
+		if g.st == "windup":
+			seen[g._atk] = true
 		if g.st == "leap" and not was_leap:
 			leaps += 1
 		was_leap = g.st == "leap"
@@ -49,11 +49,11 @@ func _ready() -> void:
 			Game.hp = Game.max_hp
 		if i % 200 == 100:   # отходим — чтобы кролик прыгал к герою
 			main.hero.global_position = g.global_position + Vector3(4.5, 0.3, 0)
-		if seen.size() >= 4 and leaps > 0:
+		if seen.size() >= 2 and leaps > 0:
 			break
 	print("bunny attacks seen: ", seen.keys(), " leaps: ", leaps)
 	get_viewport().get_texture().get_image().save_png(out + "bn_kick.png")
-	g._dodge()
+	g._dodge_t = 0.0
 	for i in 8: await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png(out + "bn_dodge.png")
 	# Стоит на месте
