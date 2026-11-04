@@ -1225,7 +1225,14 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 
 # ---------- След клинка: светится в ударе, вихре, приёмах и «Горизонтали»
 const TRAIL_LEN := 1.0        # длина клинка до кончика (м), у двуручника длиннее
+const SHOW_TRAIL := false   # белый след взмаха меча — пока выключен
+
 func _update_trail(dt: float) -> void:
+	if not SHOW_TRAIL:
+		if _trail:
+			_trail.emitting = false
+			_trail.visible = false
+		return
 	if _trail == null or _sword == null:
 		return
 	var swing := attack_t >= 0.06 and attack_t <= 0.36

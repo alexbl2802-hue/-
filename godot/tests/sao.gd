@@ -168,7 +168,7 @@ func _ready() -> void:
 		if targets[i].hp < hp0[i]:
 			hit_n += 1
 	_check("horizontal hits all in front", hit_n == targets.size(), "%d/%d" % [hit_n, targets.size()])
-	_check("sword trail", trail_seen, "")
+	_check("no sword trail (off for now)", not trail_seen, "")
 	_check("no slow-motion", is_equal_approx(Engine.time_scale, 1.0), str(Engine.time_scale))
 	await _frames(40)
 	_check("time back to normal", is_equal_approx(Engine.time_scale, 1.0), str(Engine.time_scale))

@@ -71,12 +71,59 @@ def sagittal(j, n, v):
     return np.stack(out)
 
 
-def build(src, dst, walk, root_bone, hit_axis, offset_clips=(), legs=(), leg_clips=()):
+def gait_clips(j, path):
+    """Клипы из Blender (tools/blender/wolf_gait.py): повороты костей относительно покоя в осях скелета
+    Blender (Z вверх) → локальные повороты узлов glTF (Y вверх) по иерархии."""
+    import json
+    data = json.loads(Path(path).read_text())
+    names, parent = pm.bone_tree(j)
+    out = {}
+    for name, c in data.items():
+        t = np.array(c["times"], float)
+        F = len(t)
+        glob = {}
+        order = sorted(c["rot"], key=lambda n: pm._depth(names[n], parent))
+        tr = {}
+        for n in order:
+            i = names[n]
+            g = pm.global_rest(j, i, parent)
+            D = np.array([[q[1], q[3], -q[2], q[0]] for q in c["rot"][n]])   # (w,x,y,z) Blender → (x,y,z,w) glTF
+            G = np.stack([qmul(d, g) for d in D])
+            p = parent.get(i)
+            pn = j["nodes"][p].get("name", "").split(":")[-1] if p is not None else None
+            if pn in glob:
+                PG = glob[pn]
+            else:
+                PG = np.repeat(pm.global_rest(j, p, parent)[None], F, 0) if p is not None else np.repeat(np.array([[0, 0, 0, 1.0]]), F, 0)
+            loc = np.stack([qmul(qinv(PG[k]), G[k]) for k in range(F)])
+            loc /= np.linalg.norm(loc, axis=1, keepdims=True)
+            glob[n] = G
+            tr[(i, "rotation")] = loc
+        # Перемещение корня (покачивание тела)
+        r = names["Bone_000"]
+        rest_t = np.array(j["nodes"][r].get("translation", [0, 0, 0]), float)
+        pr = parent.get(r)
+        pq = pm.global_rest(j, pr, parent) if pr is not None else np.array([0, 0, 0, 1.0])
+        M = np.array(pm.quat_to_mat(pq)) if hasattr(pm, "quat_to_mat") else None
+        dl = []
+        for d in c["root"]:
+            dg = np.array([d[0], d[2], -d[1]])
+            # в оси родителя: R⁻¹·d (поворот кватернионом)
+            qv = qmul(qmul(qinv(pq), np.array([*dg, 0.0])), pq)
+            dl.append(rest_t + qv[:3])
+        tr[(r, "translation")] = np.array(dl)
+        out[name] = (t - t[0], tr)
+    return out
+
+
+def build(src, dst, walk, root_bone, hit_axis, offset_clips=(), legs=(), leg_clips=(), gait=None):
     j, b = pm.read_glb(src)
     names, _ = pm.bone_tree(j)
     clips = {}
     for a in j["animations"]:
         clips[a["name"]] = clip_tracks(j, b, a)
+    if gait:
+        clips.update(gait_clips(j, gait))
     # Клипы, где повороты записаны добавкой к позе покоя (ключ 0 — «без поворота»): поворот = покой · ключ.
     # У присланного волка так шаг и бег — без пересчёта он встаёт вертикально.
     for name in offset_clips:
@@ -127,9 +174,14 @@ def build(src, dst, walk, root_bone, hit_axis, offset_clips=(), legs=(), leg_cli
 
 
 WOLF_LEGS = ["Bone_%03d" % i for i in list(range(22, 28)) + list(range(28, 34)) + list(range(5, 10)) + list(range(10, 15))]
-build(SRC / "wolf_src.glb", pm.OUT / "wolf.glb", "Wolf_Walk", "Bone_000", (1, 0, 0), offset_clips=("Wolf_Walk", "Wolf_Run"),
-      legs=WOLF_LEGS, leg_clips=("Wolf_Walk", "Wolf_Run"))
+# Ходьба и бег волка — свои, из Blender (tools/blender/wolf_gait.py → meshy/beasts/wolf_gait.json)
+build(SRC / "wolf_src.glb", pm.OUT / "wolf.glb", "Wolf_Walk", "Bone_000", (1, 0, 0), gait=SRC / "wolf_gait.json")
 build(SRC / "spider_src.glb", pm.OUT / "spider.glb", "Spider_Walk", "Bone_000", (1, 0, 0))
 SK_LEGS = [s + b for s in ("Left", "Right") for b in ("UpLeg", "Leg", "Foot")]
 build(pm.ROOT / "meshy" / "hero_new" / "Skeleton_Animations_Godot.glb", pm.OUT / "skeleton.glb", "Skeleton_Walk", "Hips", (1, 0, 0),
       legs=SK_LEGS, leg_clips=("Skeleton_Walk", "Skeleton_Run_Anime"))
+
+# Скелету — движения из Meshy (стойка, боевой шаг, спринт, удары), реакция на удар — своя (Hit)
+pm.meshy_to("skeleton.glb", "Combat_Stance,Walk_Fight_Forward,Lean_Forward_Sprint,Left_Slash,Double_Combo_Attack,Charged_Upward_Slash",
+            str(pm.ROOT / "meshy/hero/anim_92_105_97_240_221_102_86_91_147_89.glb"),
+            str(pm.ROOT / "meshy/hero/anim_158_156_384_509_21_10_178_187_100_148.glb"))
