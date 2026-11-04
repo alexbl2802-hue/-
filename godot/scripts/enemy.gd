@@ -835,7 +835,8 @@ func stun(t: float, vulnerable := false) -> void:
 	_extra_hits = []
 	if vulnerable:
 		_vuln_t = t + 0.4
-	Fx.ring(global_position + Vector3(0, T["bar"] - 0.4, 0), Color("#ffe060"), 0.6, 0.5)
+	if hero and hero.ATTACK_RINGS:
+		Fx.ring(global_position + Vector3(0, T["bar"] - 0.4, 0), Color("#ffe060"), 0.6, 0.5)
 
 var _tilt := Vector2.ZERO    # наклон от удара: (вокруг X, вокруг Z) в системе монстра
 

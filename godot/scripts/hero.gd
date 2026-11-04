@@ -149,6 +149,7 @@ func _build_model() -> void:
 	_slash.position = Vector3(-0.3, 1.2, 0.3)
 	_slash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_model.add_child(_slash)
+	_slash.visible = false   # белая дуга взмаха — выключена
 
 ## Модель персонажа — следопыт (Meshy, скелет Mixamo; tools/prepare_models.py вырезал его
 ## собственные клинки и собрал анимации удара, бега и быстрого бега в один файл).
@@ -879,7 +880,7 @@ func _horizontal_hit() -> void:
 		Game.wear_weapon()
 		hits += 1
 	if ATTACK_RINGS:
-		Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
+			Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
 	if hits > 0:
 		_finisher_fx()
 
@@ -979,7 +980,7 @@ func _art_update(dt: float) -> Vector3:
 					_art_hits = 1
 					var c := global_position + _art_dir * 1.6
 					if ATTACK_RINGS:
-						Fx.ring(c + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["great"], 2.6, 0.4)
+							Fx.ring(c + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["great"], 2.6, 0.4)
 					for e in enemies.alive_near(c, 3.2):
 						_deal(e, SkillDefs.art_mult(2.8, r), _flat(e.global_position - global_position).normalized())
 						if not e.dead:
@@ -1000,7 +1001,7 @@ func _art_update(dt: float) -> Vector3:
 						global_position = Vector3(e.global_position.x, global_position.y, e.global_position.z) - back * 1.2
 						facing = atan2(back.x, back.z)
 						if ATTACK_RINGS:
-							Fx.ring(global_position + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["dagger"], 1.5, 0.3)
+								Fx.ring(global_position + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["dagger"], 1.5, 0.3)
 						var dmg := roundi((Game.dmg + randf() * 8.0) * SkillDefs.art_mult(3.0, r))
 						e.hit(dmg, back, true)
 	if _art_t >= _art_action_end() + ART_RECOVER:
@@ -1011,6 +1012,8 @@ func _art_update(dt: float) -> Vector3:
 
 ## Свечение клинка (приём меча); прозрачный цвет — выключить
 func _set_blade_glow(c: Color) -> void:
+	if not BLADE_GLOW:
+		return
 	for k in _blades:
 		var g: StandardMaterial3D = _blades[k]["glow"]
 		if c.a > 0.0 and (_blades[k]["node"] as Node3D).visible:
@@ -1071,7 +1074,7 @@ func _sword_hit() -> void:
 			e.knock(2.2)   # третий удар отбрасывает далеко
 	if finisher:
 		if ATTACK_RINGS:
-			Fx.ring(global_position + Vector3(sin(facing), 0.1, cos(facing)) * 1.4, Color("#ffd479"), 2.0, 0.35)
+				Fx.ring(global_position + Vector3(sin(facing), 0.1, cos(facing)) * 1.4, Color("#ffd479"), 2.0, 0.35)
 		if _finisher_landed:
 			_finisher_fx()
 	_finisher_landed = false
@@ -1123,7 +1126,8 @@ func use_skill(id: String) -> void:
 		_dash_speed = SkillDefs.dash_stats(Game.skills)["speed"]
 		cd["dash"] = SkillDefs.dash_stats(Game.skills)["cd"]
 		# Аниме-рывок: герой исчезает со вспышкой там, где стоял (с места или на бегу)
-		Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.0, 0.4, true)
+		if ATTACK_RINGS:
+			Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.0, 0.4, true)
 
 ## Цвет вспышек рывка: обычный — голубой, скользящий шаг — белый, прорыв — фиолетовый
 func _dash_color() -> Color:
@@ -1157,7 +1161,7 @@ func cooldown_total(id: String) -> float:
 func _whirl_hit() -> void:
 	var mult := 1.2 + 0.3 * (Game.rank("whirl") - 1)
 	if ATTACK_RINGS:
-		Fx.ring(global_position + Vector3(0, 0.6, 0), Color("#bfefff"), 7.0, 0.4)
+			Fx.ring(global_position + Vector3(0, 0.6, 0), Color("#bfefff"), 7.0, 0.4)
 	for e in enemies.alive_near(global_position, 5.0):
 		var v := _flat(e.global_position - global_position)
 		var d := maxf(0.01, v.length())
@@ -1190,7 +1194,8 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 	if blocking and _time - _block_start < PARRY_WINDOW and fv.length() > 0.01 and absf(angle_difference(facing, atan2(fv.x, fv.z))) < BLOCK_ARC:
 		_invuln = 0.3
 		Fx.text("Отбито!", global_position, Color("#ffe060"), true)
-		Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#ffe060"), 1.4, 0.3)
+		if ATTACK_RINGS:
+			Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#ffe060"), 1.4, 0.3)
 		if attacker and attacker.has_method("stun"):
 			attacker.stun(PARRY_STUN, true)
 		# «Переключение»: отскок назад, пока враг оглушён
@@ -1210,7 +1215,8 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 	_push = _flat(global_position - from).normalized() * (3.0 if blocked else 10.0)
 	if blocked:
 		Fx.text("Блок −%d" % dmg, global_position, Color("#cfe0ff"))
-		Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#cfe0ff"), 0.8, 0.25)
+		if ATTACK_RINGS:
+			Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#cfe0ff"), 0.8, 0.25)
 	else:
 		Fx.text("−%d" % dmg, global_position, Color("#ff6a5a"))
 	Input.vibrate_handheld(60)
@@ -1231,7 +1237,8 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 # ---------- След клинка: светится в ударе, вихре, приёмах и «Горизонтали»
 const TRAIL_LEN := 1.0        # длина клинка до кончика (м), у двуручника длиннее
 const SHOW_TRAIL := false
-const ATTACK_RINGS := false   # кольца на земле после ударов и приёмов — выключены   # белый след взмаха меча — пока выключен
+const ATTACK_RINGS := false   # все кольца-вспышки героя (удары, приёмы, рывок, блок) — выключены
+const BLADE_GLOW := false     # свечение клинка во время приёмов — выключено   # белый след взмаха меча — пока выключен
 
 func _update_trail(dt: float) -> void:
 	if not SHOW_TRAIL:
@@ -1360,7 +1367,8 @@ func _physics_process(dt: float) -> void:
 		if _dash_t >= DASH_TIME:
 			_dash_t = -1.0
 			_model.visible = true
-			Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
+			if ATTACK_RINGS:
+				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
 	hv += _push
 	_push *= exp(-dt * 7.0)
 	velocity.x = hv.x
