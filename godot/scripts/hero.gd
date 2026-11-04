@@ -1204,7 +1204,8 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 		return
 	if _art_t >= 0.0 and _art_t > _art_action_end():
 		raw = roundi(raw * 1.2)   # заминка после приёма — герой беззащитен
-	var dmg := Game.reduce_damage(roundi(raw * DayNight.monster_mult()))   # ночью монстры бьют сильнее
+	# ночью монстры бьют сильнее; адаптивная сложность Cardinal — ±25% урона
+	var dmg := Game.reduce_damage(roundi(raw * DayNight.monster_mult() * CardinalDirector.damage_mult()))
 	var v := _flat(from - global_position)
 	var blocked := blocking and v.length() > 0.01 and absf(angle_difference(facing, atan2(v.x, v.z))) < BLOCK_ARC
 	if blocked:

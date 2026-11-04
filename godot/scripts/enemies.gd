@@ -98,9 +98,19 @@ func _update_active() -> void:
 			on = true  # мёртвые ждут своего часа, чтобы вернуться
 		e.set_active(on)
 
+var _cardinal_loot := CardinalLootManager.new()
+
 func on_enemy_killed(e: Node3D) -> void:
 	if loot:
 		loot.roll(e.type, e.global_position)
+		# Добавочная добыча по таблицам Cardinal (больше при высокой сложности)
+		var boss: bool = e.T.get("boss", false)
+		var key: String = "tower_guardian" if boss else str(e.model)
+		var items := _cardinal_loot.roll(CardinalLootTables.get_table("boss" if boss else "monster", key), Cardinal.difficulty, 2 if boss else 1)
+		for it in items:
+			if Items.ALL.has(it["id"]):
+				loot.drop(it["id"], int(it["amount"]), e.global_position)
+	CardinalDirector.on_kill()
 
 ## Вернуть живых монстров на свои места (после гибели героя)
 func reset_all() -> void:

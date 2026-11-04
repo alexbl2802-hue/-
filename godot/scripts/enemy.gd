@@ -173,6 +173,7 @@ func _ready() -> void:
 		for c in _model.get_children():
 			c.scale *= T["scale"]
 			c.position *= T["scale"]
+	Cardinal.register_mob(self, T.get("boss", false))   # учёт монстров системой Cardinal
 	if CHARS.has(model) and ResourceLoader.exists(CHARS[model]["glb"]):
 		_attach_char()
 	if _char and T.has("scale"):

@@ -16,6 +16,7 @@ boot_splash/show_image=false
 [autoload]
 
 Game="*res://scripts/game.gd"
+Cardinal="*res://addons/cardinal/scripts/cardinal.gd"
 
 [display]
 

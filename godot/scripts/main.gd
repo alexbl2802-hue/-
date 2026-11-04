@@ -123,6 +123,7 @@ func _ready() -> void:
 	hud.menu.settings.changed.connect(apply_settings)
 	apply_settings()
 	# Смена дня и ночи
+	CardinalDirector.setup(self)
 	day_night = DayNight.new()
 	add_child(day_night)
 	day_night.setup(_env, _sun, rig, hud)
@@ -338,6 +339,10 @@ func open_chest(i: int) -> void:
 	d.open_chest()
 	Game.chests.append(i)
 	var c: Vector3 = d.chest["pos"]
+	# Добавочная добыча сундука — таблица «редкий» системы Cardinal
+	for it in CardinalLootManager.new().roll(CardinalLootTables.get_table("chest", "rare"), Cardinal.difficulty, 2):
+		if Items.ALL.has(it["id"]):
+			loot.drop(it["id"], int(it["amount"]), c)
 	# Чем выше этаж, тем богаче сундук: золото, эссенции, осколки и вещь из добычи стража этажа
 	var lvl: int = d.def.get("level", 2)
 	loot.drop("gold", randi_range(30, 50) + lvl * 8, c)
@@ -364,6 +369,7 @@ func _on_level_up(level: int) -> void:
 
 ## Гибель героя: через пару секунд он очнётся у костра, монстры вернутся на места
 func _on_hero_died() -> void:
+	CardinalDirector.on_death()
 	hud.banner("Ты пал в бою", "Очнёшься у костра…")
 	await get_tree().create_timer(1.8).timeout
 	hud.fade(func():
