@@ -27,7 +27,7 @@ func _ready() -> void:
 		["sword_iron", "armor_leather", "helm_leather", "boots_leather", "", "shield_wood"],
 		["sword_crystal", "armor_chain", "helm_iron", "boots_iron", "cloak_ranger", "shield_iron"],
 		["rapier_star", "armor_plate", "helm_iron", "boots_iron", "cloak_shadow", "shield_tower"],
-		["great_obsidian", "armor_plate", "", "boots_wind", "", ""],
+		["great_obsidian", "", "", "", "cloak_mantle", ""],
 	]
 	for si in sets.size():
 		for slot in Game.equip:

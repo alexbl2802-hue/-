@@ -476,8 +476,10 @@ def meshy_clips(*paths):
                     v[:, 0] = rest_h[0]   # таз над местом героя: без сдвига вперёд и вбок
                     v[:, 2] = rest_h[2]
                 out.append((n, kind, v))
-            for n, v in fingers:
-                out.append((n, "rotation", np.repeat(np.asarray(v, np.float64)[None], len(times), 0)))
+            have = {(n, k) for n, k, _ in out}
+            for n, v in fingers:   # пальцы — только если в клипе их нет
+                if (n, "rotation") not in have:
+                    out.append((n, "rotation", np.repeat(np.asarray(v, np.float64)[None], len(times), 0)))
             clips.append((name, times - times[0], out))
     keep = {c[0] for c in clips}
     bld = rebuild(j, b)

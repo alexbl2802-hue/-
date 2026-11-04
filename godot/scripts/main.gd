@@ -322,6 +322,8 @@ func _on_boss_killed(e: Node3D) -> void:
 	else:
 		hud.banner("%s повержен!" % e.T["name"], "Сундук с сокровищем открыт")
 
+const MANTLE_CHANCE := 0.10
+
 func open_chest(i: int) -> void:
 	var d: Node3D = dungeons[i]
 	d.open_chest()
@@ -337,6 +339,9 @@ func open_chest(i: int) -> void:
 	var pool: Array = Items.LOOT.get(d.def.get("boss", ""), {}).get("pool", [])
 	if not pool.is_empty():
 		loot.drop(pool[randi() % pool.size()], 1, c)
+	# Мантия Теневого стража — редкая добыча сундуков этажей: 10%
+	if randf() < MANTLE_CHANCE:
+		loot.drop("cloak_mantle", 1, c)
 	Game.save_game()
 	var n := Game.chests.size()
 	hud.banner("Сокровище найдено!", "Все сундуки башни найдены!" if n >= DungeonDefs.TOWER.size() else "Найдено сундуков: %d из %d" % [n, DungeonDefs.TOWER.size()])

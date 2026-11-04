@@ -201,10 +201,10 @@ const CHARS := {
 	"golem": {"glb": GOBLIN_MODEL, "skin": "golem", "scale": 1.55, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "", "atk": {"slash": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
 	"skeleton": {"glb": HERO_MODEL, "skin": "skeleton", "scale": 1.0, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "sword", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
 	"skeleton_king": {"glb": HERO_MODEL, "skin": "skeleton", "scale": 1.1, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "great", "atk": {"slash": ["Charged_Slash", 1.2], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
-	# Звери — свои модели и анимации из Blender (tools/blender/beasts.py): Meshy по API их не анимирует
-	"wolf": {"glb": WOLF_MODEL, "skin": "", "scale": 1.0, "stance": "Idle", "walk": ["Walk", 1.47], "run": ["Run", 4.1], "weapon": "", "atk": {"slash": ["Attack", 0.45]}, "hit": "Hit", "aim": "Aim", "tail": "tail_tip", "crown": Vector3(0, 1.5, 0.74)},
-	"spider": {"glb": SPIDER_MODEL, "skin": "", "scale": 1.0, "stance": "Idle", "walk": ["Walk", 2.1], "run": ["Walk", 2.1], "weapon": "", "atk": {"slash": ["Attack", 0.35]}, "hit": "Hit", "aim": "Rear", "crown": Vector3(0, 0.98, 0.18)},
-	"spider_queen": {"glb": SPIDER_MODEL, "skin": "", "scale": 1.3, "stance": "Idle", "walk": ["Walk", 2.1], "run": ["Walk", 2.1], "weapon": "", "atk": {"slash": ["Attack", 0.35]}, "hit": "Hit", "aim": "Rear", "crown": Vector3(0, 0.98, 0.18)},
+	# Звери — присланные модели с движениями (meshy/beasts, tools/beasts_from_user.py)
+	"wolf": {"glb": WOLF_MODEL, "skin": "", "scale": 0.85, "stance": "Idle", "walk": ["Wolf_Walk", 0.95], "run": ["Wolf_Run", 2.4], "weapon": "", "atk": {"slash": ["Wolf_Bite", 0.35], "side": ["Wolf_Paw_Swipe", 0.35]}, "hit": "Hit", "aim": "Wolf_Tail_Spike_Shot", "tail": "Bone_015", "crown": Vector3(0, 1.55, 1.3)},
+	"spider": {"glb": SPIDER_MODEL, "skin": "", "scale": 0.6, "stance": "Idle", "walk": ["Spider_Walk", 1.2], "run": ["Spider_Chase", 3.5], "weapon": "", "atk": {"slash": ["Spider_Double_Claw", 0.4]}, "hit": "Hit", "aim": "Spider_Venom_Spit", "crown": Vector3(0, 1.45, 0.6)},
+	"spider_queen": {"glb": SPIDER_MODEL, "skin": "", "scale": 0.8, "stance": "Idle", "walk": ["Spider_Walk", 1.2], "run": ["Spider_Chase", 3.5], "weapon": "", "atk": {"slash": ["Spider_Double_Claw", 0.4]}, "hit": "Hit", "aim": "Spider_Venom_Spit", "crown": Vector3(0, 1.45, 0.6)},
 	"rabbit": {"glb": BUNNY_MODEL, "skin": "bunny", "scale": 0.9, "walk": ["Walking", 0.9], "run": ["Running", 3.0], "weapon": "", "atk": {"slash": ["Boxing_Guard_Prep_Straight_Punch", 0.75], "kick": ["Flying_Fist_Kick", 0.9]}},
 }
 var C: Dictionary = {}        # описание модели моба из CHARS
@@ -271,7 +271,7 @@ func _apply_skin() -> void:
 				mat.roughness = 0.8
 			if T.has("tint") and not mat.emission_enabled:
 				var tint := WorldGen.hex(T["tint"])
-				mat.albedo_color = mat.albedo_color * (tint.lerp(Color.WHITE, 0.35) if skin != "" else tint)
+				mat.albedo_color = mat.albedo_color * (tint.lerp(Color.WHITE, 0.35) * 1.25 if (skin != "" or mat.albedo_texture != null) else tint)
 			Mats.toon(mat)
 			mi.set_surface_override_material(si, mat)
 

@@ -655,6 +655,7 @@ func update_look() -> void:
 func _show_armor(a: Dictionary, h: Dictionary) -> void:
 	_apply_armor_skin(ARMOR_SKINS.get(Game.equip["armor"]["id"] if Game.equip.get("armor") != null else "", ""))
 	_show_shield()
+	_show_cloak()
 
 ## Раскраска модели под доспех: текстуры из models/armor/<набор>_*.jpg (tools/prepare_models.py armor)
 func _apply_armor_skin(key: String) -> void:
@@ -684,6 +685,35 @@ func _apply_armor_skin(key: String) -> void:
 		m.roughness_texture = load(ARMOR_DIR + key + "_roughness.jpg")
 		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	_body_mi.material_override = m
+
+## Мантия Теневого стража — модель на скелете героя (tools/blender/fit_cloak.py), видна, когда надета
+const MANTLE_PATH := "res://models/cloak_mantle.glb"
+var _mantle: MeshInstance3D
+
+func _show_cloak() -> void:
+	var e = Game.equip.get("cloak")
+	var on: bool = e != null and e["id"] == "cloak_mantle"
+	if on and _mantle == null and _sk and ResourceLoader.exists(MANTLE_PATH):
+		var sc: Node = (load(MANTLE_PATH) as PackedScene).instantiate()
+		var mi: MeshInstance3D = sc.find_children("*", "MeshInstance3D", true, false)[0]
+		var skin := mi.skin
+		mi.get_parent().remove_child(mi)
+		sc.free()
+		_sk.add_child(mi)
+		mi.transform = Transform3D.IDENTITY
+		mi.skin = skin
+		mi.skeleton = NodePath("..")
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for si in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(si)
+			if m is BaseMaterial3D:
+				m = m.duplicate()
+				m.cull_mode = BaseMaterial3D.CULL_DISABLED   # полы видны и с изнанки
+				Mats.toon(m)
+				mi.set_surface_override_material(si, m)
+		_mantle = mi
+	if _mantle:
+		_mantle.visible = on
 
 func _show_shield() -> void:
 	var e = Game.equip.get("shield")
