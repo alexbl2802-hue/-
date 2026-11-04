@@ -2,16 +2,11 @@
 extends Node
 func _ready() -> void:
 	var out: String = OS.get_cmdline_user_args()[0] + "/"
-	var b: Control = load("res://scenes/boot.tscn").instantiate()
-	b.set_process(false)
+	var b := LoadingScreen.new()
 	add_child(b)
 	await get_tree().process_frame
-	await get_tree().process_frame
-	b._phase = "x"
 	for p in [0.3, 0.75]:
-		b._shown = p
-		b._target = p
-		b._process(0.4)
+		b.jump(p)
 		await get_tree().process_frame
 		await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png(out + "boot_%d.png" % int(p * 100))

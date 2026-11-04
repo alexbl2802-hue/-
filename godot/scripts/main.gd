@@ -20,22 +20,28 @@ var _act := Callable()
 var day_night: DayNight
 
 func _ready() -> void:
-	var loading := Label.new()
-	loading.text = "Загрузка мира…"
-	loading.add_theme_font_size_override("font_size", 22)
-	loading.set_anchors_preset(Control.PRESET_CENTER)
+	# Тот же экран загрузки, что и при запуске (картинка, полоска): мир строится по шагам
 	var cl := CanvasLayer.new()
-	cl.add_child(loading)
+	cl.layer = 100
 	add_child(cl)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	var ls := LoadingScreen.new()
+	cl.add_child(ls)
+	ls.creep = false
+	ls.jump(float(Game.get_meta("loading_from", 0.0)) if Game.has_meta("loading_from") else 0.05)
+	var step := func(p: float) -> void:
+		ls.jump(maxf(ls.shown, p))
+		await get_tree().process_frame
+		await get_tree().process_frame
+	await step.call(ls.shown)
 
 	WorldGen.load_data()
 	_build_environment()
 	world = preload("res://scripts/world.gd").new()
 	world.name = "World"
 	add_child(world)
+	await step.call(0.62)
 	world.build()
+	await step.call(0.75)
 	Fx.root = self
 	var defs := DungeonDefs.all()
 	for i in defs.size():
@@ -47,6 +53,7 @@ func _ready() -> void:
 			d.open_chest(true)
 		dungeons.append(d)
 
+	await step.call(0.88)   # дальше — без пауз: герой и интерфейс создаются сразу целиком
 	hero = preload("res://scripts/hero.gd").new()
 	hero.name = "Hero"
 	add_child(hero)
@@ -119,6 +126,8 @@ func _ready() -> void:
 	day_night = DayNight.new()
 	add_child(day_night)
 	day_night.setup(_env, _sun, rig, hud)
+	ls.jump(1.0)
+	Game.remove_meta("loading_from")
 	cl.queue_free()
 	hud.open_menu()
 

@@ -48,3 +48,8 @@ for _ in range(300):
 a[y0:y1, x0:x1] = fill
 Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(OUT / "loading_bg.jpg", quality=90)
 print("готово:", OUT)
+
+# Размытые копии — заполняют поля по краям экрана, когда картинка вписана целиком
+for nm in ["menu_bg", "loading_bg"]:
+    im = Image.open(OUT / (nm + ".jpg")).convert("RGB").resize((320, 180), Image.LANCZOS).filter(ImageFilter.GaussianBlur(6))
+    im.point(lambda v: int(v * 0.55)).save(OUT / (nm + "_blur.jpg"), quality=85)

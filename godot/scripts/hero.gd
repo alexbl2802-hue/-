@@ -162,7 +162,7 @@ const CHAR_SCALE := 1.05
 const GRIP_TILT := 10.0      # наклон клинка от поперечного к пальцам, градусы
 const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
-const A_STANCE := "Combat_Stance"   # боевая стойка с мечом — анимация модели Shadowwarden
+const A_STANCE := "Combat_Idle"   # стойка на месте — присланный клип (спокойная, меч в руке)
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
@@ -781,11 +781,11 @@ const STOP_FROM := 8.5         # с какой скорости бега отп�
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
 const WHIRL_CLIP := ["Sword_Spin_360", 0.0, 0.92 / WHIRL_TIME]   # [клип, с какой секунды, темп] — весь оборот за время вихря
 const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
-const RUN_FIGHT := "ForwardRight_Run_Fight"            # бег, когда рядом враги — меч наготове
+const RUN_FIGHT := "Sword_Run"                      # бег, когда рядом враги — присланный клип
 const RUN_FIGHT_STRIDE := 3.0
 const FIGHT_NEAR := 12.0
 ## Комбо из трёх ударов: [клип, момент удара в клипе (с)]
-const ATTACK_CLIPS := [["Left_Slash", 0.7], ["Double_Combo_Attack", 0.63], ["Charged_Upward_Slash", 1.03]]
+const ATTACK_CLIPS := [["Sword_Diagonal_Slash", 0.29], ["Sword_Horizontal_Slash", 0.29], ["Charged_Upward_Slash", 1.03]]
 const ATTACK_SEG := 0.8        # сколько секунд клипа занимает один удар героя
 ## Приёмы меча: тип оружия → [клип, момент (первого) удара, темп]
 const ART_CLIPS := {"sword": ["Thrust_Slash", 0.73, 1.0], "great": ["Charged_Slash", 1.2, 1.0], "rapier": ["Triple_Combo_Attack", 0.77, 2.4], "dagger": ["Weapon_Combo_2", 1.3, 1.6]}
