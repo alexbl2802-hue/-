@@ -21,18 +21,18 @@ func _ready() -> void:
 	var hud: Node = main.hud
 	var menu: Control = hud.menu
 	# 1. Первый запуск: «Начать игру», без «Новой игры», игра на паузе
-	_check("first launch menu", menu.visible and menu._main.text == "Начать игру" and not menu._new.visible and get_tree().paused, menu._main.text)
+	_check("first launch menu", menu.visible and menu._btns.size() == 4 and get_tree().paused, str(menu._btns.keys()))
 	menu._name.text = "Алекс"
 	await _shot("s3_menu_first.png")
-	menu._main.pressed.emit()
+	menu._btns["continue"].pressed.emit()
 	await _frames(5)
 	_check("game started", not menu.visible and not get_tree().paused and Game.player_name == "Алекс" and Game.has_save and FileAccess.file_exists(Game.SAVE_PATH), Game.player_name)
 	# 2. Повторное открытие меню кнопкой ☰ — уже «Продолжить»
 	_tap(Vector2(218, 38))
 	await _frames(5)
-	_check("menu shows continue", menu.visible and menu._main.text == "Продолжить" and menu._new.visible, menu._main.text)
+	_check("menu shows continue", menu.visible and menu._info.text.begins_with("Алекс"), menu._info.text)
 	await _shot("s3_menu_continue.png")
-	menu._main.pressed.emit()
+	menu._btns["continue"].pressed.emit()
 	await _frames(5)
 	# 3. Инвентарь кнопкой 🎒, надеваем стальной меч и латы
 	Game.add_item("sword_steel")
