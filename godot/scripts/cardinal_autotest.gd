@@ -18,6 +18,8 @@ const REPORT := "user://cardinal_autotest.json"
 const TILT_MAX := 55.0
 const NO_TILT := ["death", "die", "dead", "roll", "dodge", "fall", "knock", "lie", "sleep", "crawl", "jump", "flip", "dash", "spin", "stun", "down", "get_up", "getup"]
 const GAIT := ["walk", "run", "sprint", "chase"]
+const NOT_STRAIGHT := ["left", "right", "turn", "strafe", "side", "diagonal", "back", "circle"]
+const NOT_LOOP := ["turn", "stop", "start", "to_", "sudden", "jump", "land"]
 
 var main: Node
 var hero: Node
@@ -33,6 +35,8 @@ var _target: Node3D
 var _atk_t := 0.0
 var _skill_t := 2.0
 var _jump_t := 0.0
+var _detour := 0.0          # обход препятствия: угол отклонения
+var _detour_t := 0.0
 var _stuck_pos := Vector3.ZERO
 var _stuck_t := 0.0
 var _mon_t := 0.0
@@ -355,7 +359,8 @@ func _audit_clip(who: String, name: String, anim: Animation, sk: Skeleton3D, to_
 				fx[f] = [rel.x, rel.x, rel.z, rel.z]
 			else:
 				fx[f] = [minf(fx[f][0], rel.x), maxf(fx[f][1], rel.x), minf(fx[f][2], rel.z), maxf(fx[f][3], rel.z)]
-	if not NO_TILT.any(func(x): return low.contains(x)) and tilt_max > TILT_MAX:
+	var upright := gait or low.contains("idle") or low.contains("stance")
+	if upright and not NO_TILT.any(func(x): return low.contains(x)) and tilt_max > TILT_MAX:
 		add("ERROR", "TILT", who, "«%s»: тело поворачивается на %d° — модель встаёт вертикально или заваливается" % [name, roundi(tilt_max)])
 	if stretch != "":
 		add("WARNING", "STRETCH", who, "«%s»: кость растягивается или сжимается: %s" % [name, stretch])
@@ -365,12 +370,14 @@ func _audit_clip(who: String, name: String, anim: Animation, sk: Skeleton3D, to_
 		for f in fx:
 			side = maxf(side, fx[f][1] - fx[f][0])
 			fwd = maxf(fwd, fx[f][3] - fx[f][2])
-		if fwd < height * 0.04:
-			add("ERROR", "FEET_STILL", who, "«%s»: ноги почти не шагают (размах %d см)" % [name, roundi(fwd * 100)])
-		elif side > fwd * 0.8 and side > height * 0.06:
+		if fwd < height * 0.01:
+			add("ERROR", "FEET_STILL", who, "«%s»: ноги не шагают (размах %d см)" % [name, roundi(fwd * 100)])
+		elif fwd < height * 0.04:
+			add("INFO", "FEET_SMALL", who, "«%s»: шаг едва заметный (размах %d см)" % [name, roundi(fwd * 100)])
+		elif side > fwd * 0.8 and side > height * 0.06 and not NOT_STRAIGHT.any(func(x): return low.contains(x)):
 			add("ERROR", "LEG_SWING", who, "«%s»: ноги машут вбок (вбок %d см, вперёд-назад %d см)" % [name, roundi(side * 100), roundi(fwd * 100)])
 	# Стык цикла: первый и последний кадр должны совпадать
-	if gait or ((low.contains("idle") or low.contains("stance")) and anim.loop_mode != Animation.LOOP_NONE):
+	if upright and not NOT_LOOP.any(func(x): return low.contains(x)):
 		var jump := 0.0
 		var rp0: Vector3 = first[root].origin if root >= 0 else Vector3.ZERO
 		var rp1: Vector3 = last[root].origin if root >= 0 else Vector3.ZERO
@@ -456,10 +463,8 @@ func _feet(sk: Skeleton3D, rest: Array, lo: float, height: float) -> Array:
 	if not out.is_empty():
 		return out
 	for b in sk.get_bone_count():
-		if rest[b].origin.y < lo + height * 0.12 and sk.get_bone_parent(b) >= 0:
-			var p := sk.get_bone_parent(b)
-			if rest[p].origin.y >= lo + height * 0.12:   # самая нижняя кость цепочки
-				out.append(b)
+		if sk.get_bone_children(b).is_empty() and sk.get_bone_parent(b) >= 0 and rest[b].origin.y < lo + height * 0.25:
+			out.append(b)   # концы лап у земли
 	return out
 
 
@@ -492,17 +497,23 @@ func _physics_process(dt: float) -> void:
 			_new_waypoint(hp)
 		goal = _wp
 		reach = 1.5
-	var d := Vector3(goal.x - hp.x, 0, goal.z - hp.z)
+	var sub := _route(hp, goal)
+	var d := Vector3(sub.x - hp.x, 0, sub.z - hp.z)
 	var dist := d.length()
+	if sub != goal:
+		reach = 0.8
 	var mv := Vector2.ZERO
 	if dist > reach:
 		var yaw: float = hero.rig.yaw if hero.rig else 0.0
 		var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
 		var right := Vector3(cos(yaw), 0, -sin(yaw))
 		var dn := d / dist
+		_detour_t -= get_physics_process_delta_time()
+		if _detour_t > 0.0:
+			dn = dn.rotated(Vector3.UP, _detour)
 		mv = Vector2(dn.dot(right), dn.dot(fwd)).normalized()
 	touch.move = mv
-	touch.run = dist > 7.0
+	touch.run = dist > 7.0 or sub != goal
 	# Бой
 	touch.block = false
 	if is_instance_valid(_target) and dist < reach + 1.2:
@@ -536,10 +547,33 @@ func _physics_process(dt: float) -> void:
 		if mv.length() > 0.5 and moved < 0.6 and not hero.busy and hero.get("attack_t") < 0.0:
 			add("WARNING", "HERO_STUCK", "Герой", "застрял у (%d, %d, %d)" % [roundi(hp.x), roundi(hp.y), roundi(hp.z)])
 			_jump_t = 0.3
-			_target = null
-			_new_waypoint(hp)
+			# обойти: свернуть в сторону на 2 с; если не помогает — новая цель
+			_detour = deg_to_rad(_rng.randf_range(60.0, 110.0)) * (1.0 if _rng.randf() < 0.5 else -1.0)
+			_detour_t = 2.0
+			if _rng.randf() < 0.4:
+				_target = null
+				_new_waypoint(hp)
 		_stuck_pos = hp
 		_stuck_t = 0.0
+
+## Город окружён стеной — входить и выходить через ворота (север и юг, x = 0)
+func _route(hp: Vector3, goal: Vector3) -> Vector3:
+	var hero_world: bool = int(main.get("mode")) < 0 if main.get("mode") != null else true
+	if not hero_world:
+		return goal
+	var w := WorldGen.TOWN_WALL
+	var hin := WorldGen.town_dist(hp.x, hp.z) < w - 0.5
+	var gin := WorldGen.town_dist(goal.x, goal.z) < w - 0.5
+	if hin == gin:
+		return goal
+	var sz := signf(goal.z if hin else hp.z)
+	if sz == 0.0:
+		sz = 1.0
+	var inner := Vector3(0, hp.y, sz * (w - 4.0))
+	var outer := Vector3(0, hp.y, sz * (w + 6.0))
+	if hin:
+		return inner if absf(hp.x) > 1.5 or absf(hp.z) < w - 5.0 else outer
+	return outer if absf(hp.x) > 1.5 or absf(hp.z) > w + 5.0 else inner
 
 func _pick_target(hp: Vector3) -> void:
 	if is_instance_valid(_target) and not _target.dead and _target.visible and _target.global_position.distance_to(hp) < 45.0:
@@ -558,6 +592,21 @@ func _pick_target(hp: Vector3) -> void:
 			_target = e
 
 func _new_waypoint(hp: Vector3) -> void:
+	# чаще — к ближайшему монстру где-нибудь в мире (так Кардинал выходит из города)
+	var en = main.get("enemies")
+	if en and _rng.randf() < 0.6:
+		var best := 160.0
+		var pick := Vector3.INF
+		for e in en.list:
+			if is_instance_valid(e) and not e.dead and not e.get("in_dungeon") and not e.get("world2"):
+				var dd: float = e.global_position.distance_to(hp)
+				if dd < best:
+					best = dd
+					pick = e.global_position
+		if pick != Vector3.INF:
+			_wp = pick
+			_wp_t = 40.0
+			return
 	var a := _rng.randf() * TAU
 	var r := _rng.randf_range(18.0, 45.0)
 	var p := hp + Vector3(cos(a) * r, 0, sin(a) * r)

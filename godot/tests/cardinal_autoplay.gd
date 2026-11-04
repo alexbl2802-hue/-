@@ -21,8 +21,9 @@ func _ready() -> void:
 	while frames < int(secs * 60):
 		await get_tree().physics_frame
 		frames += 1
-		if frames % 600 == 0 and shots < 3:
-			get_viewport().get_texture().get_image().save_png(out + "play_%d.png" % shots)
+		if frames % 300 == 0:
+			if DisplayServer.get_name() != "headless" and shots < 3:
+				get_viewport().get_texture().get_image().save_png(out + "play_%d.png" % shots)
 			shots += 1
 			print("t=%ds hero %s target %s issues %s" % [frames / 60, main.hero.global_position.round(), at._target.T.name if is_instance_valid(at._target) else "-", at.counts()])
 	print("moved from ", t0.round(), " to ", main.hero.global_position.round(), " kills ", Game.kills)
@@ -33,5 +34,6 @@ func _ready() -> void:
 	main.hud.touch.cardinal_pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	get_viewport().get_texture().get_image().save_png(out + "window.png")
+	if DisplayServer.get_name() != "headless":
+		get_viewport().get_texture().get_image().save_png(out + "window.png")
 	get_tree().quit()

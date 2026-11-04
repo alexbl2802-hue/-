@@ -99,8 +99,8 @@ func _render() -> void:
 		core.error_count if core else 0, Engine.get_frames_per_second()]
 	var at := CardinalDirector.autotest
 	if at and at.playing:
-		var c := at.counts()
-		_play.text = "■ Остановить автотест (ошибок %d, предупреждений %d)" % [c["ERROR"], c["WARNING"]]
+		var n := at.counts()
+		_play.text = "■ Остановить автотест (ошибок %d, предупреждений %d)" % [n["ERROR"], n["WARNING"]]
 	else:
 		_play.text = "▶ Кардинал играет сам и ищет ошибки"
 	_loot.text = "Множитель добычи: ×%.1f" % CardinalDirector.loot_mult()

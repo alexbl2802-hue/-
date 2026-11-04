@@ -428,8 +428,11 @@ func _animate_char() -> void:
 # ---------- Модели
 func _mat(color: int, rough := 0.8, emit := -1, energy := 0.0) -> ShaderMaterial:
 	var m: ShaderMaterial = Mats.lp(color, rough, 0.0, emit, energy).duplicate()
-	m.set_meta("emit", m.get_shader_parameter("emission"))
-	m.set_meta("energy", m.get_shader_parameter("emission_energy"))
+	# Без свечения параметр равен null, а null в meta удаляет запись — храним чёрный цвет и 0
+	var em = m.get_shader_parameter("emission")
+	var en = m.get_shader_parameter("emission_energy")
+	m.set_meta("emit", em if em is Color else Color.BLACK)
+	m.set_meta("energy", float(en) if en != null else 0.0)
 	_mats.append(m)
 	return m
 
@@ -1119,8 +1122,8 @@ func _set_flash(f: float) -> void:
 	if _flash_mat:
 		_flash_mat.albedo_color.a = f * 0.6
 	for m in _mats:
-		m.set_shader_parameter("emission", (m.get_meta("emit") as Color).lerp(Color.WHITE, f))
-		m.set_shader_parameter("emission_energy", lerpf(m.get_meta("energy"), 0.8, f))
+		m.set_shader_parameter("emission", (m.get_meta("emit", Color.BLACK) as Color).lerp(Color.WHITE, f))
+		m.set_shader_parameter("emission_energy", lerpf(float(m.get_meta("energy", 0.0)), 0.8, f))
 
 ## Удары кобольда: щитом (рука со щитом выбрасывается вперёд, корпус за ней) и боковой взмах
 ## мечом (рука поднята и проходит справа налево, корпус закручивается); отскок — присел и назад

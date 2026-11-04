@@ -384,7 +384,7 @@ func _on_hero_died() -> void:
 		hud.banner(WorldGen.TOWN_NAME, "Отдохни у костра и попробуй снова"))
 
 func _process(_dt: float) -> void:
-	if not hero:
+	if not hero or not hud:
 		return
 	var p := hero.global_position
 	# Вход в город — надпись по центру; вверху — ник и уровень героя
