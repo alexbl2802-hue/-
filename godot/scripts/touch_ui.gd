@@ -55,11 +55,11 @@ func _buttons() -> Array:
 		{"id": "attack", "c": Vector2(s.x - 24 - 45.5, s.y - 28 - 45.5), "r": 45.5, "label": "⚔", "fs": 39, "border": Color(1, 0.55, 0.43, 0.75)},
 		{"id": "jump", "c": Vector2(s.x - 126 - 33, s.y - 20 - 33), "r": 33.0, "label": "⤒", "fs": 27},
 		{"id": "run", "c": Vector2(s.x - 40 - 28, s.y - 130 - 28), "r": 28.0, "label": "🏃", "fs": 23},
-		{"id": "inventory", "rect": Rect2(12, 12, 52, 52), "label": "🎒", "fs": 27},
-		{"id": "menu", "rect": Rect2(192, 12, 52, 52), "label": "☰", "fs": 27},
-		{"id": "cardinal", "rect": Rect2(252, 12, 52, 52), "label": "◈", "fs": 27},
-		{"id": "potion", "rect": Rect2(72, 12, 52, 52), "label": "🧪", "fs": 27, "badge": str(potions), "dim": potions == 0},
-		{"id": "skills", "rect": Rect2(132, 12, 52, 52), "label": "👤", "fs": 27, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
+		{"id": "inventory", "rect": Rect2(12, 12, 40, 40), "label": "🎒", "fs": 20},
+		{"id": "potion", "rect": Rect2(58, 12, 40, 40), "label": "🧪", "fs": 20, "badge": str(potions), "dim": potions == 0},
+		{"id": "skills", "rect": Rect2(104, 12, 40, 40), "label": "👤", "fs": 20, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
+		{"id": "menu", "rect": Rect2(150, 12, 40, 40), "label": "☰", "fs": 20},
+		{"id": "cardinal", "rect": Rect2(196, 12, 40, 40), "label": "◈", "fs": 20},
 	]
 	list.append({"id": "block", "c": Vector2(s.x - 236, s.y - 140), "r": 30.0, "label": "🔰", "fs": 26, "border": Color(0.75, 0.8, 0.9, 0.7)})
 	if art_icon != "":
@@ -227,8 +227,8 @@ func _draw() -> void:
 		draw_string(font, center + Vector2(-half, fs * 0.36), b["label"], HORIZONTAL_ALIGNMENT_CENTER, half * 2, fs, tc)
 		var badge: String = b.get("badge", "")
 		if badge != "":
-			draw_string_outline(font, center + Vector2(half - 22, half - 3), badge, HORIZONTAL_ALIGNMENT_RIGHT, 20, 14, 4, Color.BLACK)
-			draw_string(font, center + Vector2(half - 22, half - 3), badge, HORIZONTAL_ALIGNMENT_RIGHT, 20, 14, Color.WHITE)
+			draw_string_outline(font, center + Vector2(half - 20, half - 2), badge, HORIZONTAL_ALIGNMENT_RIGHT, 20, 12, 4, Color.BLACK)
+			draw_string(font, center + Vector2(half - 20, half - 2), badge, HORIZONTAL_ALIGNMENT_RIGHT, 20, 12, Color.WHITE)
 		# Перезарядка умения: затемнённый сектор и оставшиеся секунды
 		if cd_left.has(id) and cd_left[id] > 0.0:
 			var frac: float = cd_left[id] / maxf(0.01, cd_total[id])

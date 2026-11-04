@@ -16,6 +16,7 @@ static var _wins := 0          # победы с последней гибели
 static var _deaths := 0.0      # недавние гибели (со временем «забываются»)
 static var _guardian: Node
 static var core: CardinalCore
+static var autotest: CardinalAutotest
 const FALL_Y := -200.0   # ниже любой земли и подземелий
 ## Кости, которые должны быть у человекоподобного скелета (имена Mixamo, без приставки)
 const HUMANOID := ["Hips", "Spine", "Neck", "Head", "LeftArm", "LeftForeArm", "LeftHand", "RightArm",
@@ -48,6 +49,9 @@ static func setup(parent: Node) -> void:
 		g.monitored_player = hero
 		g.minimum_y = FALL_Y
 		core.add_child(g)
+	autotest = CardinalAutotest.new()
+	autotest.name = "CardinalAutotest"
+	core.add_child(autotest)
 	# Проверка анимаций — когда мир уже показан и монстры рядом проснулись
 	parent.get_tree().create_timer(6.0).timeout.connect(func(): check_animations(parent))
 

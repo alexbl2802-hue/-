@@ -7,6 +7,7 @@ signal closed
 var _status: Label
 var _loot: Label
 var _log: RichTextLabel
+var _play: Button
 var _t := 0.0
 
 func _ready() -> void:
@@ -37,12 +38,26 @@ func _ready() -> void:
 			CardinalDirector.set_loot_mult(CardinalDirector.loot_mult() + d)
 			_render())
 		row.add_child(b)
+	# Кардинал играет сам и ищет ошибки
+	_play = UiKit.button("", true, 15)
+	_play.custom_minimum_size = Vector2(0, 46)
+	_play.pressed.connect(func():
+		var at := CardinalDirector.autotest
+		if at == null:
+			return
+		if at.playing:
+			at.stop()
+		else:
+			var n := _main()
+			if n:
+				close()
+				at.start(n)
+		_render())
+	vb.add_child(_play)
 	var chk := UiKit.button("Проверить анимации и скелеты", false, 14)
 	chk.custom_minimum_size = Vector2(0, 40)
 	chk.pressed.connect(func():
-		var n: Node = get_parent()
-		while n and not (n.get("hero") != null and n.get("enemies") != null):
-			n = n.get_parent()
+		var n := _main()
 		if n:
 			CardinalDirector.check_animations(n)
 		_render())
@@ -53,6 +68,12 @@ func _ready() -> void:
 	_log.scroll_following = true
 	_log.add_theme_font_size_override("normal_font_size", 12)
 	vb.add_child(_log)
+
+func _main() -> Node:
+	var n: Node = get_parent()
+	while n and not (n.get("hero") != null and n.get("enemies") != null):
+		n = n.get_parent()
+	return n
 
 func open() -> void:
 	_render()
@@ -76,8 +97,14 @@ func _render() -> void:
 	_status.text = "Сложность: %.2f  ·  урон монстров ×%.2f\nМонстров под надзором: %d  ·  боссов: %d\nОшибок исправлено: %d  ·  кадров в секунду: %d" % [
 		Cardinal.difficulty, CardinalDirector.damage_mult(), c["mobs"], c["bosses"],
 		core.error_count if core else 0, Engine.get_frames_per_second()]
+	var at := CardinalDirector.autotest
+	if at and at.playing:
+		var c := at.counts()
+		_play.text = "■ Остановить автотест (ошибок %d, предупреждений %d)" % [c["ERROR"], c["WARNING"]]
+	else:
+		_play.text = "▶ Кардинал играет сам и ищет ошибки"
 	_loot.text = "Множитель добычи: ×%.1f" % CardinalDirector.loot_mult()
 	var lines: Array = core.event_log if core else []
-	var txt := "\n".join(lines.slice(maxi(0, lines.size() - 40))) if not lines.is_empty() else "Пока событий нет"
+	var txt := "\n".join(lines.slice(maxi(0, lines.size() - 80))) if not lines.is_empty() else "Пока событий нет"
 	if _log.text != txt:
 		_log.text = txt
