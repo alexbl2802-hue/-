@@ -9,3 +9,4 @@ node_modules/
 # Большие модели склеиваются из частей (tools/join_big.sh)
 /godot/models/house_cottage.glb
 /godot/models/house_manor.glb
+/godot/data/packs.json

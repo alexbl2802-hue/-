@@ -1,35 +1,70 @@
 #!/usr/bin/env python3
-"""Файл данных, который игра скачивает после установки (scripts/boot.gd).
+"""Данные игры, которые скачиваются после установки (scripts/boot.gd), — частями.
 
-1) id данных — хэш содержимого godot/models и godot/textures (не изменились — заново не качается);
-2) id записывается в project.godot (application/config/data_id);
-3) в пресет экспорта «Data» вписывается список файлов (модели и текстуры).
-Печатает id. Дальше: godot --export-pack "Data" ../build/data-<id>.pck
+Каждая модель (со своими текстурами и версиями для дальних расстояний) и каждая группа текстур —
+отдельный файл pack-<группа>-<отпечаток>.pck. Отпечаток — хэш содержимого: если модель не менялась,
+имя файла то же, и телефон его заново не качает — докачиваются только новые и изменённые части.
+Список частей с размерами — godot/data/packs.json (лежит в APK).
+
+python3 tools/data_pack.py <godot> <папка для .pck>
 """
 import hashlib
+import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 G = Path(__file__).resolve().parent.parent / "godot"
-files = []
-for d in ["models", "textures"]:
-    for p in sorted((G / d).rglob("*")):
-        if p.is_file() and not p.name.endswith((".import", ".uid")):
-            files.append(p)
-h = hashlib.sha256()
-for p in files:
-    h.update(str(p.relative_to(G)).encode())
-    h.update(p.read_bytes())
-data_id = h.hexdigest()[:12]
-proj = (G / "project.godot").read_text()
-if "config/data_id=" in proj:
-    proj = re.sub(r'config/data_id=".*"', f'config/data_id="{data_id}"', proj)
-else:
-    proj = proj.replace("[application]\n", f'[application]\n\nconfig/data_id="{data_id}"\n', 1)
-(G / "project.godot").write_text(proj)
-lst = ", ".join(f'"res://{p.relative_to(G).as_posix()}"' for p in files)
-pre = (G / "export_presets.cfg").read_text()
-a = pre.index("[preset.1]")
-pre = pre[:a] + re.sub(r"export_files=PackedStringArray\(.*?\)", f"export_files=PackedStringArray({lst})", pre[a:], count=1)
-(G / "export_presets.cfg").write_text(pre)
-print(data_id)
+LOD = ("_mid", "_far")
+
+
+def groups():
+    files = [p for d in ["models", "textures"] for p in sorted((G / d).rglob("*"))
+             if p.is_file() and not p.name.endswith((".import", ".uid"))]
+    bases = sorted({p.stem for p in files if p.suffix == ".glb" and p.parent == G / "models" and not p.stem.endswith(LOD)},
+                   key=len, reverse=True)
+    out = {}
+    for p in files:
+        rel = p.relative_to(G)
+        if p.parent == G / "models":
+            key = next((b for b in bases if p.stem == b or p.stem.startswith(b + "_")), p.stem)
+        else:
+            key = "_".join(rel.parent.parts)          # textures, textures_t3d, models_skins
+        out.setdefault(key, []).append(p)
+    return out
+
+
+def digest(paths):
+    h = hashlib.sha256()
+    for p in sorted(paths):
+        h.update(str(p.relative_to(G)).encode())
+        h.update(p.read_bytes())
+    return h.hexdigest()[:12]
+
+
+def main():
+    godot, outdir = sys.argv[1], Path(sys.argv[2]).resolve()
+    outdir.mkdir(parents=True, exist_ok=True)
+    presets = (G / "export_presets.cfg").read_text()
+    a = presets.index("[preset.1]")
+    packs = []
+    for key, paths in sorted(groups().items()):
+        name = "pack-%s-%s.pck" % (re.sub(r"[^a-z0-9_]", "_", key.lower()), digest(paths))
+        lst = ", ".join('"res://%s"' % p.relative_to(G).as_posix() for p in paths)
+        cfg = presets[:a] + re.sub(r"export_files=PackedStringArray\(.*?\)", "export_files=PackedStringArray(%s)" % lst,
+                                   presets[a:], count=1)
+        (G / "export_presets.cfg").write_text(cfg)
+        dst = outdir / name
+        subprocess.run([godot, "--headless", "--path", str(G), "--export-pack", "Data", str(dst)], check=True,
+                       stdout=subprocess.DEVNULL)
+        packs.append({"name": name, "size": dst.stat().st_size})
+        print("%-50s %7.1f МБ  (%d файлов)" % (name, dst.stat().st_size / 1e6, len(paths)))
+    (G / "export_presets.cfg").write_text(presets)
+    (G / "data").mkdir(exist_ok=True)
+    (G / "data" / "packs.json").write_text(json.dumps(packs, indent=1))
+    print("всего %.1f МБ в %d частях" % (sum(p["size"] for p in packs) / 1e6, len(packs)))
+
+
+if __name__ == "__main__":
+    main()

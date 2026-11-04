@@ -67,14 +67,13 @@ jobs:
       - name: Join big models (stored in parts, GitHub file limit 100 MB)
         run: sh tools/join_big.sh
 
-      - name: Data id (models and textures are downloaded by the game after install)
-        run: |
-          DATA_ID=$(python3 tools/data_pack.py)
-          echo "DATA_ID=$DATA_ID" >> "$GITHUB_ENV"
-          grep data_id godot/project.godot
-
       - name: Import project
         run: ~/godot-cache/godot --headless --path godot --import || true
+
+      - name: Data packs (models and textures, downloaded by the game after install, only what changed)
+        run: |
+          python3 tools/data_pack.py ~/godot-cache/godot build
+          cat godot/data/packs.json
 
       - name: Export APK
         run: |
@@ -86,13 +85,6 @@ jobs:
           ~/godot-cache/godot --headless --path godot --export-debug "Android" ../build/ZemliPriklyucheniy-$VER.apk
           ls -la build
           test -s build/ZemliPriklyucheniy-$VER.apk
-
-      - name: Export data pack
-        run: |
-          # Модели и текстуры — отдельным файлом; игра скачает его при первом запуске (scripts/boot.gd)
-          ~/godot-cache/godot --headless --path godot --export-pack "Data" ../build/data-$DATA_ID.pck
-          ls -la build
-          test -s build/data-$DATA_ID.pck
 
       - name: Sign with release key (key rotation)
         env:
@@ -131,9 +123,10 @@ jobs:
           body: |
             Игра на движке **Godot 4.7**. Скачай **ZemliPriklyucheniy-${{ env.VER }}.apk** и установи —
             обновление встанет поверх уже установленной игры. Номер версии виден в главном меню.
-            При первом запуске игра сама скачает данные (модели и текстуры, файл data-*.pck) — нужен интернет.
+            При первом запуске игра сама скачает данные (модели и текстуры, файлы pack-*.pck) — нужен интернет.
+            При обновлении докачивается только то, что изменилось.
           files: |
             build/ZemliPriklyucheniy-${{ env.VER }}.apk
-            build/data-${{ env.DATA_ID }}.pck
+            build/pack-*.pck
           prerelease: false
           make_latest: true
