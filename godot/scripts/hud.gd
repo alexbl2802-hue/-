@@ -9,6 +9,7 @@ var skills: Control
 var inventory: Control
 var forge: Control
 var alchemist: Control
+var cardinal: Control   # системное окно CARDINAL
 var menu: Control
 var hero: Node3D
 var camera: Camera3D
@@ -110,6 +111,9 @@ func _ready() -> void:
 	alchemist = preload("res://scripts/ui/alchemist_panel.gd").new()
 	root.add_child(alchemist)
 	alchemist.closed.connect(func(): touch.visible = true)
+	cardinal = preload("res://scripts/ui/cardinal_panel.gd").new()
+	root.add_child(cardinal)
+	cardinal.closed.connect(func(): touch.visible = true)
 	# Затемнение для переходов
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
@@ -215,6 +219,11 @@ func open_alchemist() -> void:
 	touch.release_all()
 	touch.visible = false
 	alchemist.open()
+
+func open_cardinal() -> void:
+	touch.release_all()
+	touch.visible = false
+	cardinal.open()
 
 func open_menu() -> void:
 	touch.release_all()

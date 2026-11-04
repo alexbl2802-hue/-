@@ -109,6 +109,7 @@ func _ready() -> void:
 	hud.touch.skills_pressed.connect(hud.open_skills)
 	hud.touch.inventory_pressed.connect(hud.open_inventory)
 	hud.touch.menu_pressed.connect(hud.open_menu)
+	hud.touch.cardinal_pressed.connect(hud.open_cardinal)
 	hud.touch.skill_pressed.connect(hero.use_skill)
 	hud.touch.act_pressed.connect(func(): if _act.is_valid(): _act.call())
 	hud.menu.started.connect(_on_started)

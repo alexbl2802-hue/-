@@ -32,6 +32,10 @@ static func setup(parent: Node) -> void:
 	core.name = "CardinalCore"
 	parent.add_child(core)
 	core.event_logged.connect(func(m: String): print("[Cardinal] ", m))
+	var cf := ConfigFile.new()
+	if cf.load("user://cardinal.cfg") == OK:
+		core.set_loot_multiplier(float(cf.get_value("cardinal", "loot", 1.0)))
+	core.log_event("CARDINAL SYSTEM запущена")
 	var perf := CardinalPerformanceManager.new()
 	perf.name = "CardinalPerformance"
 	perf.core = core
@@ -84,7 +88,13 @@ static func check_animations(parent: Node) -> Dictionary:
 		counts[r["severity"]] = counts.get(r["severity"], 0) + 1
 	ag.reports.append({"severity": "INFO", "subject": "skeletons", "message": JSON.stringify(skel), "advice": ""})
 	ag.export_report_json()
-	core.log_event("Проверка анимаций: %d моделей, %s; скелеты: %s" % [actors.size(), counts, skel])
+	var bad: Array = []
+	for k in skel:
+		if not skel[k]["ok"]:
+			bad.append("%s (нет: %s)" % [k, ", ".join(skel[k]["missing"])])
+	core.log_event("Проверка анимаций: моделей %d — ошибок %d, предупреждений %d, заметок %d" % [actors.size(),
+		counts.get("ERROR", 0), counts.get("WARNING", 0), counts.get("INFO", 0)])
+	core.log_event("Скелеты: %d проверено — %s" % [skel.size(), "все кости на месте" if bad.is_empty() else "; ".join(bad)])
 	ag.queue_free()
 	return {"counts": counts, "skeletons": skel, "reports": ag.reports}
 
@@ -110,6 +120,18 @@ static func on_death() -> void:
 	_deaths += 1.0
 	_wins = 0
 	Cardinal.set_player_performance(roundi(_deaths), _wins)
+
+## Множитель добавочной добычи Cardinal (окно CARDINAL: 0,1…3; сохраняется)
+static func loot_mult() -> float:
+	return core.loot_multiplier if core else 1.0
+
+static func set_loot_mult(v: float) -> void:
+	if core:
+		core.set_loot_multiplier(snappedf(v, 0.1))
+		var cf := ConfigFile.new()
+		cf.set_value("cardinal", "loot", core.loot_multiplier)
+		cf.save("user://cardinal.cfg")
+		core.log_event("Множитель добычи: ×%.1f" % core.loot_multiplier)
 
 ## Множитель урона монстров: сложность 0,5…3 → 0,75…1,25
 static func damage_mult() -> float:

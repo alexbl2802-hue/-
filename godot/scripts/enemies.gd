@@ -109,7 +109,7 @@ func on_enemy_killed(e: Node3D) -> void:
 		var items := _cardinal_loot.roll(CardinalLootTables.get_table("boss" if boss else "monster", key), Cardinal.difficulty, 2 if boss else 1)
 		for it in items:
 			if Items.ALL.has(it["id"]):
-				loot.drop(it["id"], int(it["amount"]), e.global_position)
+				loot.drop(it["id"], maxi(1, roundi(int(it["amount"]) * CardinalDirector.loot_mult())), e.global_position)
 	CardinalDirector.on_kill()
 
 ## Вернуть живых монстров на свои места (после гибели героя)
