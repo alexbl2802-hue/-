@@ -67,7 +67,8 @@ const ALL := {
 	"cloak_wool": {"name": "Шерстяной плащ", "icon": "🧣", "kind": "cloak", "rank": 0, "armor": 2, "hp": 10, "color": 0x7a3a2a},
 	"cloak_ranger": {"name": "Плащ следопыта", "icon": "🧣", "kind": "cloak", "rank": 1, "armor": 4, "hp": 20, "color": 0x3a5a3a},
 	"cloak_shadow": {"name": "Плащ тени", "icon": "🧣", "kind": "cloak", "rank": 2, "armor": 6, "hp": 35, "color": 0x2a2440},
-	# Мантия Теневого стража: видна на герое (models/cloak_mantle.glb), выпадает только из сундуков этажей башни (10%)
+	# Мантия Теневого стража: выпадает только из сундуков этажей башни (10%). Модель на герое — после смены героя
+	# (исходник meshy/beasts/shadowmantle_src.glb, подгонка tools/blender/fit_cloak.py → models/cloak_mantle.glb)
 	"cloak_mantle": {"name": "Мантия Теневого стража", "icon": "🧥", "kind": "cloak", "rank": 3, "armor": 10, "hp": 60, "color": 0x1a1a22},
 	# Щиты: броня и сила блока (% урона, который снимает блок сверх обычного)
 	"shield_wood": {"name": "Деревянный щит", "icon": "🪵", "kind": "shield", "rank": 0, "armor": 3, "block": 10, "color": 0x7a5230},
