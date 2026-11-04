@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import prepare_models as pm  # noqa: E402
 
 SRC = pm.ROOT / "meshy" / "beasts"
+PRE = True   # добавка к позе покоя — в системе родителя (ключ · покой)
 
 
 def qmul(a, b):
@@ -49,7 +50,28 @@ def clip_tracks(j, b, anim):
     return times - times[0], out
 
 
-def build(src, dst, walk, root_bone, hit_axis, offset_clips=()):
+def qinv(q):
+    return np.array([-q[0], -q[1], -q[2], q[3]])
+
+
+def sagittal(j, n, v):
+    """Ноги шагают только вперёд-назад: из поворота кости (относительно покоя, в осях модели)
+    оставляется только поворот вокруг оси X модели (поперёк тела) — без махов вбок и скручивания."""
+    names, parent = pm.bone_tree(j)
+    rest = np.array(j["nodes"][n].get("rotation", [0, 0, 0, 1]), float)
+    g = pm.global_rest(j, n, parent)
+    out = []
+    for q in v:
+        d = qmul(qinv(rest), q)                       # поворот в осях кости
+        D = qmul(qmul(g, d), qinv(g))                 # тот же поворот в осях модели
+        ang = 2 * np.arctan2(D[0], D[3])              # вокруг X модели
+        D2 = np.array([np.sin(ang / 2), 0, 0, np.cos(ang / 2)])
+        d2 = qmul(qmul(qinv(g), D2), g)
+        out.append(qmul(rest, d2))
+    return np.stack(out)
+
+
+def build(src, dst, walk, root_bone, hit_axis, offset_clips=(), legs=(), leg_clips=()):
     j, b = pm.read_glb(src)
     names, _ = pm.bone_tree(j)
     clips = {}
@@ -62,7 +84,13 @@ def build(src, dst, walk, root_bone, hit_axis, offset_clips=()):
         for (n, kind), v in list(tr.items()):
             if kind == "rotation":
                 rest = np.array(j["nodes"][n].get("rotation", [0, 0, 0, 1]), float)
-                tr[(n, kind)] = np.stack([qmul(rest, q) for q in v])
+                tr[(n, kind)] = np.stack([qmul(q, rest) if PRE else qmul(rest, q) for q in v])
+    # Махи ногами вбок убираются (шаг и бег): у присланных клипов ноги вращались не только вперёд-назад
+    for name in leg_clips:
+        t, tr = clips[name]
+        for (n, kind), v in list(tr.items()):
+            if kind == "rotation" and j["nodes"][n].get("name", "").split(":")[-1] in legs:
+                tr[(n, kind)] = sagittal(j, n, v)
     wt, wtr = clips[walk]
     first = {k: v[0] for k, v in wtr.items()}
     fixed = {}
@@ -98,6 +126,10 @@ def build(src, dst, walk, root_bone, hit_axis, offset_clips=()):
     pm.write_glb(dst, j, bld.blob)
 
 
-build(SRC / "wolf_src.glb", pm.OUT / "wolf.glb", "Wolf_Walk", "Bone_000", (1, 0, 0), offset_clips=("Wolf_Walk", "Wolf_Run"))
+WOLF_LEGS = ["Bone_%03d" % i for i in list(range(22, 28)) + list(range(28, 34)) + list(range(5, 10)) + list(range(10, 15))]
+build(SRC / "wolf_src.glb", pm.OUT / "wolf.glb", "Wolf_Walk", "Bone_000", (1, 0, 0), offset_clips=("Wolf_Walk", "Wolf_Run"),
+      legs=WOLF_LEGS, leg_clips=("Wolf_Walk", "Wolf_Run"))
 build(SRC / "spider_src.glb", pm.OUT / "spider.glb", "Spider_Walk", "Bone_000", (1, 0, 0))
-build(pm.ROOT / "meshy" / "hero_new" / "Skeleton_Animations_Godot.glb", pm.OUT / "skeleton.glb", "Skeleton_Walk", "Hips", (1, 0, 0))
+SK_LEGS = [s + b for s in ("Left", "Right") for b in ("UpLeg", "Leg", "Foot")]
+build(pm.ROOT / "meshy" / "hero_new" / "Skeleton_Animations_Godot.glb", pm.OUT / "skeleton.glb", "Skeleton_Walk", "Hips", (1, 0, 0),
+      legs=SK_LEGS, leg_clips=("Skeleton_Walk", "Skeleton_Run_Anime"))
