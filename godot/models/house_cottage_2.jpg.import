@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cd2b7d6ya731f"
-path="res://.godot/imported/leather_normal.jpg-b43a0cec96f87fe815b15dfe76141fd9.ctex"
+uid="uid://duptl6ra51ce7"
+path="res://.godot/imported/house_cottage_2.jpg-f1212a2a20b2141b2c197ad268ced8bf.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "c2548546cdcbd36f61f6838c4f5ffb6a"
 }
 
 [deps]
 
-source_file="res://models/armor/leather_normal.jpg"
-dest_files=["res://.godot/imported/leather_normal.jpg-b43a0cec96f87fe815b15dfe76141fd9.ctex"]
+source_file="res://models/house_cottage_2.jpg"
+dest_files=["res://.godot/imported/house_cottage_2.jpg-f1212a2a20b2141b2c197ad268ced8bf.ctex"]
 
 [params]
 
@@ -21,9 +24,9 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

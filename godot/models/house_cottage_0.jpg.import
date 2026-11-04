@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dp201ldps4gc"
-path="res://.godot/imported/chain_normal.jpg-00b267ba995cff54c6efe279bc16450a.ctex"
+uid="uid://dj5rag26klhxm"
+path="res://.godot/imported/house_cottage_0.jpg-e0ec18c91a62c32a5e11a8cf51a0cff1.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "642babeec78fab9ee5ef3e347f569b90"
 }
 
 [deps]
 
-source_file="res://models/armor/chain_normal.jpg"
-dest_files=["res://.godot/imported/chain_normal.jpg-00b267ba995cff54c6efe279bc16450a.ctex"]
+source_file="res://models/house_cottage_0.jpg"
+dest_files=["res://.godot/imported/house_cottage_0.jpg-e0ec18c91a62c32a5e11a8cf51a0cff1.ctex"]
 
 [params]
 
@@ -21,9 +24,9 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

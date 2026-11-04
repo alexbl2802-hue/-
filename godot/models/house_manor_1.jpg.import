@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://btfeyvea0np6a"
-path="res://.godot/imported/skeleton_base_color.jpg-634ae3dc3239d5c95efed503654919da.ctex"
+uid="uid://budygrkwbe01v"
+path="res://.godot/imported/house_manor_1.jpg-4a32416f2dcbf8102536195d91bdd292.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "a7d84cbb093fa1b345d45dbb1a114203"
 }
 
 [deps]
 
-source_file="res://models/skins/skeleton_base_color.jpg"
-dest_files=["res://.godot/imported/skeleton_base_color.jpg-634ae3dc3239d5c95efed503654919da.ctex"]
+source_file="res://models/house_manor_1.jpg"
+dest_files=["res://.godot/imported/house_manor_1.jpg-4a32416f2dcbf8102536195d91bdd292.ctex"]
 
 [params]
 
@@ -23,7 +26,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
