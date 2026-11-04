@@ -165,7 +165,7 @@ const A_STANCE := "Combat_Stance"   # боевая стойка с мечом �
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
-const A_WHIRL := "Whirl"        # удар с разворотом (Skill_03), ровно один оборот
+const A_WHIRL := "Sword_Spin_360"   # круговой удар мечом на 360° (присланный клип Meshy)
 const A_DASH := "DashJump"      # прыжок через препятствие (Jump_Over_Obstacle)
 # Вихрь: длительность и момент удара — середина оборота в анимации
 const WHIRL_TIME := 0.75
@@ -741,7 +741,7 @@ const RUN_STRIDE_M := 3.2
 const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
 const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
-const WHIRL_CLIP := ["Double_Blade_Spin", 0.6, 1.25]   # [клип, с какой секунды, темп]
+const WHIRL_CLIP := ["Sword_Spin_360", 0.0, 0.92 / WHIRL_TIME]   # [клип, с какой секунды, темп] — весь оборот за время вихря
 const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
 const RUN_FIGHT := "ForwardRight_Run_Fight"            # бег, когда рядом враги — меч наготове
 const RUN_FIGHT_STRIDE := 3.0
