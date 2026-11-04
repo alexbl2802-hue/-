@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Волк и паук из присланных моделей (meshy/beasts/*_src.glb) → godot/models/wolf.glb, spider.glb.
+"""Волк, паук и скелет из присланных моделей (meshy/beasts/*_src.glb, meshy/hero_new/Skeleton_Animations_Godot.glb)
+→ godot/models/wolf.glb, spider.glb, skeleton.glb.
 
 1) Переворот волка: в шаге и беге повороты костей записаны добавкой к позе покоя, и волк вставал
    вертикально — они пересчитываются (покой · ключ). Кости, анимированные в шаге, но не в клипе,
@@ -99,3 +100,4 @@ def build(src, dst, walk, root_bone, hit_axis, offset_clips=()):
 
 build(SRC / "wolf_src.glb", pm.OUT / "wolf.glb", "Wolf_Walk", "Bone_000", (1, 0, 0), offset_clips=("Wolf_Walk", "Wolf_Run"))
 build(SRC / "spider_src.glb", pm.OUT / "spider.glb", "Spider_Walk", "Bone_000", (1, 0, 0))
+build(pm.ROOT / "meshy" / "hero_new" / "Skeleton_Animations_Godot.glb", pm.OUT / "skeleton.glb", "Skeleton_Walk", "Hips", (1, 0, 0))

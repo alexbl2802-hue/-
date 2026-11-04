@@ -233,6 +233,9 @@ func _col(body: StaticBody3D, pos: Vector3, size: Vector3, yaw := 0.0) -> void:
 
 ## Дом: каменный цоколь, деревянный сруб, высокая черепичная крыша
 func _house(p: Vector3, yaw: float, k: int, body: StaticBody3D) -> void:
+	if HouseModel.exists(HouseModel.COTTAGE):
+		HouseModel.place(self, HouseModel.COTTAGE, p, yaw, 8.5, body)
+		return
 	var n := Node3D.new()
 	n.position = p
 	n.rotation.y = yaw

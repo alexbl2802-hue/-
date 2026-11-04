@@ -327,7 +327,15 @@ func _fist_grip(sk: Skeleton3D, anim: Animation, hg: HandGrip) -> Array:
 			if k == 1:
 				knuckle[f] = tr.origin
 	if pts.size() < 8 or not knuckle.has("Index") or not knuckle.has("Pinky"):
-		return []
+		# Модель без пальцев: рукоять — в середине ладони (между запястьем и концом кисти), поперёк
+		# кисти — сторона большого пальца: в T-позе ладонь вниз, большой палец смотрит вперёд (+Z)
+		var tip := -1
+		for i in sk.get_bone_count():
+			if sk.get_bone_parent(i) == hand:
+				tip = i
+		var palm := sk.get_bone_rest(tip).origin * 0.45 if tip >= 0 else Vector3(0, 0.07, 0)
+		var across := (sk.get_bone_global_rest(hand).basis.inverse() * Vector3(0, 0, 1)).normalized()
+		return [palm, across]
 	var c := Vector3.ZERO
 	for p in pts:
 		c += p
@@ -662,9 +670,8 @@ func _apply_armor_skin(key: String) -> void:
 	if key == _armor_skin and _body_mi.material_override != null:
 		return
 	_armor_skin = key
-	# Без доспеха — обычная одежда героя (своя аниме-раскраска «base», если есть)
-	if key == "" or not ResourceLoader.exists(ARMOR_DIR + key + "_base_color.jpg"):
-		key = "base"
+	# Раскраски доспехов сделаны под прежнюю модель героя — у нового героя свои цвета, без перекраски
+	key = "base"
 	var base := ARMOR_DIR + key + "_base_color.jpg"
 	var m := (_body_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 	Mats.toon(m)
@@ -765,9 +772,9 @@ const MESHY_MOVES := {
 	"stun": ["Hit_Reaction", 0.0, 1.0],      # оглушение — та же реакция медленнее
 }
 const WALK_CLIP := "Walk_Fight_Forward"           # боевой шаг (Meshy)
-const RUN_CLIP := "Lean_Forward_Sprint"            # спринт (Meshy)
+const RUN_CLIP := "Kirito_Sword_Run"               # бег героя (из модели героя)
 const WALK_STRIDE_M := 0.6     # м за секунду клипа шага (замер tests/pose_view.tscn)
-const RUN_STRIDE_M := 3.2
+const RUN_STRIDE_M := 3.5     # бег Kirito_Sword_Run: м за секунду клипа
 const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
 const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление

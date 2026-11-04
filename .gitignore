@@ -5,3 +5,7 @@ node_modules/
 /godot/models/rock_big1_[0-9]*
 /godot/models/rock_big2_[0-9]*
 /godot/models/rock_small_[0-9]*
+
+# Большие модели склеиваются из частей (tools/join_big.sh)
+/godot/models/house_cottage.glb
+/godot/models/house_manor.glb

@@ -184,6 +184,12 @@ static func _streets() -> void:
 
 # ---------- Дома с фахверком
 static func _house(x: float, z: float, w: float, d: float, floors: int, face: String, k: int, stone: Material) -> void:
+	# Дом — модель коттеджа (Meshy, как есть), дверью на улицу; если модели нет — прежний дом из коробок
+	if HouseModel.exists(HouseModel.COTTAGE):
+		var yaw: float = {"+x": PI / 2.0, "-x": -PI / 2.0, "+z": 0.0, "-z": PI}[face]
+		HouseModel.place(_root, HouseModel.COTTAGE, Vector3(x, G, z), yaw, maxf(w, d) * 1.3)
+		_solid(x - w / 2.0 - 0.15, x + w / 2.0 + 0.15, z - d / 2.0 - 0.15, z + d / 2.0 + 0.15, "#8a4a32")
+		return
 	var plasters := [0xeee4cf, 0xe8d8b0, 0xf2efe6, 0xdcc6a0, 0xe9d3c0]
 	var roofs := [Mats.lp(0x9a3b2a), Mats.lp(0x7a4228), Mats.lp(0xb8913f), Mats.lp(0x4a5058)]
 	var timber := Mats.lp(0x4a3220)
@@ -316,6 +322,16 @@ static func _manor(stone: Material) -> void:
 	var path := PlaneMesh.new()
 	path.size = Vector2(4, 10.5)
 	_mesh(path, Mats.tiled(Mats.cobble_texture(), 0xa89f92, 0.25, 1.0), Vector3(-19, G + 0.03, -12.2), false)
+	# Особняк — модель Meshy (как есть) на месте прежнего дома с башенкой
+	if HouseModel.exists(HouseModel.MANOR):
+		HouseModel.place(_root, HouseModel.MANOR, Vector3(-19, G, -21.5), 0.0, 21.0)
+		_solid(-28.5, -9.5, -29.5, -15.0, "#4a5058")
+		var tim := Mats.lp(0x4a3220)
+		for p in [[-28, -10], [-10, -10]]:
+			_box(0.35, 1.6, 0.35, tim, p[0], G + 0.8, p[1])
+			_mesh(_blob(1.4), Mats.lp(0x4f8f3a), Vector3(p[0], G + 2.4, p[1]))
+			_round(p[0], p[1], 0.5, 2.0)
+		return
 	var white := Mats.lp(0xf4f0e6)
 	var slate := Mats.lp(0x4a5058)
 	var glass := Mats.lp(0x6a8aa8, 0.15, 0.3, 0x30404c, 1.0)

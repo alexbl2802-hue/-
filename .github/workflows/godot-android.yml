@@ -64,6 +64,9 @@ jobs:
           sed -i "s|^config/version=.*|config/version=\"2.0.${{ github.run_number }}\"|" godot/project.godot
           grep '^config/version' godot/project.godot
 
+      - name: Join big models (stored in parts: GitHub file limit 100 MB)
+        run: sh tools/join_big.sh
+
       - name: Data id (models and textures are downloaded by the game after install)
         run: |
           DATA_ID=$(python3 tools/data_pack.py)
