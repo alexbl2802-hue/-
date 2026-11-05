@@ -51,6 +51,8 @@ static func terrain() -> ShaderMaterial:
 	mat.set_shader_parameter("macro", noise_texture("macro"))
 	mat.set_shader_parameter("rock", noise_texture("rock"))
 	mat.set_shader_parameter("mountain", load("res://textures/mountain_rock.jpg"))
+	if ResourceLoader.exists("res://textures/mountain_rock_normal.png"):
+		mat.set_shader_parameter("mountain_nrm", load("res://textures/mountain_rock_normal.png"))
 	mat.set_shader_parameter("grass_tex", load("res://textures/grass_albedo.png"))
 	mat.set_shader_parameter("grass_nrm", load("res://textures/grass_normal.png"))
 	mat.set_shader_parameter("dirt_tex", load("res://textures/dirt_albedo.png"))
@@ -117,11 +119,47 @@ static func tiled(tex: Texture2D, tint: int, scale := 0.25, rough := 0.95) -> St
 	m.roughness = rough
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	toon(m)
+	if not tex.has_meta("normal") and tex is ImageTexture:
+		_auto_relief(tex)
 	if tex.has_meta("normal"):
 		m.normal_enabled = true
 		m.normal_texture = tex.get_meta("normal")
 		m.normal_scale = 0.9
+	# Блики: выпуклые светлые места матовые, швы и выбоины глаже — свет «играет» по кладке
+	if tex.has_meta("rough"):
+		m.roughness_texture = tex.get_meta("rough")
+		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	return m
+
+## Рельеф для текстуры без своей карты нормалей: высота = яркость (тёмные швы глубже)
+static func _auto_relief(tex: ImageTexture) -> void:
+	var img := tex.get_image()
+	if img == null:
+		return
+	img = img.duplicate()
+	if img.is_compressed():
+		return
+	img.clear_mipmaps()
+	img.convert(Image.FORMAT_RGB8)
+	var hm := Image.create(img.get_width(), img.get_height(), false, Image.FORMAT_RGB8)
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			var l := c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+			hm.set_pixel(x, y, Color(l, l, l))
+	tex.set_meta("normal", _normal_map(hm, 4.0))
+	tex.set_meta("rough", _rough_map(hm))
+
+## Карта шероховатости: 0,7 в швах … 1,0 на выпуклостях
+static func _rough_map(hm: Image) -> ImageTexture:
+	var r := hm.duplicate() as Image
+	for y in r.get_height():
+		for x in r.get_width():
+			var h := r.get_pixel(x, y).r
+			var v := 0.7 + 0.3 * clampf(h * 1.6, 0.0, 1.0)
+			r.set_pixel(x, y, Color(v, v, v))
+	r.generate_mipmaps()
+	return ImageTexture.create_from_image(r)
 
 static func _rng() -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new()
@@ -150,6 +188,7 @@ static func brick_texture() -> ImageTexture:
 	_grain(img, hm, r, 5000, 0.12)
 	var t := ImageTexture.create_from_image(_mip(img))
 	t.set_meta("normal", _normal_map(hm, 6.0))
+	t.set_meta("rough", _rough_map(hm))
 	_cache["brick"] = t
 	return t
 
@@ -185,6 +224,7 @@ static func cobble_texture() -> ImageTexture:
 	_grain(img, hm, r, 5000, 0.12)
 	var t := ImageTexture.create_from_image(_mip(img))
 	t.set_meta("normal", _normal_map(hm, 5.0))
+	t.set_meta("rough", _rough_map(hm))
 	_cache["cobble"] = t
 	return t
 
@@ -216,6 +256,7 @@ static func tile_texture() -> ImageTexture:
 	_grain(img, hm, r, 6000, 0.12)
 	var t := ImageTexture.create_from_image(_mip(img))
 	t.set_meta("normal", _normal_map(hm, 5.0))
+	t.set_meta("rough", _rough_map(hm))
 	_cache["tile"] = t
 	return t
 

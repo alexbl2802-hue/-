@@ -12,6 +12,7 @@ uniform float metallic = 0.0;
 uniform float detail = 0.0;
 uniform float detail_scale = 0.8;
 uniform sampler2D detail_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform float bump = 1.0;     // рельеф фактуры (detail > 0): кора, камень, доски выглядят объёмными
 uniform float wind = 0.0;     // > 0 — качается на ветру (кроны деревьев)
 
 varying vec3 world_pos;
@@ -37,6 +38,19 @@ void fragment() {
 		float t = texture(detail_tex, p.zy).r * wn.x + texture(detail_tex, p.xz).r * wn.y + texture(detail_tex, p.xy).r * wn.z;
 		t /= (wn.x + wn.y + wn.z);
 		col *= mix(1.0 - detail, 1.0 + detail, t);
+		// Рельеф из фактуры: наклон нормали по изменению узора на экране (bump mapping по производным)
+		if (bump > 0.0) {
+			vec3 dpdx = dFdx(VERTEX);
+			vec3 dpdy = dFdy(VERTEX);
+			float h = t * detail * bump * 0.06;
+			float dhdx = dFdx(h);
+			float dhdy = dFdy(h);
+			vec3 r1 = cross(dpdy, n);
+			vec3 r2 = cross(n, dpdx);
+			float det = dot(dpdx, r1);
+			vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+			NORMAL = normalize(abs(det) * n - grad);
+		}
 	}
 	ALBEDO = col;
 	ROUGHNESS = roughness;

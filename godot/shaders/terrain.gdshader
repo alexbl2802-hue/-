@@ -19,6 +19,8 @@ uniform float dirt_lum = 0.081;
 // Камень со мхом с модели горы (Mossy Stone Peak) — на склонах гор, наложение с трёх сторон
 uniform sampler2D mountain : source_color, hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform float mountain_tile = 14.0;   // метров на один повтор текстуры
+uniform sampler2D mountain_nrm : hint_normal, filter_linear_mipmap, repeat_enable;   // рельеф камня
+uniform float mountain_bump = 1.0;
 
 varying vec3 world_pos;
 varying vec3 world_n;
@@ -103,7 +105,12 @@ void fragment() {
 		vec3 big = texture(mountain, world_pos.xz / (mountain_tile * 9.0)).rgb;
 		stone = stone * mix(0.8, 1.25, dot(big, vec3(0.333)) * 2.0 - 0.1);
 		col = mix(col, stone * 0.72, mw);
-		pn = normalize(mix(pn, wn, mw));
+		// Рельеф камня: карта нормалей с трёх сторон (трещины и выступы видны при свете)
+		vec2 nx = (texture(mountain_nrm, world_pos.zy / mountain_tile).rg * 2.0 - 1.0) * sign(wn.x);
+		vec2 ny = (texture(mountain_nrm, world_pos.xz / mountain_tile).rg * 2.0 - 1.0) * sign(wn.y);
+		vec2 nz = (texture(mountain_nrm, world_pos.xy / mountain_tile).rg * 2.0 - 1.0) * sign(wn.z);
+		vec3 rn = normalize(wn + (vec3(0.0, nx.y, nx.x) * bw.x + vec3(ny.x, 0.0, ny.y) * bw.y + vec3(nz.x, nz.y, 0.0) * bw.z) * mountain_bump * (1.0 - far * 0.6));
+		pn = normalize(mix(pn, rn, mw));
 	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(pn, 0.0)).xyz);
 	ALBEDO = col;

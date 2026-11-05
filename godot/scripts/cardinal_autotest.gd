@@ -25,6 +25,7 @@ var main: Node
 var hero: Node
 var issues := {}            # ключ → {sev, code, subject, msg, count, first}
 var playing := false
+var speed := 2              # ускорение игры во время автотеста: ×1, ×2, ×4
 var audit_done := false
 var started_at := 0.0
 
@@ -46,6 +47,7 @@ var _hero_frozen_t := 0.0
 var _mobs := {}             # монстр → {pos, slide_t, chase_d, chase_t}
 var _overlay: CanvasLayer
 var _ov_label: Label
+var _sp_btn: Button
 var _rng := RandomNumberGenerator.new()
 
 
@@ -118,7 +120,8 @@ func start(m: Node) -> void:
 	OS.add_logger(_logger)
 	_stuck_pos = hero.global_position
 	_make_overlay()
-	CardinalDirector.core.log_event("▶ Кардинал играет и ищет ошибки")
+	_apply_speed()
+	CardinalDirector.core.log_event("▶ Кардинал играет и ищет ошибки (скорость ×%d)" % speed)
 	changed.emit()
 	await audit_models()
 	audit_done = true
@@ -128,6 +131,7 @@ func stop() -> void:
 	if not playing:
 		return
 	playing = false
+	_set_scale(1)
 	_flush_logger()
 	if _logger:
 		OS.remove_logger(_logger)
@@ -147,7 +151,30 @@ func stop() -> void:
 		roundi(Time.get_ticks_msec() / 1000.0 - started_at), c["ERROR"], c["WARNING"], c["INFO"]])
 	changed.emit()
 
+## Ускорение: время идёт быстрее, физика считается чаще (чтобы ничего не проскакивало сквозь стены)
+func set_speed(k: int) -> void:
+	speed = k
+	if playing:
+		_apply_speed()
+	changed.emit()
+
+func cycle_speed() -> void:
+	set_speed({1: 2, 2: 4, 4: 1}.get(speed, 1))
+
+func _apply_speed() -> void:
+	_set_scale(speed)
+	if _sp_btn:
+		_sp_btn.text = "×%d" % speed
+
+func _set_scale(k: int) -> void:
+	Fx.base_scale = float(k)
+	Engine.time_scale = float(k)
+	Engine.physics_ticks_per_second = 60 * k
+	Engine.max_physics_steps_per_frame = 8 * k
+
 func _exit_tree() -> void:
+	if playing:
+		_set_scale(1)
 	if _logger:
 		OS.remove_logger(_logger)
 		_logger = null
@@ -159,8 +186,8 @@ func _make_overlay() -> void:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	box.position = Vector2(-190, 74)
-	box.custom_minimum_size = Vector2(380, 34)
+	box.position = Vector2(-215, 74)
+	box.custom_minimum_size = Vector2(430, 34)
 	_overlay.add_child(box)
 	var bg := PanelContainer.new()
 	bg.add_theme_stylebox_override("panel", UiKit.box(Color(0.02, 0.06, 0.1, 0.8), Color(0.45, 0.8, 1, 0.6), 8, 4, 1))
@@ -168,6 +195,10 @@ func _make_overlay() -> void:
 	box.add_child(bg)
 	_ov_label = UiKit.label("", 12, Color(0.75, 0.92, 1))
 	bg.add_child(_ov_label)
+	_sp_btn = UiKit.button("×%d" % speed, false, 12)
+	_sp_btn.custom_minimum_size = Vector2(46, 34)
+	_sp_btn.pressed.connect(cycle_speed)
+	box.add_child(_sp_btn)
 	var b := UiKit.button("■ Стоп", false, 12)
 	b.custom_minimum_size = Vector2(80, 34)
 	b.pressed.connect(stop)

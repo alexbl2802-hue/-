@@ -178,6 +178,7 @@ func _build_environment() -> void:
 	var pm := ShaderMaterial.new()
 	pm.shader = load("res://shaders/post.gdshader")
 	pr.material = pm
+	Grade.mat = pm
 	post.add_child(pr)
 	add_child(post)
 	var we := WorldEnvironment.new()
@@ -203,6 +204,10 @@ func _apply_env(m: int) -> void:
 		_env.fog_depth_begin = 90.0
 		_env.fog_depth_end = Settings.VIEW[Settings.view]["fog"]
 		_sun.visible = true
+		if day_night:
+			day_night.apply()
+		else:
+			Grade.apply(Grade.DAY)
 	else:
 		var def: Dictionary = dungeons[m].def
 		var cave: bool = def["style"] == "cave"
@@ -220,6 +225,13 @@ func _apply_env(m: int) -> void:
 		_env.fog_depth_begin = 10.0 if cave else 6.0
 		_env.fog_depth_end = 60.0 if cave else 42.0
 		_sun.visible = false
+		match def["style"]:
+			"cave":
+				Grade.apply(Grade.CAVE)
+			"tower":
+				Grade.apply(Grade.BRIGHT)
+			_:
+				Grade.apply(Grade.CRYPT)
 	if _hero_light:
 		_hero_light.visible = m >= 0
 

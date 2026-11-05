@@ -8,6 +8,7 @@ var _status: Label
 var _loot: Label
 var _log: RichTextLabel
 var _play: Button
+var _speed: Button
 var _t := 0.0
 
 func _ready() -> void:
@@ -54,6 +55,13 @@ func _ready() -> void:
 				at.start(n)
 		_render())
 	vb.add_child(_play)
+	_speed = UiKit.button("", false, 14)
+	_speed.custom_minimum_size = Vector2(0, 40)
+	_speed.pressed.connect(func():
+		if CardinalDirector.autotest:
+			CardinalDirector.autotest.cycle_speed()
+		_render())
+	vb.add_child(_speed)
 	var chk := UiKit.button("Проверить анимации и скелеты", false, 14)
 	chk.custom_minimum_size = Vector2(0, 40)
 	chk.pressed.connect(func():
@@ -103,6 +111,8 @@ func _render() -> void:
 		_play.text = "■ Остановить автотест (ошибок %d, предупреждений %d)" % [n["ERROR"], n["WARNING"]]
 	else:
 		_play.text = "▶ Кардинал играет сам и ищет ошибки"
+	if at:
+		_speed.text = "Скорость автотеста: ×%d (нажми, чтобы сменить)" % at.speed
 	_loot.text = "Множитель добычи: ×%.1f" % CardinalDirector.loot_mult()
 	var lines: Array = core.event_log if core else []
 	var txt := "\n".join(lines.slice(maxi(0, lines.size() - 80))) if not lines.is_empty() else "Пока событий нет"

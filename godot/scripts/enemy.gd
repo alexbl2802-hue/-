@@ -204,7 +204,7 @@ const CHARS := {
 	"skeleton": {"glb": SKELETON_MODEL, "skin": "", "scale": 1.0, "stance": "Combat_Stance", "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "sword", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}, "hit": "Hit"},
 	"skeleton_king": {"glb": SKELETON_MODEL, "skin": "", "scale": 1.1, "stance": "Combat_Stance", "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "great", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}, "hit": "Hit"},
 	# Звери — присланные модели с движениями (meshy/beasts, tools/beasts_from_user.py)
-	"wolf": {"glb": WOLF_MODEL, "skin": "", "scale": 0.85, "stance": "Idle", "walk": ["Wolf_Walk", 0.75], "run": ["Wolf_Run", 4.9], "weapon": "", "atk": {"slash": ["Wolf_Bite", 0.35], "side": ["Wolf_Paw_Swipe", 0.35]}, "hit": "Hit", "aim": "Wolf_Tail_Spike_Shot", "tail": "Bone_015", "crown": Vector3(0, 1.55, 1.3)},
+	"wolf": {"glb": WOLF_MODEL, "spring": ["Bone_017", "Bone_015"], "skin": "", "scale": 0.85, "stance": "Idle", "walk": ["Wolf_Walk", 0.75], "run": ["Wolf_Run", 4.9], "weapon": "", "atk": {"slash": ["Wolf_Bite", 0.35], "side": ["Wolf_Paw_Swipe", 0.35]}, "hit": "Hit", "aim": "Wolf_Tail_Spike_Shot", "tail": "Bone_015", "crown": Vector3(0, 1.55, 1.3)},
 	"spider": {"glb": SPIDER_MODEL, "skin": "", "scale": 0.6, "stance": "Idle", "walk": ["Spider_Walk", 1.2], "run": ["Spider_Chase", 3.5], "weapon": "", "atk": {"slash": ["Spider_Double_Claw", 0.4]}, "hit": "Hit", "aim": "Spider_Venom_Spit", "crown": Vector3(0, 1.45, 0.6)},
 	"spider_queen": {"glb": SPIDER_MODEL, "skin": "", "scale": 0.8, "stance": "Idle", "walk": ["Spider_Walk", 1.2], "run": ["Spider_Chase", 3.5], "weapon": "", "atk": {"slash": ["Spider_Double_Claw", 0.4]}, "hit": "Hit", "aim": "Spider_Venom_Spit", "crown": Vector3(0, 1.45, 0.6)},
 	"rabbit": {"glb": BUNNY_MODEL, "skin": "bunny", "scale": 0.9, "walk": ["Walking", 0.9], "run": ["Running", 3.0], "weapon": "", "atk": {"slash": ["Boxing_Guard_Prep_Straight_Punch", 0.75], "kick": ["Flying_Fist_Kick", 0.9]}},
@@ -219,6 +219,7 @@ func _attach_char() -> void:
 	_char.scale = Vector3.ONE * C["scale"]
 	_model.add_child(_char)
 	_ap = _char.find_children("*", "AnimationPlayer", true, false)[0]
+	_add_spring()
 	_ap.playback_default_blend_time = 0.15
 	for n in [_stance(), C["walk"][0], C["run"][0]]:
 		if _ap.has_animation(n):
@@ -248,6 +249,29 @@ func _attach_char() -> void:
 			_tail_tip = Node3D.new()
 			att.add_child(_tail_tip)
 			_tail_tip.position = Vector3(0, 0.3, 0)
+
+## Живой хвост: кости хвоста качаются по инерции поверх анимации (SpringBoneSimulator3D)
+func _add_spring() -> void:
+	if not C.has("spring") or not ClassDB.class_exists("SpringBoneSimulator3D"):
+		return
+	var sks := _char.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		return
+	var sk: Skeleton3D = sks[0]
+	if sk.find_bone(C["spring"][0]) < 0 or sk.find_bone(C["spring"][1]) < 0:
+		return
+	var sb := SpringBoneSimulator3D.new()
+	sb.name = "TailSpring"
+	sk.add_child(sb)
+	sb.set_setting_count(1)
+	sb.set_root_bone_name(0, C["spring"][0])
+	sb.set_end_bone_name(0, C["spring"][1])
+	sb.set_extend_end_bone(0, true)
+	sb.set_end_bone_length(0, 0.25)
+	sb.set_stiffness(0, 1.6)
+	sb.set_drag(0, 0.35)
+	sb.set_gravity(0, 0.3)
+	sb.set_radius(0, 0.02)
 
 func _stance() -> String:
 	return C.get("stance", "Combat_Stance")

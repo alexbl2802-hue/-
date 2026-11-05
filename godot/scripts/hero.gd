@@ -697,6 +697,34 @@ func _apply_armor_skin(key: String) -> void:
 ## Мантия Теневого стража — модель на скелете героя (tools/blender/fit_cloak.py), видна, когда надета
 const MANTLE_PATH := "res://models/cloak_mantle.glb"
 var _mantle: MeshInstance3D
+const CLOTH_SHADER := preload("res://shaders/cloth.gdshader")
+var _cloth_mats: Array = []
+var _cloth_lag := Vector3.ZERO      # отставание низа плаща (мир, м)
+var _cloth_vel := Vector3.ZERO      # скорость пружины
+var _prev_vel := Vector3.ZERO
+
+## Пружина плаща: низ отстаёт от движения (бег — полы назад, остановка — вперёд по инерции,
+## прыжок — вверх, падение — подлетают), плюс ветер
+func _update_cloth(dt: float) -> void:
+	if _cloth_mats.is_empty() or _mantle == null or not _mantle.visible or dt <= 0.0:
+		return
+	var v := velocity
+	var acc := (v - _prev_vel) / dt
+	_prev_vel = v
+	var wind := Vector3(sin(_time * 0.7), 0, cos(_time * 0.53)) * 0.04
+	var target := Vector3(-v.x, 0, -v.z) * 0.045 + Vector3(0, clampf(-v.y * 0.03, -0.05, 0.25), 0) + wind
+	target -= Vector3(acc.x, 0, acc.z) * 0.004
+	if target.length() > 0.42:
+		target = target.normalized() * 0.42
+	# Пружина с затуханием — полы качаются и успокаиваются
+	_cloth_vel += ((target - _cloth_lag) * 60.0 - _cloth_vel * 9.0) * dt
+	_cloth_lag += _cloth_vel * dt
+	var run := clampf(Vector2(v.x, v.z).length() / RUN, 0.0, 1.0)
+	for m in _cloth_mats:
+		m.set_shader_parameter("lag", _cloth_lag)
+		m.set_shader_parameter("flutter", 0.25 + run * 1.0)
+		m.set_shader_parameter("hero_y", global_position.y)
+		m.set_shader_parameter("top_h", 1.42 * CHAR_SCALE)
 
 func _show_cloak() -> void:
 	var e = Game.equip.get("cloak")
@@ -715,10 +743,18 @@ func _show_cloak() -> void:
 		for si in mi.mesh.get_surface_count():
 			var m := mi.get_active_material(si)
 			if m is BaseMaterial3D:
-				m = m.duplicate()
-				m.cull_mode = BaseMaterial3D.CULL_DISABLED   # полы видны и с изнанки
-				Mats.toon(m)
-				mi.set_surface_override_material(si, m)
+				# Живая ткань: полы отстают от движения и колышутся (shaders/cloth.gdshader)
+				var b := m as BaseMaterial3D
+				var cm := ShaderMaterial.new()
+				cm.shader = CLOTH_SHADER
+				cm.set_shader_parameter("albedo_tex", b.albedo_texture)
+				cm.set_shader_parameter("albedo_color", b.albedo_color)
+				if b.normal_enabled and b.normal_texture:
+					cm.set_shader_parameter("normal_tex", b.normal_texture)
+					cm.set_shader_parameter("has_normal", true)
+				cm.set_shader_parameter("roughness", b.roughness)
+				mi.set_surface_override_material(si, cm)
+				_cloth_mats.append(cm)
 		_mantle = mi
 	if _mantle:
 		_mantle.visible = on
@@ -1088,6 +1124,10 @@ func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 	if crit:
 		dmg *= 2
 	e.hit(dmg, dir, crit)
+	# Искры, вспышка, короткая остановка кадра и тряска — в точке удара (на стороне героя)
+	var r: float = e.T.get("r", 0.5) * float(e.T.get("scale", 1.0))
+	var at: Vector3 = e.global_position + Vector3(0, clampf(float(e.T.get("bar", 2.0)) * 0.42, 0.5, 2.2), 0) - dir.normalized() * r * 0.7
+	Fx.impact(at, dir, crit, e.dead, rig)
 	var vamp := Game.rank("vamp") * 0.04
 	if vamp > 0.0 and not dead:
 		Game.hp = minf(Game.max_hp, Game.hp + dmg * vamp)
@@ -1327,7 +1367,9 @@ func _physics_process(dt: float) -> void:
 	if swimming:
 		speed *= 0.5
 	if attack_t >= 0.0:
-		speed *= 0.45
+		# Удар на всё тело (стоя или медленно): ноги стоят на месте — и герой не едет, иначе ступни
+		# скользят по земле. На бегу удар берёт только верх тела, ноги бегут — тогда двигаемся.
+		speed *= 0.45 if _ha and _ha._upper else 0.0
 	var was_blocking := blocking
 	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0 and _move == ""
 	if blocking and not was_blocking:
@@ -1370,6 +1412,7 @@ func _physics_process(dt: float) -> void:
 			_model.visible = true
 			if ATTACK_RINGS:
 				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
+	_update_cloth(dt)
 	hv += _push
 	_push *= exp(-dt * 7.0)
 	velocity.x = hv.x

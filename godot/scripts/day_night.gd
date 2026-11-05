@@ -77,6 +77,7 @@ func apply() -> void:
 	sun.light_color = WorldGen.hex(0xfff1d6).lerp(WorldGen.hex(0xffa860), dusk)
 	sun.shadow_enabled = d > 0.2 and Settings.shadows
 	moon.light_energy = 0.55 * (1.0 - d)
+	Grade.sky(d, dusk * 1.4)
 	# Небо и туман
 	var top := WorldGen.hex(SKY_NIGHT[0]).lerp(WorldGen.hex(SKY_DAY[0]), d)
 	var hor := WorldGen.hex(SKY_NIGHT[1]).lerp(WorldGen.hex(SKY_DAY[1]), d).lerp(WorldGen.hex(SKY_DUSK), dusk * 0.6)
