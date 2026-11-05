@@ -162,7 +162,7 @@ const CHAR_SCALE := 1.05
 const GRIP_TILT := 10.0      # наклон клинка от поперечного к пальцам, градусы
 const SHOW_GEAR := true   # надетое снаряжение видно на герое (накладки на костях модели)
 const A_IDLE := "Idle"         # дыхание и осмотр (есть у Shadowwarden)
-const A_STANCE := "Combat_Idle"   # стойка на месте — присланный клип (спокойная, меч в руке)
+const A_STANCE := "Combat_Stance"   # стойка на месте — из присланного файла (меч в сжатой руке)
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
@@ -178,6 +178,13 @@ var in_world2 := false       # герой на Плато ветров (втор
 var _ragdoll := Ragdoll.new()  # падение по физике при гибели
 var _feet: FootIK            # стопы встают на склон, когда герой стоит
 var _ha: HeroAnim            # дерево анимаций (если у модели есть все нужные анимации)
+## Шаг тела в ударах (root motion): как таз уходит вперёд в клипе (models/hero_rootmotion.json,
+## tools/rig_from_mannequin.py). В самом клипе таз на месте — героя двигает игра, ноги не скользят.
+const ROOT_MOTION_PATH := "res://models/hero_rootmotion.json"
+var _rm := {}                # клип → PackedFloat32Array смещения вперёд (м) по кадрам 60 Гц
+var _rm_key := ""
+var _rm_prev := 0.0
+var _rm_t := 0.0
 const LOCO_WALK_FROM := 0.6    # м/с: с этой скорости — шаг
 const LOCO_FAST_FROM := 2.6    # отсюда шаг плавно переходит в бег
 const LOCO_FAST_FULL := 4.0
@@ -240,7 +247,7 @@ func _attach_character() -> void:
 		var hg := HandGrip.new()   # сжимает пальцы в кулак поверх анимации
 		sk.add_child(hg)
 		hg.setup(sk, "Right")
-		var fist := _fist_grip(sk, _anim.get_animation(A_SLASH), hg)
+		var fist := _fist_grip(sk, _anim.get_animation(A_STANCE if _anim.has_animation(A_STANCE) else A_SLASH), hg)
 		hg.queue_free()   # пальцы — только из клипов Meshy, без своей позы
 		if not fist.is_empty():
 			var axis := Vector3.UP   # ось кисти (от запястья к пальцам) в системе кости
@@ -283,12 +290,45 @@ func _attach_character() -> void:
 	_trail = SwordTrail.new()
 	add_child(_trail)
 	_sk = sk
+	_load_root_motion()
 	# Ноги на склонах
 	var feet := FootIK.new()
 	add_child(feet)
 	if feet.setup(self, sk):
 		_feet = feet
 	update_look()
+
+func _load_root_motion() -> void:
+	if not FileAccess.file_exists(ROOT_MOTION_PATH):
+		return
+	var d = JSON.parse_string(FileAccess.get_file_as_string(ROOT_MOTION_PATH))
+	if d is Dictionary:
+		for k in d.get("clips", {}):
+			_rm[k] = PackedFloat32Array(d["clips"][k])
+
+func _rm_at(c: PackedFloat32Array, t: float) -> float:
+	var x := clampf(t * 60.0, 0.0, c.size() - 1.001)
+	var i := int(x)
+	return lerpf(c[i], c[i + 1], x - i)
+
+## Скорость от шага в клипе удара (только удар на всё тело — на бегу ногами правит бег)
+func _root_motion(dt: float) -> Vector3:
+	if attack_t < 0.0 or _ha == null or _ha._upper or _move != "" or dt <= 0.0:
+		_rm_key = ""
+		return Vector3.ZERO
+	var clip: String = _ha._names.get(_ha.current(), "")
+	if not _rm.has(clip):
+		_rm_key = ""
+		return Vector3.ZERO
+	var a := _rm_at(_rm[clip], _ha.act_time)
+	var key := _ha.current()
+	if key != _rm_key or _ha.act_time < _rm_t:
+		_rm_key = key
+		_rm_prev = a
+	_rm_t = _ha.act_time
+	var d := (a - _rm_prev) * CHAR_SCALE
+	_rm_prev = a
+	return Vector3(sin(facing), 0, cos(facing)) * clampf(d / dt, -7.0, 7.0)
 
 ## Где у сжатого кулака середина (там лежит рукоять) и куда смотрит поперечная ось ладони:
 ## по суставам четырёх пальцев в позе анимации (в системе кости кисти).
@@ -321,7 +361,7 @@ func _fist_grip(sk: Skeleton3D, anim: Animation, hg: HandGrip) -> Array:
 			if b < 0:
 				break
 			var r: Quaternion = rot.get(b, sk.get_bone_rest(b).basis.get_rotation_quaternion())
-			if curl.has(b):
+			if curl.has(b) and not rot.has(b):   # клип без пальцев — сжать; с пальцами — как в клипе
 				r = r * curl[b]
 			tr = tr * Transform3D(Basis(r), sk.get_bone_rest(b).origin)
 			pts.append(tr.origin)
@@ -821,11 +861,12 @@ const RUN_FIGHT := "Sword_Run"                      # бег, когда ряд�
 const RUN_FIGHT_STRIDE := 3.0
 const FIGHT_NEAR := 12.0
 ## Комбо из трёх ударов: [клип, момент удара в клипе (с)]
-const ATTACK_CLIPS := [["Sword_Diagonal_Slash", 0.29], ["Sword_Horizontal_Slash", 0.29], ["Charged_Upward_Slash", 1.03]]
+## (два удара — отрезки серии Double_Combo_Attack, третий — сильный удар из Attack; tools/rig_from_mannequin.py)
+const ATTACK_CLIPS := [["Double_Combo_Attack", 0.63], ["Double_Combo_Attack", 1.17], ["Attack", 1.07]]
 const ATTACK_SEG := 0.8        # сколько секунд клипа занимает один удар героя
 ## Приёмы меча: тип оружия → [клип, момент (первого) удара, темп]
 const ART_CLIPS := {"sword": ["Thrust_Slash", 0.73, 1.0], "great": ["Charged_Slash", 1.2, 1.0], "rapier": ["Triple_Combo_Attack", 0.77, 2.4], "dagger": ["Weapon_Combo_2", 1.3, 1.6]}
-const BLOCK_CLIP := ["Sword_Parry", 0.6]
+const BLOCK_CLIP := ["Block10", 0.35]
 const REACTIONS := ["hit_heavy", "stun", "knockdown", "getup"]
 var _move := ""
 var _move_t := 0.0
@@ -1413,6 +1454,7 @@ func _physics_process(dt: float) -> void:
 			if ATTACK_RINGS:
 				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
 	_update_cloth(dt)
+	hv += _root_motion(dt)
 	hv += _push
 	_push *= exp(-dt * 7.0)
 	velocity.x = hv.x

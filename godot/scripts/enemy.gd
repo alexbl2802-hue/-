@@ -196,13 +196,14 @@ const WOLF_MODEL := "res://models/wolf.glb"
 const SKELETON_MODEL := "res://models/skeleton.glb"   # присланный скелет-воин со своими движениями
 const SPIDER_MODEL := "res://models/spider.glb"
 const SKIN_DIR := "res://models/skins/"
-const CHAR_ATK := {"slash": ["Charged_Slash", 1.1], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}
+## Удары монстров-людей — из присланного файла (tools/rig_from_mannequin.py): [клип, момент удара]
+const CHAR_ATK := {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Attack", 1.07], "side": ["Axe_Spin_Attack", 0.87]}
 const CHARS := {
 	"goblin": {"glb": GOBLIN_MODEL, "skin": "goblin", "scale": 0.92, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "club", "atk": CHAR_ATK},
 	"kobold": {"glb": GOBLIN_MODEL, "skin": "kobold", "scale": 1.0, "walk": ["Walk_Fight_Forward", 0.6], "run": ["Running", 3.45], "weapon": "sword", "atk": CHAR_ATK},
-	"golem": {"glb": GOBLIN_MODEL, "skin": "golem", "scale": 1.55, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "", "atk": {"slash": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}},
-	"skeleton": {"glb": SKELETON_MODEL, "skin": "", "scale": 1.0, "stance": "Combat_Stance", "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "sword", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}, "hit": "Hit"},
-	"skeleton_king": {"glb": SKELETON_MODEL, "skin": "", "scale": 1.1, "stance": "Combat_Stance", "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "great", "atk": {"slash": ["Double_Combo_Attack", 0.63], "overhead": ["Charged_Upward_Slash", 1.03], "side": ["Left_Slash", 0.7]}, "hit": "Hit"},
+	"golem": {"glb": GOBLIN_MODEL, "skin": "golem", "scale": 1.55, "walk": ["Slow_Orc_Walk", 0.27], "run": ["Running", 3.45], "weapon": "", "atk": {"slash": ["Attack", 1.07], "side": ["Charged_Slash", 1.17]}},
+	"skeleton": {"glb": SKELETON_MODEL, "skin": "", "scale": 1.0, "stance": "Combat_Stance", "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "sword", "atk": CHAR_ATK, "hit": "Hit"},
+	"skeleton_king": {"glb": SKELETON_MODEL, "skin": "", "scale": 1.1, "stance": "Combat_Stance", "walk": ["Walk_Fight_Forward", 0.6], "run": ["Lean_Forward_Sprint", 3.2], "weapon": "great", "atk": CHAR_ATK, "hit": "Hit"},
 	# Звери — присланные модели с движениями (meshy/beasts, tools/beasts_from_user.py)
 	"wolf": {"glb": WOLF_MODEL, "spring": ["Bone_017", "Bone_015"], "skin": "", "scale": 0.85, "stance": "Idle", "walk": ["Wolf_Walk", 0.75], "run": ["Wolf_Run", 4.9], "weapon": "", "atk": {"slash": ["Wolf_Bite", 0.35], "side": ["Wolf_Paw_Swipe", 0.35]}, "hit": "Hit", "aim": "Wolf_Tail_Spike_Shot", "tail": "Bone_015", "crown": Vector3(0, 1.55, 1.3)},
 	"spider": {"glb": SPIDER_MODEL, "skin": "", "scale": 0.6, "stance": "Idle", "walk": ["Spider_Walk", 1.2], "run": ["Spider_Chase", 3.5], "weapon": "", "atk": {"slash": ["Spider_Double_Claw", 0.4]}, "hit": "Hit", "aim": "Spider_Venom_Spit", "crown": Vector3(0, 1.45, 0.6)},

@@ -859,3 +859,157 @@ if __name__ == "__main__":
         trees(*sys.argv[2:])
     elif sys.argv[1] == "shadowclaw":
         shadowclaw(*sys.argv[2:4])
+
+
+# ---------- Перенос анимаций между скелетами с разной позой покоя (Т-поза ↔ А-поза)
+
+def _node_globals(j):
+    """Мировые положения и повороты покоя всех узлов: {узел: (позиция, кватернион)}."""
+    par = {}
+    for i, n in enumerate(j["nodes"]):
+        for c in n.get("children", []):
+            par[c] = i
+    out = {}
+
+    def get(i):
+        if i in out:
+            return out[i]
+        n = j["nodes"][i]
+        t = np.array(n.get("translation", [0, 0, 0]), np.float64)
+        r = rest_rot(n)
+        if i in par:
+            pp, pr = get(par[i])
+            out[i] = (pp + _qrot(pr, t), qmul(pr, r))
+        else:
+            out[i] = (t, r)
+        return out[i]
+    for i in range(len(j["nodes"])):
+        get(i)
+    return out
+
+
+def _qrot(q, v):
+    qv = np.array([v[0], v[1], v[2], 0.0])
+    return qmul(qmul(q, qv), qinv(q))[:3]
+
+
+def _q_between(a, b):
+    """Кратчайший поворот, переводящий направление a в b."""
+    a = a / np.linalg.norm(a)
+    b = b / np.linalg.norm(b)
+    c = np.cross(a, b)
+    d = float(np.dot(a, b))
+    if d < -0.9999:
+        ax = np.cross(a, [1.0, 0, 0])
+        if np.linalg.norm(ax) < 1e-6:
+            ax = np.cross(a, [0, 1.0, 0])
+        ax /= np.linalg.norm(ax)
+        return np.array([ax[0], ax[1], ax[2], 0.0])
+    q = np.array([c[0], c[1], c[2], 1.0 + d])
+    return q / np.linalg.norm(q)
+
+
+# Куда «смотрит» кость: на какого потомка (по имени Mixamo без приставки)
+_AIM = {"Hips": "Spine", "Spine2": "Neck", "Neck": "Head", "LeftHand": "LeftHandMiddle1", "RightHand": "RightHandMiddle1",
+        "LeftLeg": "LeftFoot", "RightLeg": "RightFoot", "LeftFoot": "LeftToeBase", "RightFoot": "RightToeBase",
+        "LeftUpLeg": "LeftLeg", "RightUpLeg": "RightLeg", "LeftArm": "LeftForeArm", "RightArm": "RightForeArm",
+        "LeftForeArm": "LeftHand", "RightForeArm": "RightHand", "LeftShoulder": "LeftArm", "RightShoulder": "RightArm",
+        "Spine": "Spine1", "Spine1": "Spine2", "Head": "HeadTop_End"}
+
+
+def _aim_child(names, parent, nm):
+    """Имя потомка, на которого направлена кость (если есть в скелете)."""
+    if nm in _AIM and _AIM[nm] in names:
+        return _AIM[nm]
+    # пальцы: Index1 → Index2 …
+    for k in ("1", "2", "3"):
+        if nm.endswith(k):
+            nxt = nm[:-1] + str(int(k) + 1)
+            if nxt in names:
+                return nxt
+    kids = [n for n, i in names.items() if parent.get(i) == names[nm]]
+    return kids[0] if kids else None
+
+
+def retarget_dir(tj, src_path, name_map=None, only=None):
+    """Как retarget, но для скелетов с разной позой покоя: направление каждой кости цели совпадает с
+    направлением той же кости источника (на того же потомка), скрутка вокруг кости — как в покое.
+    Поворот цели = поворот источника · покой_источника⁻¹ · (выравнивание · покой_цели).
+    only — множество имён клипов (None — все)."""
+    sj, sb = read_glb(src_path)
+    if name_map:
+        for n in sj["nodes"]:
+            if n.get("name") in name_map:
+                n["name"] = name_map[n["name"]]
+    s_names, s_parent = bone_tree(sj)
+    t_names, t_parent = bone_tree(tj)
+    sg, tg = _node_globals(sj), _node_globals(tj)
+    common = [n for n in t_names if n in s_names and t_names[n] in set(tj["skins"][0]["joints"])]
+    # выровненный покой цели: её кость направлена туда же, куда кость источника в его покое
+    aligned = {}
+    for nm in common:
+        ti, si = t_names[nm], s_names[nm]
+        ch = _aim_child(t_names, t_parent, nm)
+        rt = tg[ti][1]
+        if ch and ch in s_names:
+            dt = tg[t_names[ch]][0] - tg[ti][0]
+            ds = sg[s_names[ch]][0] - sg[si][0]
+            if np.linalg.norm(dt) > 1e-6 and np.linalg.norm(ds) > 1e-6:
+                rt = qmul(_q_between(dt, ds), rt)
+        aligned[nm] = qmul(qinv(sg[si][1]), rt)   # смещение кадра цели в системе кости источника
+    out = []
+    for anim in sj["animations"]:
+        if only is not None and anim["name"] not in only:
+            continue
+        rot, tr = {}, {}
+        raw = []
+        for ch in anim["channels"]:
+            smp = anim["samplers"][ch["sampler"]]
+            node = ch["target"]["node"]
+            nm = sj["nodes"][node].get("name", "").split(":")[-1]
+            t_ = accessor(sj, sb, smp["input"]).astype(np.float64)
+            vals = accessor(sj, sb, smp["output"]).astype(np.float64)
+            if ch["target"]["path"] in ("rotation", "translation"):
+                raw.append((nm, ch["target"]["path"], t_, vals))
+        times = max((r[2] for r in raw), key=len)
+        for nm, path, t_, vals in raw:
+            if len(t_) != len(times) or not np.allclose(t_, times):
+                vals = np.stack([np.interp(times, t_, vals[:, c]) for c in range(vals.shape[1])], 1)
+                if path == "rotation":
+                    vals /= np.linalg.norm(vals, axis=1, keepdims=True)
+            (rot if path == "rotation" else tr)[nm] = vals
+        F = len(times)
+        s_order = sorted(s_names, key=lambda n: _depth(s_names[n], s_parent))
+        s_glob = {}
+        for nm in s_order:
+            i = s_names[nm]
+            local = rot.get(nm, np.repeat(rest_rot(sj["nodes"][i])[None], F, 0))
+            p = s_parent.get(i)
+            pn = sj["nodes"][p].get("name", "").split(":")[-1] if p is not None else None
+            if pn in s_glob:
+                s_glob[nm] = qmul(s_glob[pn], local)
+            else:
+                base = sg[p][1] if p is not None else np.array([0, 0, 0, 1.0])
+                s_glob[nm] = qmul(np.repeat(base[None], F, 0), local)
+        t_order = sorted(common, key=lambda n: _depth(t_names[n], t_parent))
+        t_glob, tracks = {}, []
+        for nm in t_order:
+            i = t_names[nm]
+            g = qmul(s_glob[nm], aligned[nm][None])
+            p = t_parent.get(i)
+            pn = tj["nodes"][p].get("name", "").split(":")[-1] if p is not None else None
+            if pn in t_glob:
+                pg = t_glob[pn]
+            else:
+                pg = np.repeat((tg[p][1] if p is not None else np.array([0, 0, 0, 1.0]))[None], F, 0)
+            local = qmul(qinv(pg), g)
+            local /= np.linalg.norm(local, axis=1, keepdims=True)
+            t_glob[nm] = g
+            tracks.append((i, "rotation", local))
+        if "Hips" in tr:
+            sh = np.array(sj["nodes"][s_names["Hips"]].get("translation", [0, 1, 0]))
+            th = np.array(tj["nodes"][t_names["Hips"]].get("translation", [0, 1, 0]))
+            k = th[1] / sh[1]
+            tracks.append((t_names["Hips"], "translation", tr["Hips"] * k + (th - sh * k)))
+        out.append((anim["name"], times, tracks))
+    return out

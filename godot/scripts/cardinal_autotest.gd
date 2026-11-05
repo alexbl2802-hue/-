@@ -683,7 +683,9 @@ func _monitor(dt: float) -> void:
 		if Vector2(vel.x, vel.z).length() > 1.5 and probe.is_equal_approx(_hero_pose):
 			_hero_frozen_t += step
 			if _hero_frozen_t > 1.5:
-				add("ERROR", "HERO_ANIM", "Герой", "бежит, а анимация стоит на месте")
+				var ha = hero.get("_ha")
+				var what: String = ("«%s»%s" % [ha.current(), " (верх тела)" if ha._upper else ""]) if ha and ha.current() != "" else "ходьба"
+				add("ERROR", "HERO_ANIM", "Герой", "движется %.1f м/с, а анимация стоит на месте: %s" % [Vector2(vel.x, vel.z).length(), what])
 				_hero_frozen_t = 0.0
 		else:
 			_hero_frozen_t = 0.0
