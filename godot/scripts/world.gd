@@ -34,8 +34,10 @@ const TREE_MODELS := {
 const PINE_HEIGHT := 9.0        # высота ели при размере 1 (м)
 const OAK_HEIGHT := 8.0
 const TREE_CHUNK := 40.0        # деревья собраны по участкам 40×40 м
-const TREE_NEAR := 45.0         # ближе — подробная модель (~60 тыс. треугольников)
+const TREE_FULL := 25.0         # ближе — полная модель (у присланных деревьев — половина треугольников)
+const TREE_NEAR := 60.0         # до сюда — подробная копия (~60 тыс. треугольников, файл *_near)
 const TREE_MID := 130.0         # до сюда — средняя (~8 тыс.), дальше — лёгкая (~1,5 тыс.)
+const TREE_FULL_CHUNK := 8.0    # ближние деревья — мелкими участками: дальность считается почти до каждого дерева
 var _tree_far_nodes: Array = []
 
 ## Модель дерева: lod 0 — вблизи, 1 — среднее расстояние, 2 — вдали
@@ -44,7 +46,7 @@ func _near_tower(p: Vector3) -> bool:
 	return Vector2(p.x - TOWER_POS.x, p.z - TOWER_POS.y).length() < TOWER_R + 6.0
 
 func _tree_path(name: String, lod: int) -> String:
-	return "res://models/tree_%s%s.glb" % [name, ["", "_mid", "_far"][lod]]
+	return "res://models/tree_%s%s.glb" % [name, ["", "_near", "_mid", "_far"][lod]]
 
 func _build_tree_models(placed: Dictionary) -> void:
 	# Какие модели есть
@@ -62,12 +64,13 @@ func _build_tree_models(placed: Dictionary) -> void:
 		for nm in avail[kind]:
 			if not meshes.has(nm):
 				var lods := []
-				for lod in 3:
+				for lod in 4:
 					var path := _tree_path(nm, lod)
 					lods.append(_model_mesh(path) if ResourceLoader.exists(path) else (lods[-1] if lod > 0 else _model_mesh(_tree_path(nm, 0))))
 				meshes[nm] = lods
 	# Участки: [x, z, модель] → [Transform3D, цвет]
 	var chunks := {}
+	var full_chunks := {}   # полная модель — мелкие участки
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	for kind in placed:
@@ -84,42 +87,56 @@ func _build_tree_models(placed: Dictionary) -> void:
 			var pos: Vector3 = it[0]
 			var y: float = pos.y - box.position.y * k - 0.15
 			var tr := Transform3D(Basis(Vector3.UP, it[1]).scaled(Vector3.ONE * k), Vector3(pos.x, y, pos.z)) * (md["local"] as Transform3D)
+			var v := rng.randf_range(0.82, 1.08)   # деревья чуть разные по цвету
+			var item := [tr, Color(v, v * rng.randf_range(0.96, 1.04), v)]
 			var key := [floori(pos.x / TREE_CHUNK), floori(pos.z / TREE_CHUNK), nm]
 			if not chunks.has(key):
 				chunks[key] = []
-			var v := rng.randf_range(0.82, 1.08)   # деревья чуть разные по цвету
-			chunks[key].append([tr, Color(v, v * rng.randf_range(0.96, 1.04), v)])
+			chunks[key].append(item)
+			var fkey := [floori(pos.x / TREE_FULL_CHUNK), floori(pos.z / TREE_FULL_CHUNK), nm]
+			if not full_chunks.has(fkey):
+				full_chunks[fkey] = []
+			full_chunks[fkey].append(item)
+	for key in full_chunks:
+		_tree_multimesh(meshes, key[2], full_chunks[key], 0)
 	for key in chunks:
 		var list: Array = chunks[key]
-		for lod in 3:
-			var md: Dictionary = meshes[key[2]][lod]
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.use_colors = true
-			mm.mesh = md["mesh"]
-			mm.instance_count = list.size()
-			for i in list.size():
-				# Дальняя модель — та же посадка, своё смещение внутри файла
-				var t0: Transform3D = list[i][0]
-				if lod > 0:
-					t0 = t0 * (meshes[key[2]][0]["local"] as Transform3D).affine_inverse() * (md["local"] as Transform3D)
-				mm.set_instance_transform(i, t0)
-				mm.set_instance_color(i, list[i][1])
-			var mmi := MultiMeshInstance3D.new()
-			mmi.multimesh = mm
-			mmi.material_override = _tree_material(md["mesh"])
-			match lod:
-				0:
-					mmi.visibility_range_end = TREE_NEAR
-				1:
-					mmi.visibility_range_begin = TREE_NEAR
-					mmi.visibility_range_end = TREE_MID
-				2:
-					mmi.visibility_range_begin = TREE_MID
-					mmi.visibility_range_end = maxf(ROCK_VIEW * 1.4, TREE_MID + 50.0)
-					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-					_tree_far_nodes.append(mmi)
-			add_child(mmi)
+		for lod in range(1, 4):
+			_tree_multimesh(meshes, key[2], list, lod)
+
+## Одна ступень детализации деревьев одного вида на участке: MultiMesh с дальностью видимости
+func _tree_multimesh(meshes: Dictionary, nm: String, list: Array, lod: int) -> void:
+	var md: Dictionary = meshes[nm][lod]
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = md["mesh"]
+	mm.instance_count = list.size()
+	for i in list.size():
+		# Дальняя модель — та же посадка, своё смещение внутри файла
+		var t0: Transform3D = list[i][0]
+		if lod > 0:
+			t0 = t0 * (meshes[nm][0]["local"] as Transform3D).affine_inverse() * (md["local"] as Transform3D)
+		mm.set_instance_transform(i, t0)
+		mm.set_instance_color(i, list[i][1])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = _tree_material(md["mesh"])
+	match lod:
+		0:
+			mmi.visibility_range_end = TREE_FULL
+		1:
+			mmi.visibility_range_begin = TREE_FULL
+			mmi.visibility_range_end = TREE_NEAR
+		2:
+			mmi.visibility_range_begin = TREE_NEAR
+			mmi.visibility_range_end = TREE_MID
+		3:
+			mmi.visibility_range_begin = TREE_MID
+			mmi.visibility_range_end = maxf(ROCK_VIEW * 1.4, TREE_MID + 50.0)
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_tree_far_nodes.append(mmi)
+	add_child(mmi)
 
 ## Материал дерева: текстура модели × цвет экземпляра (лёгкая разница оттенков), не металл
 func _tree_material(mesh: Mesh) -> Material:
