@@ -18,7 +18,8 @@ func _ready() -> void:
 	var t0: Vector3 = main.hero.global_position
 	var shots := 0
 	var frames := 0
-	while frames < int(secs * 60):
+	# Кардинал сам проходит поле и сценарии и останавливается; secs — предел на случай зависания
+	while at.playing and frames < int(secs * 60):
 		await get_tree().physics_frame
 		frames += 1
 		if frames % 300 == 0:
@@ -27,7 +28,11 @@ func _ready() -> void:
 			shots += 1
 			print("t=%ds hero %s target %s issues %s" % [frames / 60, main.hero.global_position.round(), at._target.T.name if is_instance_valid(at._target) else "-", at.counts()])
 	print("moved from ", t0.round(), " to ", main.hero.global_position.round(), " kills ", Game.kills)
-	at.stop()
+	if at.playing:
+		at.stop()
+	print("ИТОГ: ", at._result_status(), " ", at.coverage())
+	for id in at.CHECK_NAMES:
+		print("  %-34s %-10s %s" % [at.CHECK_TITLES.get(id, id), at.checks[id]["status"], at.checks[id]["detail"]])
 	for k in at.issues:
 		var i: Dictionary = at.issues[k]
 		print("%s [%s] %s: %s (x%d)" % [i.sev, i.code, i.subject, i.msg, i["count"]])

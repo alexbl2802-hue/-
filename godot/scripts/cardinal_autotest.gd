@@ -58,7 +58,15 @@ var _coverage_time := 0.0
 var _combat_seen := false
 var _killed := 0
 var _run_seconds := 0.0
-const CHECK_NAMES := ["hero_movement", "hero_health", "enemy_spawn", "enemy_combat", "enemy_death", "loot", "inventory", "equipment", "skills", "boss", "dungeon", "npc", "trade", "quests", "save_load", "navigation_stall"]
+const CHECK_NAMES := ["hero_movement", "hero_health", "enemy_spawn", "enemy_combat", "enemy_death", "loot", "weapon_drop", "inventory", "equipment", "skills", "forge", "alchemist", "trade", "dungeon", "boss", "texture_clip", "script_errors", "performance", "save_load", "navigation_stall", "npc", "quests"]
+## Названия проверок для отчёта и окна
+const CHECK_TITLES := {"hero_movement": "Движение героя", "hero_health": "Здоровье героя", "enemy_spawn": "Появление монстров",
+	"enemy_combat": "Бой с монстрами", "enemy_death": "Смерть монстров", "loot": "Выпадение и подбор добычи",
+	"weapon_drop": "Выпадение оружия", "inventory": "Инвентарь", "equipment": "Снаряжение", "skills": "Навыки",
+	"forge": "Кузница", "alchemist": "Лавка алхимика", "trade": "Торговля", "dungeon": "Подземелья и этажи башни",
+	"boss": "Босс и лестница", "texture_clip": "Сквозь текстуры (стены, пол, камера)", "script_errors": "Ошибки скриптов и движка",
+	"performance": "Просадки кадров и лаги", "save_load": "Сохранение", "navigation_stall": "Застревания", "npc": "NPC", "quests": "Задания"}
+const FIELD_SECONDS := 60.0   # столько секунд игрового времени Кардинал сначала играет с монстрами
 const TEST_LIMIT_SECONDS := 900.0
 const SCENARIO_TIMEOUT := 25.0
 const MAX_RETRIES := 2
@@ -73,116 +81,218 @@ var _last_enemy_activity := 0.0
 var _last_enemy_hp := -1.0
 var _last_enemy_id := 0
 var _auto_complete := false
+var step := ""                 # что Кардинал сейчас проверяет (для окна и надписи)
+var _scripted := false         # идут сценарии — бот не управляет героем
+var _field_t := 0.0
+var _save_snapshot := ""       # сохранение до теста (возвращается после)
+var _start_pos := Vector3.ZERO
+# Сквозь текстуры
+var _clip := {"inside": 0, "void": 0, "camera": 0}
+var _void_t := 0.0
+# Производительность (реальное время кадра)
+var _perf := {"frames": 0, "time": 0.0, "worst": 0.0, "over50": 0, "over100": 0, "freezes": 0, "zones": {}}
+var _loot_seen := false
+var _loot_picked := false
+var _items_before := 0
+var _gold_before := 0
+var _stall_long := 0
+var _stall_short := 0
+var _stall_seq := 0
+var _stall_at := Vector3.INF
 
-func _register_scenarios() -> void:
-	registry.clear()
-	_scenario_order.clear()
-	var hud = main.get("hud") if is_instance_valid(main) else null
-	var enemies = main.get("enemies") if is_instance_valid(main) else null
-	var definitions := [
-		["hero_movement", is_instance_valid(hero)], ["hero_health", is_instance_valid(hero)],
-		["enemy_spawn", enemies != null], ["enemy_combat", enemies != null],
-		["enemy_death", enemies != null], ["loot", enemies != null],
-		["inventory", hud != null and hud.get("inventory") != null],
-		["equipment", Game.equip is Dictionary], ["skills", Game.skills is Dictionary],
-		["boss", main.get("mode") != null], ["dungeon", main.get("mode") != null],
-		["npc", main.get("town") != null], ["trade", main.get("town") != null],
-		["quests", false], ["save_load", true], ["navigation_stall", is_instance_valid(hero)]
-	]
-	for def in definitions:
-		var id: String = def[0]
-		registry[id] = {"available": bool(def[1]), "attempts": 0}
-		_scenario_order.append(id)
-		if not bool(def[1]):
-			checks[id] = {"status": "SKIPPED", "detail": "Интерфейс сценария не обнаружен; требуется адаптер"}
+func set_step(t: String) -> void:
+	step = t
+	changed.emit()
 
-func _record_scenario(id: String, status: String, detail: String) -> void:
-	scenario_log.append({"id": id, "status": status, "detail": detail, "attempt": _scenario_attempt, "seconds": snappedf(_test_elapsed, 0.1)})
+func _skip(id: String, detail: String) -> void:
+	if checks.has(id) and checks[id]["status"] == "NOT_TESTED":
+		checks[id] = {"status": "SKIPPED", "detail": detail}
+		changed.emit()
 
+## Есть ли пол под точкой (луч вниз до 6 м)
+func floor_under(p: Vector3) -> bool:
+	var space: PhysicsDirectSpaceState3D = hero.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0, 1.0, 0), p + Vector3(0, -6.0, 0))
+	q.exclude = [hero.get_rid()]
+	return not space.intersect_ray(q).is_empty()
+
+## Точка внутри неподвижной геометрии (стены, дома, скалы)?
+func _inside_static(p: Vector3) -> bool:
+	var space: PhysicsDirectSpaceState3D = hero.get_world_3d().direct_space_state
+	var q := PhysicsPointQueryParameters3D.new()
+	q.position = p
+	q.collide_with_areas = false
+	q.exclude = [hero.get_rid()]
+	for r in space.intersect_point(q, 4):
+		if r["collider"] is StaticBody3D:
+			return true
+	return false
+
+func _zone() -> String:
+	var m := int(main.get("mode")) if main.get("mode") != null else -1
+	if m >= 0:
+		return "подземелье"
+	if m == -2:
+		return "плато"
+	var p: Vector3 = hero.global_position
+	return "город" if WorldGen.town_dist(p.x, p.z) < WorldGen.TOWN_WALL else "лес и поля"
+
+## Кадр: реальное время (без ускорения автотеста)
+func _process(dt: float) -> void:
+	if not playing:
+		return
+	var real := dt / maxf(Engine.time_scale, 0.001)
+	if real <= 0.0 or real > 5.0:
+		return
+	_perf["frames"] += 1
+	_perf["time"] += real
+	_perf["worst"] = maxf(_perf["worst"], real)
+	if real > 0.05:
+		_perf["over50"] += 1
+	if real > 0.1:
+		_perf["over100"] += 1
+	if real > 0.5:
+		_perf["freezes"] += 1
+		add("WARNING", "FREEZE", "Производительность", "подвисание %.1f с — %s" % [real, _zone()])
+	var z := _zone()
+	var zr: Dictionary = _perf["zones"].get(z, {"frames": 0, "time": 0.0, "over50": 0})
+	zr["frames"] += 1
+	zr["time"] += real
+	if real > 0.05:
+		zr["over50"] += 1
+	_perf["zones"][z] = zr
+
+## Сквозь текстуры: герой внутри стены, пустота под ногами, камера внутри геометрии
+func _clip_check(step_t: float) -> void:
+	if hero.dead or hero.busy:
+		return
+	var p: Vector3 = hero.global_position
+	if _inside_static(p + Vector3(0, 1.0, 0)):
+		_clip["inside"] += 1
+		add("ERROR", "CLIP_INSIDE", "Сквозь текстуры", "герой внутри стены/здания у (%d, %d, %d) — %s" % [roundi(p.x), roundi(p.y), roundi(p.z), _zone()])
+	if hero.is_on_floor() or floor_under(p):
+		_void_t = 0.0
+	else:
+		_void_t += step_t
+		if _void_t > 1.5:
+			_clip["void"] += 1
+			add("ERROR", "CLIP_VOID", "Сквозь текстуры", "под героем пустота у (%d, %d, %d) — %s" % [roundi(p.x), roundi(p.y), roundi(p.z), _zone()])
+			_void_t = -5.0
+	var cam: Camera3D = hero.get_viewport().get_camera_3d()
+	if cam and _inside_static(cam.global_position):
+		_clip["camera"] += 1
+		add("WARNING", "CLIP_CAMERA", "Сквозь текстуры", "камера внутри стены/здания у (%d, %d, %d) — %s" % [roundi(cam.global_position.x), roundi(cam.global_position.y), roundi(cam.global_position.z), _zone()])
+
+## Подбор добычи: после убийства что-то выпало и попало в инвентарь или кошелёк
+func _loot_tick() -> void:
+	var loot = main.get("loot")
+	if loot and loot.get("_items") is Array and (loot._items as Array).size() > 0:
+		_loot_seen = true
+	var n := 0
+	for st in Game.inv:
+		n += int(st.get("n", 1))
+	if _loot_seen and (n > _items_before or Game.gold > _gold_before):
+		_loot_picked = true
+	_items_before = n
+	_gold_before = Game.gold
+
+## Ход теста: поле (бой с монстрами) → сценарии систем → итог
 func _scenario_tick(dt: float) -> void:
 	_test_elapsed += dt
-	if _test_elapsed >= TEST_LIMIT_SECONDS:
-		for id in checks:
-			if checks[id]["status"] == "NOT_TESTED":
-				checks[id] = {"status": "NOT_TESTED", "detail": "Не завершено: лимит времени тестирования"}
-		_auto_complete = true
-		stop()
+	if _scripted:
 		return
-	if _scenario_index >= _scenario_order.size():
-		_auto_complete = true
-		stop()
+	_field_t += dt
+	if _field_t < FIELD_SECONDS and _test_elapsed < TEST_LIMIT_SECONDS:
 		return
-	var id: String = _scenario_order[_scenario_index]
-	if checks[id]["status"] != "NOT_TESTED":
-		_record_scenario(id, checks[id]["status"], checks[id]["detail"])
-		_scenario_index += 1
-		_scenario_elapsed = 0.0
-		_scenario_attempt = 0
-		return
-	_scenario_elapsed += dt
-	# Сценарии с безопасной автономной проверкой состояния и интерфейса.
-	if id == "inventory":
-		var hud = main.get("hud")
-		var panel = hud.get("inventory") if hud != null else null
-		if panel != null and panel.has_method("open") and panel.has_method("close"):
-			panel.open()
-			var visible_ok: bool = bool(panel.visible)
-			panel.close()
-			if visible_ok:
-				_pass(id, "Окно инвентаря открывается и закрывается")
-			else:
-				_fail(id, "Окно инвентаря не стало видимым")
-		else:
-			checks[id] = {"status": "SKIPPED", "detail": "Нет интерфейса открытия инвентаря"}
-	elif id == "equipment":
-		var valid := true
-		for slot in Game.equip:
-			var item = Game.equip[slot]
-			if item != null and (not item is Dictionary or not item.has("id")):
-				valid = false
-		if valid:
-			checks[id] = {"status": "SKIPPED", "detail": "Слоты корректны, но нет безопасного адаптера реальной экипировки"}
-		else:
-			_fail(id, "Некорректная запись экипировки")
-	elif id == "skills":
-		var valid := true
-		for rank in Game.skills.values():
-			if int(rank) < 0:
-				valid = false
-		if valid:
-			checks[id] = {"status": "SKIPPED", "detail": "Ранги корректны; отдельный сценарий применения навыка не подтверждён"}
-		else:
-			_fail(id, "Отрицательный уровень навыка")
-	elif id == "save_load":
-		var test_path := "user://cardinal_test_roundtrip.json"
-		var sample := {"inventory": Game.inv.duplicate(true), "equipment": Game.equip.duplicate(true), "skills": Game.skills.duplicate(true)}
-		var f := FileAccess.open(test_path, FileAccess.WRITE)
-		if f == null:
-			_fail(id, "Невозможно записать изолированный тестовый файл")
-		else:
-			f.store_string(JSON.stringify(sample))
-			f.close()
-			var parsed = JSON.parse_string(FileAccess.get_file_as_string(test_path))
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path))
-			if parsed is Dictionary and parsed.has("inventory") and parsed.has("equipment") and parsed.has("skills"):
-				_pass(id, "Изолированная запись и чтение JSON прошли успешно; реальное сохранение не изменялось")
-			else:
-				_fail(id, "Не удалось прочитать тестовый JSON")
-	if checks[id]["status"] != "NOT_TESTED":
-		return
-	if _scenario_elapsed >= SCENARIO_TIMEOUT:
-		_record_scenario(id, "TIMEOUT", "Сценарий не подтвердил ожидаемый результат")
-		if _scenario_attempt < MAX_RETRIES:
-			_scenario_attempt += 1
-			registry[id]["attempts"] = _scenario_attempt
-			_scenario_elapsed = 0.0
-			_target = null
-			_wp = Vector3.INF
-			_detour_t = 0.0
-		else:
-			checks[id] = {"status": "NOT_TESTED", "detail": "Нет подтверждения после %d попыток; нужен специальный тестовый адаптер" % (_scenario_attempt + 1)}
-			changed.emit()
+	_scripted = true
+	_run_scenarios()
 
+func _run_scenarios() -> void:
+	var t: Node = hero.get("touch")
+	if t:
+		t.move = Vector2.ZERO
+		t.run = false
+		t.block = false
+	set_step("сценарии")
+	# Итоги полевой части
+	if _loot_seen and _loot_picked:
+		_pass("loot", "Из монстров выпадает добыча и подбирается в инвентарь/кошелёк")
+	elif _loot_seen:
+		_fail("loot", "Добыча выпадала, но не подобралась")
+	var sc: CardinalScenarios = CardinalScenarios.new(self)
+	await sc.run()
+	if not playing:
+		return
+	_finish_checks()
+	_auto_complete = true
+	stop()
+
+func _finish_checks() -> void:
+	# Ошибки скриптов и движка за весь тест
+	var eng := 0
+	var first := ""
+	for k in issues:
+		var i: Dictionary = issues[k]
+		if i["code"] == "ENGINE" and i["sev"] == "ERROR":
+			eng += i["count"]
+			if first == "":
+				first = "%s: %s" % [i["subject"], i["msg"]]
+	if eng == 0:
+		_pass("script_errors", "Ни одной ошибки скриптов и движка за весь тест")
+	else:
+		_fail("script_errors", "Ошибок: %d, первая — %s" % [eng, first])
+	# Сквозь текстуры
+	if _clip["inside"] + _clip["void"] + _clip["camera"] == 0:
+		_pass("texture_clip", "Герой ни разу не оказался внутри стен, над пустотой; камера не заходила в стены")
+	else:
+		_fail("texture_clip", "Внутри стен: %d, пустота под ногами: %d, камера в стене: %d (места — в списке находок)" % [_clip["inside"], _clip["void"], _clip["camera"]])
+	# Производительность
+	var fr: int = _perf["frames"]
+	if fr > 0:
+		var avg: float = fr / maxf(_perf["time"], 0.001)
+		var zones: Array = []
+		for z in _perf["zones"]:
+			var zr: Dictionary = _perf["zones"][z]
+			zones.append("%s %.0f к/с" % [z, zr["frames"] / maxf(zr["time"], 0.001)])
+		var detail := "в среднем %.0f кадров/с (%s); кадров дольше 50 мс: %d, дольше 100 мс: %d; подвисаний >0,5 с: %d, худший кадр %.2f с" % [
+			avg, ", ".join(zones), _perf["over50"], _perf["over100"], _perf["freezes"], _perf["worst"]]
+		if avg >= 25.0 and _perf["freezes"] == 0 and float(_perf["over100"]) / fr < 0.05:
+			_pass("performance", detail)
+		else:
+			_fail("performance", detail)
+	# Застревания
+	if _stall_long == 0:
+		_pass("navigation_stall", "Ловушек нет: герой нигде не застревал надолго (коротких остановок у препятствий: %d)" % _stall_short)
+	else:
+		_fail("navigation_stall", "Ловушек на карте: %d (места — в списке находок); коротких остановок: %d" % [_stall_long, _stall_short])
+	for id in checks:
+		if checks[id]["status"] == "NOT_TESTED":
+			checks[id] = {"status": "NOT_TESTED", "detail": "Не подтверждено за время теста"}
+
+## Сохранение игры до теста — после теста возвращается как было
+func _snapshot() -> void:
+	Game.save_game()
+	_save_snapshot = FileAccess.get_file_as_string(Game.SAVE_PATH) if FileAccess.file_exists(Game.SAVE_PATH) else ""
+	_start_pos = hero.global_position
+
+func _restore() -> void:
+	if int(main.get("mode")) != -1 and main.has_method("_set_mode"):
+		main._set_mode(-1)
+	if _save_snapshot != "":
+		var f := FileAccess.open(Game.SAVE_PATH, FileAccess.WRITE)
+		if f:
+			f.store_string(_save_snapshot)
+			f.close()
+		Game.load_game()
+		Game.refresh()
+	hero.global_position = _start_pos
+	hero.velocity = Vector3.ZERO
+	if hero.has_method("update_look"):
+		hero.update_look()
+	for pn in ["inventory", "forge", "alchemist"]:
+		var pnl = main.hud.get(pn)
+		if pnl and pnl.visible and pnl.has_method("close"):
+			pnl.close()
 
 func _init_checks() -> void:
 	checks.clear()
@@ -315,7 +425,22 @@ func start(m: Node) -> void:
 		return
 	issues.clear()
 	_init_checks()
-	_register_scenarios()
+	registry.clear()
+	step = "бой с монстрами"
+	_scripted = false
+	_field_t = 0.0
+	_clip = {"inside": 0, "void": 0, "camera": 0}
+	_void_t = 0.0
+	_perf = {"frames": 0, "time": 0.0, "worst": 0.0, "over50": 0, "over100": 0, "freezes": 0, "zones": {}}
+	_loot_seen = false
+	_loot_picked = false
+	_stall_long = 0
+	_stall_short = 0
+	_stall_seq = 0
+	_stall_at = Vector3.INF
+	_gold_before = Game.gold
+	_items_before = 0
+	_snapshot()
 	scenario_log.clear()
 	_scenario_index = 0
 	_scenario_elapsed = 0.0
@@ -347,6 +472,7 @@ func stop() -> void:
 		return
 	playing = false
 	_set_scale(1)
+	_restore()
 	_flush_logger()
 	if _logger:
 		OS.remove_logger(_logger)
@@ -728,7 +854,7 @@ func _physics_process(dt: float) -> void:
 	_monitor(dt)
 	_coverage_tick(dt)
 	_scenario_tick(dt)
-	if not playing:
+	if not playing or _scripted:
 		return
 	if hero.dead:
 		touch.move = Vector2.ZERO
@@ -798,6 +924,13 @@ func _physics_process(dt: float) -> void:
 		var moved := Vector2(hp.x - _stuck_pos.x, hp.z - _stuck_pos.z).length()
 		if mv.length() > 0.5 and moved < 0.6 and not hero.busy and hero.get("attack_t") < 0.0:
 			add("WARNING", "HERO_STUCK", "Герой", "застрял у (%d, %d, %d)" % [roundi(hp.x), roundi(hp.y), roundi(hp.z)])
+			_stall_short += 1
+			# в одном месте 3 раза подряд (9+ с) — ловушка на карте, из которой не выйти
+			_stall_seq = _stall_seq + 1 if hp.distance_to(_stall_at) < 3.0 else 1
+			_stall_at = hp
+			if _stall_seq == 3:
+				_stall_long += 1
+				add("ERROR", "HERO_TRAPPED", "Застревания", "герой не может выбраться у (%d, %d, %d) — %s" % [roundi(hp.x), roundi(hp.y), roundi(hp.z), _zone()])
 			_jump_t = 0.3
 			# обойти: свернуть в сторону на 2 с; если не помогает — новая цель
 			_detour = deg_to_rad(_rng.randf_range(60.0, 110.0)) * (1.0 if _rng.randf() < 0.5 else -1.0)
@@ -885,11 +1018,13 @@ func _monitor(dt: float) -> void:
 		_low_fps_t = maxf(0.0, _low_fps_t)
 	if _mon_t < 0.5:
 		return
-	var step := _mon_t
+	var step_t := _mon_t
 	_mon_t = 0.0
+	_clip_check(step_t)
+	_loot_tick()
 	if _ov_label:
 		var c := counts()
-		_ov_label.text = " ◈ CARDINAL · %d/%d · ошибок %d · пропущено %d · не проверено %d" % [coverage()["PASS"], checks.size(), c["ERROR"], coverage()["SKIPPED"], coverage()["NOT_TESTED"]]
+		_ov_label.text = " ◈ CARDINAL · %s · пройдено %d/%d · ошибок %d" % [step, coverage()["PASS"], checks.size(), coverage()["FAIL"]]
 	var hp: Vector3 = hero.global_position
 	if not hp.is_finite():
 		add("ERROR", "HERO_NAN", "Герой", "позиция стала неверной (NaN)")
@@ -908,10 +1043,10 @@ func _monitor(dt: float) -> void:
 		if ep.distance_to(hp) > 40.0:
 			continue
 		var m: Dictionary = _mobs.get(e, {"pos": ep, "slide": 0.0, "cd": ep.distance_to(hp), "ct": 0.0})
-		var spd := Vector2(ep.x - m["pos"].x, ep.z - m["pos"].z).length() / maxf(step, 0.01)
+		var spd := Vector2(ep.x - m["pos"].x, ep.z - m["pos"].z).length() / maxf(step_t, 0.01)
 		# Гонится, но не приближается
 		if str(e.st) == "chase" and not e.dead:
-			m["ct"] += step
+			m["ct"] += step_t
 			if m["ct"] > 6.0:
 				var dnow := ep.distance_to(hp)
 				if dnow > 4.0 and dnow > m["cd"] - 0.5 and hero.velocity.length() < 1.0:
