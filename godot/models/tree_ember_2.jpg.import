@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cm3cokcai8ifa"
-path="res://.godot/imported/tree_ember_2.png-faf3707203443bdbfe934e9802411cf9.ctex"
+uid="uid://dstf3fhx205ei"
+path="res://.godot/imported/tree_ember_2.jpg-1e46db59f71272d6708b6ecd98a09331.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "8105b8f6dca86c4c53a2401afe121f0e"
+"md5": "1dc54370792210a052ec1751fef73372"
 }
 
 [deps]
 
-source_file="res://models/tree_ember_2.png"
-dest_files=["res://.godot/imported/tree_ember_2.png-faf3707203443bdbfe934e9802411cf9.ctex"]
+source_file="res://models/tree_ember_2.jpg"
+dest_files=["res://.godot/imported/tree_ember_2.jpg-1e46db59f71272d6708b6ecd98a09331.ctex"]
 
 [params]
 
