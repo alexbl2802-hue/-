@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctanw3xpm8hn2"
-path="res://.godot/imported/tree_sentinel_2.jpg-900828e9f7f8d4a6b2f025314e3fb610.ctex"
+uid="uid://gyvoduyusoxr"
+path="res://.godot/imported/tree_woodland_Image_0.jpg-8ad7440e7069eabf70d33000ed885c49.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "4341d51528a5aef8e95a004dc50a9e8f"
+"md5": "0f72f7f2ab02dbd3bca9c2a7e55795dd"
 }
 
 [deps]
 
-source_file="res://models/tree_sentinel_2.jpg"
-dest_files=["res://.godot/imported/tree_sentinel_2.jpg-900828e9f7f8d4a6b2f025314e3fb610.ctex"]
+source_file="res://models/tree_woodland_Image_0.jpg"
+dest_files=["res://.godot/imported/tree_woodland_Image_0.jpg-8ad7440e7069eabf70d33000ed885c49.ctex"]
 
 [params]
 

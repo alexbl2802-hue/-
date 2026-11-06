@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bp0w0rmbg8djf"
-path="res://.godot/imported/tree_woodland_1.jpg-10f1bc8c7ac4dbc8c5ff05de7c7f6aca.ctex"
+uid="uid://bsc7jijof2ybf"
+path="res://.godot/imported/tree_woodland_Image_1.jpg-bd6b2a03e5d6f1f66392a9d758f7bd49.ctex"
 metadata={
 "vram_texture": false
 }
@@ -13,8 +13,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://models/tree_woodland_1.jpg"
-dest_files=["res://.godot/imported/tree_woodland_1.jpg-10f1bc8c7ac4dbc8c5ff05de7c7f6aca.ctex"]
+source_file="res://models/tree_woodland_Image_1.jpg"
+dest_files=["res://.godot/imported/tree_woodland_Image_1.jpg-bd6b2a03e5d6f1f66392a9d758f7bd49.ctex"]
 
 [params]
 
