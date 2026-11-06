@@ -3,6 +3,7 @@
 extends Control
 
 signal closed
+signal animate_requested   # открыть окно ANIMATE
 
 var _status: Label
 var _loot: Label
@@ -54,25 +55,40 @@ func _ready() -> void:
 				close()
 				at.start(n)
 		_render())
-	vb.add_child(_play)
+	var r1 := HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 8)
+	vb.add_child(r1)
+	_play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r1.add_child(_play)
 	_speed = UiKit.button("", false, 14)
-	_speed.custom_minimum_size = Vector2(0, 40)
+	_speed.custom_minimum_size = Vector2(110, 46)
 	_speed.pressed.connect(func():
 		if CardinalDirector.autotest:
 			CardinalDirector.autotest.cycle_speed()
 		_render())
-	vb.add_child(_speed)
-	var chk := UiKit.button("Проверить анимации и скелеты", false, 14)
+	r1.add_child(_speed)
+	var anim_btn := UiKit.button("✦ ANIMATE", false, 14)
+	anim_btn.custom_minimum_size = Vector2(0, 40)
+	anim_btn.pressed.connect(func():
+		visible = false
+		animate_requested.emit())
+	var r2 := HBoxContainer.new()
+	r2.add_theme_constant_override("separation", 8)
+	vb.add_child(r2)
+	anim_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r2.add_child(anim_btn)
+	var chk := UiKit.button("Проверить анимации", false, 14)
 	chk.custom_minimum_size = Vector2(0, 40)
 	chk.pressed.connect(func():
 		var n := _main()
 		if n:
 			CardinalDirector.check_animations(n)
 		_render())
-	vb.add_child(chk)
+	chk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r2.add_child(chk)
 	vb.add_child(UiKit.label("Журнал Cardinal", 13, Color(1, 1, 1, 0.7)))
 	_log = RichTextLabel.new()
-	_log.custom_minimum_size = Vector2(540, 110)
+	_log.custom_minimum_size = Vector2(540, 80)
 	_log.scroll_following = true
 	_log.add_theme_font_size_override("normal_font_size", 12)
 	vb.add_child(_log)
@@ -108,11 +124,11 @@ func _render() -> void:
 	var at := CardinalDirector.autotest
 	if at and at.playing:
 		var n := at.counts()
-		_play.text = "■ Остановить автотест (ошибок %d, предупреждений %d)" % [n["ERROR"], n["WARNING"]]
+		_play.text = "■ Стоп автотеста (ошибок %d, предупр. %d)" % [n["ERROR"], n["WARNING"]]
 	else:
-		_play.text = "▶ Кардинал играет сам и ищет ошибки"
+		_play.text = "▶ Кардинал играет и ищет ошибки"
 	if at:
-		_speed.text = "Скорость автотеста: ×%d (нажми, чтобы сменить)" % at.speed
+		_speed.text = "Скорость ×%d" % at.speed
 	_loot.text = "Множитель добычи: ×%.1f" % CardinalDirector.loot_mult()
 	var lines: Array = core.event_log if core else []
 	var txt := "\n".join(lines.slice(maxi(0, lines.size() - 80))) if not lines.is_empty() else "Пока событий нет"

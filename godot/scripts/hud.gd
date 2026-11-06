@@ -10,6 +10,7 @@ var inventory: Control
 var forge: Control
 var alchemist: Control
 var cardinal: Control   # системное окно CARDINAL
+var animate: Control    # окно ANIMATE (анимация по описанию)
 var menu: Control
 var hero: Node3D
 var camera: Camera3D
@@ -114,6 +115,12 @@ func _ready() -> void:
 	cardinal = preload("res://scripts/ui/cardinal_panel.gd").new()
 	root.add_child(cardinal)
 	cardinal.closed.connect(func(): touch.visible = true)
+	animate = preload("res://scripts/ui/animate_panel.gd").new()
+	root.add_child(animate)
+	animate.closed.connect(func(): touch.visible = true)
+	cardinal.animate_requested.connect(func():
+		touch.visible = false
+		animate.open())
 	# Затемнение для переходов
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK

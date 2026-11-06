@@ -100,6 +100,7 @@ func _ready() -> void:
 	hud.camera = rig.camera
 	hud.enemies = enemies
 	hud.inventory.hero = hero
+	hud.animate.hero = hero
 	hud.minimap.setup(world, hero)
 	hud.minimap.enemies = enemies
 	hero.touch = hud.touch

@@ -46,3 +46,7 @@ reflections/sky_reflections/roughness_layers=6
 textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/directional_shadow/size=2048
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=2
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/animate/plugin.cfg")
