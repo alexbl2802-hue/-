@@ -699,7 +699,7 @@ func _monitor(dt: float) -> void:
 			continue
 		var ep: Vector3 = e.global_position
 		var who: String = e.T.get("name", e.type)
-		if not ep.is_finite() or ep.y < CardinalDirector.FALL_Y:
+		if not ep.is_finite() or ep.y < CardinalDirector.fall_y_at(ep):
 			add("ERROR", "MOB_FELL", who, "провалился под мир или позиция неверна")
 			continue
 		if ep.distance_to(hp) > 40.0:

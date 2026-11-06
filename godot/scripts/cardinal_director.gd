@@ -17,12 +17,15 @@ static var _deaths := 0.0      # недавние гибели (со време�
 static var _guardian: Node
 static var core: CardinalCore
 static var autotest: CardinalAutotest
-const FALL_Y := -200.0   # ниже любой земли и подземелий
+const FALL_Y := -200.0   # под поверхностью мира и плато; у подземелий и этажей башни — свой пол (fall_y_at)
+const FALL_BELOW := 40.0  # на столько ниже пола подземелья — значит провалился
+static var _main: Node
 ## Кости, которые должны быть у человекоподобного скелета (имена Mixamo, без приставки)
 const HUMANOID := ["Hips", "Spine", "Neck", "Head", "LeftArm", "LeftForeArm", "LeftHand", "RightArm",
 	"RightForeArm", "RightHand", "LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot"]
 
 static func setup(parent: Node) -> void:
+	_main = parent
 	Cardinal.max_active_mobs = 2000   # монстры мира создаются заранее и «спят» вдали
 	_guardian = CardinalGuardian.new()
 	_guardian.name = "CardinalGuardian"
@@ -124,6 +127,21 @@ static func on_death() -> void:
 	_deaths += 1.0
 	_wins = 0
 	Cardinal.set_player_performance(roundi(_deaths), _wins)
+
+## Ниже какой высоты в этом месте — провал. Подземелья и этажи башни лежат глубоко внизу
+## (этажи — от −900 м), поэтому у каждого — своя граница: на 40 м ниже его пола.
+static func fall_y_at(p: Vector3, mode := -999) -> float:
+	if not is_instance_valid(_main):
+		return FALL_Y
+	var ds: Array = _main.get("dungeons") if _main.get("dungeons") is Array else []
+	if mode == -999:
+		for d in ds:
+			if absf(p.y - float(d.Y)) < 60.0:
+				return float(d.Y) - FALL_BELOW
+		return FALL_Y
+	if mode >= 0 and mode < ds.size():
+		return float(ds[mode].Y) - FALL_BELOW
+	return FALL_Y
 
 ## Множитель добавочной добычи Cardinal (окно CARDINAL: 0,1…3; сохраняется)
 static func loot_mult() -> float:
