@@ -9,8 +9,8 @@ const WATER := 0.0
 const TOWN_Y := 4.0
 const TOWN_WALL := 34.0
 const TOWN_NAME := "Камнеград"
-const FORGE_POS := Vector2(20.0, -2.6)
-const ALCHEMIST_POS := Vector2(-21.0, 6.5)   # лавка алхимика в Камнеграде (дверью к поперечной улице)
+const FORGE_POS := Vector2(20.0, -19.3)   # вход в кузницу (модель на месте огорода, дверью на юг)
+const ALCHEMIST_POS := Vector2(-21.0, 5.4)   # лавка алхимика в Камнеграде (дверью к поперечной улице)
 const ALCHEMIST_YAW := PI
 
 static var seg := 0

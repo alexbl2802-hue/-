@@ -35,7 +35,9 @@ static func build(parent: Node3D) -> Array:
 	_garden()
 	_forge(stone)
 	Alchemist.build(_root, Vector3(WorldGen.ALCHEMIST_POS.x, G, WorldGen.ALCHEMIST_POS.y), WorldGen.ALCHEMIST_YAW, _body)
-	_map.append({"x0": WorldGen.ALCHEMIST_POS.x - 3.2, "x1": WorldGen.ALCHEMIST_POS.x + 3.2, "z0": WorldGen.ALCHEMIST_POS.y - 2.7, "z1": WorldGen.ALCHEMIST_POS.y + 2.7, "c": Color("#6a4a8a")})
+	var aw := Alchemist.MODEL_SIZE / 2.0 if HouseModel.exists(HouseModel.ALCHEMIST) else 3.2
+	var ad := Alchemist.MODEL_SIZE * 0.33 if HouseModel.exists(HouseModel.ALCHEMIST) else 2.7
+	_map.append({"x0": WorldGen.ALCHEMIST_POS.x - aw, "x1": WorldGen.ALCHEMIST_POS.x + aw, "z0": WorldGen.ALCHEMIST_POS.y - ad, "z1": WorldGen.ALCHEMIST_POS.y + ad, "c": Color("#6a4a8a")})
 	_plaza(stone)
 	_manor(stone)
 	_lanterns()
@@ -183,12 +185,18 @@ static func _streets() -> void:
 	_mesh(_cyl(10.0, 10.0, 0.02, 28), road, Vector3(0, G + 0.04, 0), false)
 
 # ---------- Дома с фахверком
+const HOUSE_SCALE := 1.55     # дом из модели — во столько раз больше участка по большей стороне (было 1,3)
+const MANOR_SIZE := 23.5      # особняк — во всю ширину двора, заметно больше домов (было 21)
+const FORGE_POS := Vector3(20.0, 0.0, -25.5)   # кузница из модели — на месте огорода (старое место мало)
+const FORGE_SIZE := 11.0
+const WELL_SIZE := 3.6
 static func _house(x: float, z: float, w: float, d: float, floors: int, face: String, k: int, stone: Material) -> void:
 	# Дом — модель коттеджа (Meshy, как есть), дверью на улицу; если модели нет — прежний дом из коробок
 	if HouseModel.exists(HouseModel.COTTAGE):
 		var yaw: float = {"+x": PI / 2.0, "-x": -PI / 2.0, "+z": 0.0, "-z": PI}[face]
-		HouseModel.place(_root, HouseModel.COTTAGE, Vector3(x, G, z), yaw, maxf(w, d) * 1.3)
-		_solid(x - w / 2.0 - 0.15, x + w / 2.0 + 0.15, z - d / 2.0 - 0.15, z + d / 2.0 + 0.15, "#8a4a32")
+		HouseModel.place(_root, HouseModel.COTTAGE, Vector3(x, G, z), yaw, maxf(w, d) * HOUSE_SCALE)
+		var k2 := HOUSE_SCALE / 1.3   # стены — по увеличенному дому
+		_solid(x - w * k2 / 2.0 - 0.15, x + w * k2 / 2.0 + 0.15, z - d * k2 / 2.0 - 0.15, z + d * k2 / 2.0 + 0.15, "#8a4a32")
 		return
 	var plasters := [0xeee4cf, 0xe8d8b0, 0xf2efe6, 0xdcc6a0, 0xe9d3c0]
 	var roofs := [Mats.lp(0x9a3b2a), Mats.lp(0x7a4228), Mats.lp(0xb8913f), Mats.lp(0x4a5058)]
@@ -233,6 +241,8 @@ static func _house(x: float, z: float, w: float, d: float, floors: int, face: St
 
 # ---------- Огород на северо-востоке
 static func _garden() -> void:
+	if HouseModel.exists(HouseModel.FORGE):
+		return   # на месте огорода — кузница из модели
 	var soil := Mats.lp(0x5a4028)
 	var green := Mats.lp(0x4f8a32)
 	var fence := Mats.lp(0x7a5a38)
@@ -248,6 +258,10 @@ static func _garden() -> void:
 
 # ---------- Кузница у поперечной улицы (окна улучшения пока закрыты)
 static func _forge(stone: Material) -> void:
+	if HouseModel.exists(HouseModel.FORGE):
+		HouseModel.place(_root, HouseModel.FORGE, Vector3(FORGE_POS.x, G, FORGE_POS.z), 0.0, FORGE_SIZE, _body)
+		_map.append({"x0": FORGE_POS.x - FORGE_SIZE / 2.0, "x1": FORGE_POS.x + FORGE_SIZE / 2.0, "z0": FORGE_POS.z - FORGE_SIZE * 0.44, "z1": FORGE_POS.z + FORGE_SIZE * 0.44, "c": Color("#6a5a4a")})
+		return
 	var fx := 20.0
 	var fz := -6.0
 	var timber := Mats.lp(0x4a3220)
@@ -275,12 +289,16 @@ static func _forge(stone: Material) -> void:
 # ---------- Площадь: колодец и торговые лавки (костёр ставит world.gd)
 static func _plaza(stone: Material) -> void:
 	var timber := Mats.lp(0x4a3220)
-	_mesh(_cyl(1.1, 1.2, 1.0, 12), stone, Vector3(-6, G + 0.5, 6))
-	_mesh(_cyl(0.9, 0.9, 0.02, 12), Mats.lp(0x1d4a6a, 0.1), Vector3(-6, G + 0.86, 6), false)
-	for sx in [-1, 1]:
-		_box(0.18, 2.4, 0.18, timber, -6 + sx * 1.05, G + 1.7, 6)
-	_roof(2.6, 2.6, 0.9, Mats.lp(0x7a4228), -6, G + 2.8, 6)
-	_round(-6, 6, 1.3, 3.0)
+	if HouseModel.exists(HouseModel.WELL):
+		HouseModel.place(_root, HouseModel.WELL, Vector3(-6, G, 6), 0.0, WELL_SIZE)
+		_round(-6, 6, WELL_SIZE * 0.4, 3.0)
+	else:
+		_mesh(_cyl(1.1, 1.2, 1.0, 12), stone, Vector3(-6, G + 0.5, 6))
+		_mesh(_cyl(0.9, 0.9, 0.02, 12), Mats.lp(0x1d4a6a, 0.1), Vector3(-6, G + 0.86, 6), false)
+		for sx in [-1, 1]:
+			_box(0.18, 2.4, 0.18, timber, -6 + sx * 1.05, G + 1.7, 6)
+		_roof(2.6, 2.6, 0.9, Mats.lp(0x7a4228), -6, G + 2.8, 6)
+		_round(-6, 6, 1.3, 3.0)
 	var cloths := [Mats.lp(0xb83a32), Mats.lp(0x2f5f9a)]
 	var goods := [0xd8402a, 0xe8b030, 0x6aa040, 0xa05a2a]
 	var stalls := [[7.5, -7.0], [7.0, 7.5]]
@@ -324,8 +342,9 @@ static func _manor(stone: Material) -> void:
 	_mesh(path, Mats.tiled(Mats.cobble_texture(), 0xa89f92, 0.25, 1.0), Vector3(-19, G + 0.03, -12.2), false)
 	# Особняк — модель Meshy (как есть) на месте прежнего дома с башенкой
 	if HouseModel.exists(HouseModel.MANOR):
-		HouseModel.place(_root, HouseModel.MANOR, Vector3(-19, G, -21.5), 0.0, 21.0)
-		_solid(-28.5, -9.5, -29.5, -15.0, "#4a5058")
+		var mh := HouseModel.place(_root, HouseModel.MANOR, Vector3(-19, G, -21.5), 0.0, MANOR_SIZE)
+		var ms: Vector3 = mh.get_meta("size") if mh else Vector3(MANOR_SIZE, 0, MANOR_SIZE * 0.78)
+		_solid(-19 - ms.x * 0.45, -19 + ms.x * 0.45, -21.5 - ms.z * 0.45, -21.5 + ms.z * 0.45, "#4a5058")
 		var tim := Mats.lp(0x4a3220)
 		for p in [[-28, -10], [-10, -10]]:
 			_box(0.35, 1.6, 0.35, tim, p[0], G + 0.8, p[1])

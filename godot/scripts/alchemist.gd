@@ -5,8 +5,13 @@ class_name Alchemist
 extends RefCounted
 
 const SHOP_RADIUS := 3.6      # подойти ближе — появится «⚗ Алхимик»
+const MODEL_SIZE := 7.5       # дом из модели (The Alchemist's Cottage, как есть) — по большей стороне, м
 
 static func build(parent: Node3D, pos: Vector3, yaw: float, body: StaticBody3D) -> void:
+	# Лавка — присланная модель (как есть); если её нет — прежний дом из простых форм
+	if HouseModel.exists(HouseModel.ALCHEMIST):
+		HouseModel.place(parent, HouseModel.ALCHEMIST, pos, yaw, MODEL_SIZE, body)
+		return
 	var n := Node3D.new()
 	n.position = pos
 	n.rotation.y = yaw

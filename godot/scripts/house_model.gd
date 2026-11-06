@@ -1,10 +1,14 @@
-## Дома из присланных моделей Meshy (как есть, без упрощения): коттедж и особняк.
+## Здания из присланных моделей Meshy (как есть, без упрощения): коттедж, особняк, колодец,
+## кузница и лавка алхимика.
 ## Модель ставится по размеру участка, дверью (сторона +Z модели) в нужную сторону, на землю.
 class_name HouseModel
 extends RefCounted
 
 const COTTAGE := "res://models/house_cottage.glb"
 const MANOR := "res://models/house_manor.glb"
+const WELL := "res://models/town_well.glb"            # колодец на площади
+const FORGE := "res://models/town_forge.glb"          # кузница (The Emberforge Workshop)
+const ALCHEMIST := "res://models/town_alchemist.glb"  # лавка алхимика (The Alchemist's Cottage)
 static var _cache := {}
 
 static func _scene(path: String) -> PackedScene:
