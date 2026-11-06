@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Иконка приложения из присланной картинки (meshy/ui/app_icon_src.jpg):
-  godot/icon.png            — 512×512, рамка со скруглёнными углами, вокруг прозрачно (обычная иконка);
-  godot/icon_fg.png         — 432×432 передний слой адаптивной иконки: картинка в видимой зоне лаунчера
-                              (288×288 в центре), чтобы надпись не обрезалась маской;
-  godot/icon_bg.png         — 432×432 фон адаптивной иконки: та же картинка, размытая и затемнённая.
+  godot/icon.png            — 512×512, картинка целиком, как прислана;
+  godot/icon_fg.png         — 432×432 передний слой адаптивной иконки: картинка целиком на всю видимую
+                              зону лаунчера (288×288 в центре);
+  godot/icon_bg.png         — 432×432 фон адаптивной иконки: чёрный (как углы картинки).
 python3 tools/app_icon.py
 """
 from pathlib import Path
@@ -26,13 +26,14 @@ def rounded(img, r):
 
 
 def main():
-    art = Image.open(SRC).convert("RGB").crop(BOX)
-    rounded(art.resize((512, 512), Image.LANCZOS), RADIUS).save(OUT / "icon.png")
+    # Картинка целиком, как прислана (с рамкой и чёрными углами), без обрезки и скругления
+    src = Image.open(SRC).convert("RGB")
+    src.resize((512, 512), Image.LANCZOS).save(OUT / "icon.png")
+    # Адаптивная: картинка целиком на всю видимую зону лаунчера (288×288 из 432), под ней — чёрный
     fg = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
-    fg.alpha_composite(rounded(art.resize((288, 288), Image.LANCZOS), RADIUS), (72, 72))
+    fg.paste(src.resize((288, 288), Image.LANCZOS), (72, 72))
     fg.save(OUT / "icon_fg.png")
-    bg = art.resize((432, 432), Image.LANCZOS).filter(ImageFilter.GaussianBlur(14))
-    ImageEnhance.Brightness(bg).enhance(0.55).save(OUT / "icon_bg.png")
+    Image.new("RGB", (432, 432), (0, 0, 0)).save(OUT / "icon_bg.png")
     print("иконки готовы")
 
 
