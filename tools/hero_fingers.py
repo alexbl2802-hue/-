@@ -91,6 +91,99 @@ def frame(o, tip):
     return np.stack([x, y, z], 1), L
 
 
+def hand_cloud(j, b, hand_node, O, R, L):
+    """Вершины, где главная кость — кисть, в системе кисти (в долях длины)."""
+    joints = j["skins"][0]["joints"]
+    if hand_node not in joints:
+        return None
+    hk = joints.index(hand_node)
+    out = []
+    for mesh in j["meshes"]:
+        for prim in mesh["primitives"]:
+            at = prim["attributes"]
+            if "JOINTS_0" not in at:
+                continue
+            P = pm.accessor(j, b, at["POSITION"]).astype(np.float64)
+            J = pm.accessor(j, b, at["JOINTS_0"]).astype(np.int64)
+            W = pm.accessor(j, b, at["WEIGHTS_0"]).astype(np.float64)
+            dom = J[np.arange(len(J)), W.argmax(1)]
+            out.append(((P[dom == hk] - O) @ R) / L)
+    c = np.concatenate(out) if out else np.zeros((0, 3))
+    return c if len(c) > 50 else None
+
+
+def axis_map(cm, ch):
+    """Покоординатное соответствие облаков кисти манекена и героя (по 2-му и 98-му процентилю):
+    длина пальцев, ширина ладони и отведение большого пальца берутся из геометрии героя."""
+    lo_m, hi_m = np.percentile(cm, 2, 0), np.percentile(cm, 98, 0)
+    lo_h, hi_h = np.percentile(ch, 2, 0), np.percentile(ch, 98, 0)
+    k = (hi_h - lo_h) / np.maximum(hi_m - lo_m, 1e-6)
+    return lambda c: (c - lo_m) * k + lo_h
+
+
+def _chain(pts, base_x):
+    """Цепочка пальца по облаку его вершин: ось (главная компонента), от основания (base_x вдоль
+    кисти) к кончику; суставы 1…4 на 0, 0.4, 0.7 и 1.0 длины — по середине сечения."""
+    cen = pts.mean(0)
+    _, _, vt = np.linalg.svd(pts - cen, full_matrices=False)
+    ax = vt[0] if vt[0][0] >= 0 else -vt[0]
+    t = (pts - cen) @ ax
+    t0 = (base_x - cen[0]) / max(ax[0], 0.2)
+    t1 = np.percentile(t, 99.5)
+    out = []
+    for q in (0.0, 0.4, 0.7, 1.0):
+        tq = t0 + (t1 - t0) * q
+        near = pts[np.abs(t - tq) < (t1 - t0) * 0.08]
+        out.append(near.mean(0) if len(near) > 4 and q > 0 else cen + ax * (tq - 0))
+    return out
+
+
+def fit_fingers(c, knuckle_x):
+    """Пальцы по геометрии кисти (в системе кисти): четыре пальца — по ширине кисти дальше костяшек,
+    большой — то, что выходит из плоскости ладони у её начала. None — если не получилось."""
+    if c is None:
+        return None
+    palm = c[(c[:, 0] > 0.15) & (c[:, 0] < knuckle_x)]
+    if len(palm) < 30:
+        return None
+    y0 = np.median(palm[:, 1])
+    # большой палец: больше всего выходит из плоскости ладони (в одну сторону), между запястьем
+    # и костяшками
+    reg = (c[:, 0] > 0.25) & (c[:, 0] < knuckle_x + 0.05)
+    dev = c[:, 1] - y0
+    if not np.any(reg):
+        return None
+    sgn = np.sign(dev[reg][np.argmax(np.abs(dev[reg]))])
+    lim = 0.55 * np.max(np.abs(dev[reg]))
+    off = reg & (dev * sgn > lim)
+    th = c[off]
+    if len(th) < 30:
+        return None
+    # четыре пальца: дальше костяшек, 1-мерная кластеризация по ширине (z)
+    fz = c[(c[:, 0] > knuckle_x + 0.06) & ~off]
+    if len(fz) < 80:
+        return None
+    zs = np.percentile(fz[:, 2], [87, 62, 38, 13])
+    for _ in range(20):
+        lab = np.argmin(np.abs(fz[:, 2][:, None] - zs[None]), 1)
+        zs = np.array([fz[lab == k, 2].mean() if np.any(lab == k) else zs[k] for k in range(4)])
+    # указательный — ближе к большому пальцу по ширине
+    order = np.argsort(-zs) if np.median(th[:, 2]) > np.median(fz[:, 2]) else np.argsort(zs)
+    out = {}
+    for name, k in zip(["Index", "Middle", "Ring", "Pinky"], order):
+        pts = fz[lab == k]
+        if len(pts) < 15:
+            return None
+        ch_ = _chain(pts, knuckle_x)
+        d = ch_[3] - ch_[0]
+        if d[0] < 0.5 * np.linalg.norm(d):   # палец должен идти вдоль кисти
+            return None
+        out[name] = ch_
+    tc = _chain(th, th[:, 0].min())
+    out["Thumb"] = tc
+    return out
+
+
 def seg_dist(p, a, b):
     ab = b - a
     t = np.clip(((p - a) @ ab) / max(np.dot(ab, ab), 1e-12), 0.0, 1.0)
@@ -120,6 +213,14 @@ def main():
         R_m, L_m = frame(MG[mhand][:3, 3], MG[mn["mixamorig:%sHandMiddle4" % side]][:3, 3])
         O_m = MG[mhand][:3, 3]
         rot_map = R_h @ R_m.T
+        # Подгонка по геометрии кисти (если у обеих моделей есть вершины кисти)
+        ch = hand_cloud(j, b, hand, O_h, R_h, L_h)
+        cm = hand_cloud(mj, mb, mhand, O_m, R_m, L_m)
+        fit = axis_map(cm, ch) if ch is not None and cm is not None else (lambda c: c)
+        # костяшки — на ~0,61 длины от запястья до кончиков (так у манекена и у героев Meshy)
+        knuckle = 0.61 * np.percentile(ch[:, 0], 99) if ch is not None else 0.6
+        geo = fit_fingers(ch, knuckle)
+        print(side, "пальцы по геометрии модели" if geo else "пальцы по манекену (геометрия не распознана)")
         # старый кончик среднего пальца больше не ребёнок кисти
         j["nodes"][hand]["children"] = [c for c in j["nodes"][hand].get("children", []) if c != tip]
         chains[side] = {"hand": O_h, "R": R_h, "L": L_h, "fingers": {}}
@@ -129,13 +230,18 @@ def main():
             for k in range(1, 5):
                 name = "mixamorig:%sHand%s%d" % (side, f, k)
                 mg = MG[mn[name]]
-                pos = O_h + R_h @ ((R_m.T @ (mg[:3, 3] - O_m)) * (L_h / L_m))
+                cpos = fit((R_m.T @ (mg[:3, 3] - O_m)) / L_m)
+                if geo and not (f == "Thumb" and k == 1):
+                    cpos = geo[f][k - 1 if f != "Thumb" else k - 1]
+                    if f == "Thumb":   # 1 — в ладони (как у манекена), 2…4 — по самому пальцу
+                        cpos = geo[f][[0, 0, 1, 3][k - 1]] if k > 1 else cpos
+                pos = O_h + R_h @ (cpos * L_h)
                 rot = rot_map @ (mg[:3, :3] / np.linalg.norm(mg[:3, :3], axis=0))
                 gm = np.eye(4)
                 gm[:3, :3] = rot
                 gm[:3, 3] = pos
                 if f == "Middle" and k == 4:
-                    idx = tip          # уже есть — переподвешиваем
+                    idx = tip          # уже есть — переподвешиваем (и ставим на настоящий кончик)
                 else:
                     idx = len(j["nodes"])
                     j["nodes"].append({"name": name})
@@ -198,9 +304,9 @@ def main():
                     segs.append((segs[-1][0], p[3], ext))
                 D = np.stack([seg_dist(pts, a, c) for _, a, c in segs], 1)
                 # ладонь: вершины ближе к основаниям, чем фаланги, — на кисти
-                order = np.argsort(D, 1)[:, :2]
+                order = np.argsort(D, 1)[:, :3]
                 d1 = np.take_along_axis(D, order, 1)
-                w = 1.0 / np.maximum(d1, 1e-4) ** 4
+                w = 1.0 / np.maximum(d1, 1e-4) ** 3
                 w /= w.sum(1, keepdims=True)
                 for r_i, r in enumerate(rows):
                     slot = int(np.where(J[r] == hk)[0][0])
@@ -209,7 +315,7 @@ def main():
                     for s in range(4):
                         if s != slot and W[r, s] > 0:
                             entries[int(J[r, s])] = entries.get(int(J[r, s]), 0.0) + W[r, s]
-                    for c in range(2):
+                    for c in range(3):
                         bj = segs[order[r_i, c]][0]
                         entries[bj] = entries.get(bj, 0.0) + wh * w[r_i, c]
                     top = sorted(entries.items(), key=lambda e: -e[1])[:4]
