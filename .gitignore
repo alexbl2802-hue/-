@@ -10,6 +10,7 @@ node_modules/
 /godot/models/house_cottage.glb
 /godot/models/house_manor.glb
 /godot/models/tree_ember.glb
+/godot/models/tree_sentinel.glb
 /godot/data/packs.json
 
 # Резервная копия прежнего героя (tools/swap_hero.py)

@@ -24,7 +24,8 @@ func set_rock_view(d: float) -> void:
 		(n as GeometryInstance3D).visibility_range_end = maxf(d * 1.4, TREE_MID + 50.0)   # деревья видно дальше камней
 
 ## Деревья: какие модели у каждого вида (первая найденная; если модели нет — берётся другая)
-const TREE_MODELS := {"pine": ["pine", "ember"], "oak": ["ember", "ancient"]}
+## Каждое второе дерево — Evergreen Sentinel (присланная модель, вблизи — как есть)
+const TREE_MODELS := {"pine": ["pine", "sentinel", "ember", "sentinel"], "oak": ["ember", "sentinel", "ancient", "sentinel"]}
 const PINE_HEIGHT := 9.0        # высота ели при размере 1 (м)
 const OAK_HEIGHT := 8.0
 const TREE_CHUNK := 40.0        # деревья собраны по участкам 40×40 м
