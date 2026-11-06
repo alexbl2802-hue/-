@@ -49,6 +49,200 @@ var _overlay: CanvasLayer
 var _ov_label: Label
 var _sp_btn: Button
 var _rng := RandomNumberGenerator.new()
+# CARDINAL 3.1: подтверждённые проверки, а не число убитых монстров.
+var checks: Dictionary = {}
+var _initial_enemy_states: Dictionary = {}
+var _last_hp := -1.0
+var _last_position := Vector3.ZERO
+var _coverage_time := 0.0
+var _combat_seen := false
+var _killed := 0
+var _run_seconds := 0.0
+const CHECK_NAMES := ["hero_movement", "hero_health", "enemy_spawn", "enemy_combat", "enemy_death", "loot", "inventory", "equipment", "skills", "boss", "dungeon", "npc", "trade", "quests", "save_load", "navigation_stall"]
+const TEST_LIMIT_SECONDS := 900.0
+const SCENARIO_TIMEOUT := 25.0
+const MAX_RETRIES := 2
+var registry: Dictionary = {}
+var scenario_log: Array = []
+var _scenario_index := 0
+var _scenario_elapsed := 0.0
+var _scenario_attempt := 0
+var _test_elapsed := 0.0
+var _scenario_order: Array = []
+var _last_enemy_activity := 0.0
+var _last_enemy_hp := -1.0
+var _last_enemy_id := 0
+var _auto_complete := false
+
+func _register_scenarios() -> void:
+	registry.clear()
+	_scenario_order.clear()
+	var hud = main.get("hud") if is_instance_valid(main) else null
+	var enemies = main.get("enemies") if is_instance_valid(main) else null
+	var definitions := [
+		["hero_movement", is_instance_valid(hero)], ["hero_health", is_instance_valid(hero)],
+		["enemy_spawn", enemies != null], ["enemy_combat", enemies != null],
+		["enemy_death", enemies != null], ["loot", enemies != null],
+		["inventory", hud != null and hud.get("inventory") != null],
+		["equipment", Game.equip is Dictionary], ["skills", Game.skills is Dictionary],
+		["boss", main.get("mode") != null], ["dungeon", main.get("mode") != null],
+		["npc", main.get("town") != null], ["trade", main.get("town") != null],
+		["quests", false], ["save_load", true], ["navigation_stall", is_instance_valid(hero)]
+	]
+	for def in definitions:
+		var id: String = def[0]
+		registry[id] = {"available": bool(def[1]), "attempts": 0}
+		_scenario_order.append(id)
+		if not bool(def[1]):
+			checks[id] = {"status": "SKIPPED", "detail": "Интерфейс сценария не обнаружен; требуется адаптер"}
+
+func _record_scenario(id: String, status: String, detail: String) -> void:
+	scenario_log.append({"id": id, "status": status, "detail": detail, "attempt": _scenario_attempt, "seconds": snappedf(_test_elapsed, 0.1)})
+
+func _scenario_tick(dt: float) -> void:
+	_test_elapsed += dt
+	if _test_elapsed >= TEST_LIMIT_SECONDS:
+		for id in checks:
+			if checks[id]["status"] == "NOT_TESTED":
+				checks[id] = {"status": "NOT_TESTED", "detail": "Не завершено: лимит времени тестирования"}
+		_auto_complete = true
+		stop()
+		return
+	if _scenario_index >= _scenario_order.size():
+		_auto_complete = true
+		stop()
+		return
+	var id: String = _scenario_order[_scenario_index]
+	if checks[id]["status"] != "NOT_TESTED":
+		_record_scenario(id, checks[id]["status"], checks[id]["detail"])
+		_scenario_index += 1
+		_scenario_elapsed = 0.0
+		_scenario_attempt = 0
+		return
+	_scenario_elapsed += dt
+	# Сценарии с безопасной автономной проверкой состояния и интерфейса.
+	if id == "inventory":
+		var hud = main.get("hud")
+		var panel = hud.get("inventory") if hud != null else null
+		if panel != null and panel.has_method("open") and panel.has_method("close"):
+			panel.open()
+			var visible_ok: bool = bool(panel.visible)
+			panel.close()
+			if visible_ok:
+				_pass(id, "Окно инвентаря открывается и закрывается")
+			else:
+				_fail(id, "Окно инвентаря не стало видимым")
+		else:
+			checks[id] = {"status": "SKIPPED", "detail": "Нет интерфейса открытия инвентаря"}
+	elif id == "equipment":
+		var valid := true
+		for slot in Game.equip:
+			var item = Game.equip[slot]
+			if item != null and (not item is Dictionary or not item.has("id")):
+				valid = false
+		if valid:
+			checks[id] = {"status": "SKIPPED", "detail": "Слоты корректны, но нет безопасного адаптера реальной экипировки"}
+		else:
+			_fail(id, "Некорректная запись экипировки")
+	elif id == "skills":
+		var valid := true
+		for rank in Game.skills.values():
+			if int(rank) < 0:
+				valid = false
+		if valid:
+			checks[id] = {"status": "SKIPPED", "detail": "Ранги корректны; отдельный сценарий применения навыка не подтверждён"}
+		else:
+			_fail(id, "Отрицательный уровень навыка")
+	elif id == "save_load":
+		var test_path := "user://cardinal_test_roundtrip.json"
+		var sample := {"inventory": Game.inv.duplicate(true), "equipment": Game.equip.duplicate(true), "skills": Game.skills.duplicate(true)}
+		var f := FileAccess.open(test_path, FileAccess.WRITE)
+		if f == null:
+			_fail(id, "Невозможно записать изолированный тестовый файл")
+		else:
+			f.store_string(JSON.stringify(sample))
+			f.close()
+			var parsed = JSON.parse_string(FileAccess.get_file_as_string(test_path))
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path))
+			if parsed is Dictionary and parsed.has("inventory") and parsed.has("equipment") and parsed.has("skills"):
+				_pass(id, "Изолированная запись и чтение JSON прошли успешно; реальное сохранение не изменялось")
+			else:
+				_fail(id, "Не удалось прочитать тестовый JSON")
+	if checks[id]["status"] != "NOT_TESTED":
+		return
+	if _scenario_elapsed >= SCENARIO_TIMEOUT:
+		_record_scenario(id, "TIMEOUT", "Сценарий не подтвердил ожидаемый результат")
+		if _scenario_attempt < MAX_RETRIES:
+			_scenario_attempt += 1
+			registry[id]["attempts"] = _scenario_attempt
+			_scenario_elapsed = 0.0
+			_target = null
+			_wp = Vector3.INF
+			_detour_t = 0.0
+		else:
+			checks[id] = {"status": "NOT_TESTED", "detail": "Нет подтверждения после %d попыток; нужен специальный тестовый адаптер" % (_scenario_attempt + 1)}
+			changed.emit()
+
+
+func _init_checks() -> void:
+	checks.clear()
+	for id in CHECK_NAMES:
+		checks[id] = {"status": "NOT_TESTED", "detail": "Сценарий ещё не подтверждён"}
+
+func _pass(id: String, detail: String) -> void:
+	if not checks.has(id) or checks[id]["status"] == "PASS":
+		return
+	checks[id] = {"status": "PASS", "detail": detail}
+	changed.emit()
+
+func _fail(id: String, detail: String) -> void:
+	if not checks.has(id):
+		return
+	checks[id] = {"status": "FAIL", "detail": detail}
+	add("ERROR", "CHECK_FAILED", id, detail)
+
+func coverage() -> Dictionary:
+	var result := {"PASS": 0, "FAIL": 0, "SKIPPED": 0, "NOT_TESTED": 0}
+	for id in checks:
+		var status: String = checks[id]["status"]
+		result[status] = int(result.get(status, 0)) + 1
+	return result
+
+func _coverage_tick(dt: float) -> void:
+	_coverage_time += dt
+	if _coverage_time < 0.5:
+		return
+	_coverage_time = 0.0
+	if not is_instance_valid(hero) or not is_instance_valid(main):
+		return
+	var pos: Vector3 = hero.global_position
+	if pos.is_finite() and pos.distance_to(_last_position) > 1.5:
+		_pass("hero_movement", "Персонаж перемещается по игровому миру")
+	_last_position = pos
+	if Game.max_hp > 0 and Game.hp >= 0 and Game.hp <= Game.max_hp:
+		_pass("hero_health", "Значения здоровья находятся в допустимых пределах")
+	var enemies = main.get("enemies")
+	if enemies != null and enemies.get("list") is Array:
+		for e in enemies.list:
+			if not is_instance_valid(e):
+				continue
+			var id: int = e.get_instance_id()
+			if not _initial_enemy_states.has(id):
+				_initial_enemy_states[id] = {"dead": bool(e.dead), "hp": float(e.hp) if e.get("hp") != null else -1.0}
+			if not e.dead and e.visible:
+				_pass("enemy_spawn", "Обнаружен активный противник")
+			if not bool(_initial_enemy_states[id]["dead"]) and e.dead:
+				_killed += 1
+				_initial_enemy_states[id]["dead"] = true
+				_pass("enemy_death", "Подтверждена смерть противника; убийств: %d" % _killed)
+			var old_hp: float = float(_initial_enemy_states[id]["hp"])
+			if old_hp >= 0 and e.get("hp") != null and float(e.hp) < old_hp:
+				_combat_seen = true
+				_pass("enemy_combat", "Подтверждено изменение здоровья противника при атаке")
+			if e.get("hp") != null:
+				_initial_enemy_states[id]["hp"] = float(e.hp)
+	# Не объявляем неподключённые механики успешными: они остаются NOT_TESTED.
+
 
 
 ## Ошибки и предупреждения движка и скриптов во время автотеста (Godot 4.5+: OS.add_logger)
@@ -95,13 +289,21 @@ func counts() -> Dictionary:
 		c[issues[k]["sev"]] = c.get(issues[k]["sev"], 0) + 1
 	return c
 
+func _result_status() -> String:
+	var c := coverage()
+	if int(c["FAIL"]) > 0 or int(counts()["ERROR"]) > 0:
+		return "FAILED"
+	if int(c["NOT_TESTED"]) > 0 or int(c["SKIPPED"]) > 0:
+		return "INCOMPLETE"
+	return "PASSED"
+
 func save_report() -> void:
 	var list: Array = issues.values()
 	list.sort_custom(func(a, b): return ["ERROR", "WARNING", "INFO"].find(a["sev"]) < ["ERROR", "WARNING", "INFO"].find(b["sev"]))
 	var f := FileAccess.open(REPORT, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify({"seconds": snappedf(Time.get_ticks_msec() / 1000.0 - started_at, 1.0),
-			"counts": counts(), "issues": list}, "  "))
+			"counts": counts(), "issues": list, "coverage": coverage(), "checks": checks, "registry": registry, "scenario_log": scenario_log, "auto_complete": _auto_complete, "kills": _killed, "result": _result_status()}, "  "))
 
 
 # ---------------------------------------------------------------- запуск и остановка
@@ -112,6 +314,19 @@ func start(m: Node) -> void:
 	if hero == null:
 		return
 	issues.clear()
+	_init_checks()
+	_register_scenarios()
+	scenario_log.clear()
+	_scenario_index = 0
+	_scenario_elapsed = 0.0
+	_scenario_attempt = 0
+	_test_elapsed = 0.0
+	_auto_complete = false
+	_initial_enemy_states.clear()
+	_killed = 0
+	_coverage_time = 0.0
+	_combat_seen = false
+	_last_position = hero.global_position
 	_mobs.clear()
 	started_at = Time.get_ticks_msec() / 1000.0
 	playing = true
@@ -123,7 +338,7 @@ func start(m: Node) -> void:
 	_apply_speed()
 	CardinalDirector.core.log_event("▶ Кардинал играет и ищет ошибки (скорость ×%d)" % speed)
 	changed.emit()
-	await audit_models()
+	# Проверка моделей и анимаций принадлежит отдельной системе ANIMATE.
 	audit_done = true
 	changed.emit()
 
@@ -146,6 +361,8 @@ func stop() -> void:
 		_overlay.queue_free()
 		_overlay = null
 	save_report()
+	var cov := coverage()
+	CardinalDirector.core.log_event("Покрытие: пройдено %d, ошибки %d, пропущено %d, не проверено %d; итог %s" % [cov["PASS"], cov["FAIL"], cov["SKIPPED"], cov["NOT_TESTED"], _result_status()])
 	var c := counts()
 	CardinalDirector.core.log_event("■ Автотест: %d с — ошибок %d, предупреждений %d, заметок %d. Отчёт: cardinal_autotest.json" % [
 		roundi(Time.get_ticks_msec() / 1000.0 - started_at), c["ERROR"], c["WARNING"], c["INFO"]])
@@ -509,6 +726,10 @@ func _physics_process(dt: float) -> void:
 	if touch == null:
 		return
 	_monitor(dt)
+	_coverage_tick(dt)
+	_scenario_tick(dt)
+	if not playing:
+		return
 	if hero.dead:
 		touch.move = Vector2.ZERO
 		return
@@ -668,28 +889,10 @@ func _monitor(dt: float) -> void:
 	_mon_t = 0.0
 	if _ov_label:
 		var c := counts()
-		_ov_label.text = " ◈ Кардинал играет%s · ошибок %d · предупр. %d" % ["" if audit_done else " (проверяет модели)", c["ERROR"], c["WARNING"]]
+		_ov_label.text = " ◈ CARDINAL · %d/%d · ошибок %d · пропущено %d · не проверено %d" % [coverage()["PASS"], checks.size(), c["ERROR"], coverage()["SKIPPED"], coverage()["NOT_TESTED"]]
 	var hp: Vector3 = hero.global_position
 	if not hp.is_finite():
 		add("ERROR", "HERO_NAN", "Герой", "позиция стала неверной (NaN)")
-	# Анимация героя замерла, хотя он бежит
-	var sk: Skeleton3D = hero.get("_sk")
-	if sk and not hero.dead:
-		var probe := Vector3.ZERO
-		for b in [sk.find_bone("mixamorig_LeftFoot"), sk.find_bone("mixamorig_RightHand"), mini(5, sk.get_bone_count() - 1)]:
-			if b >= 0:
-				probe += sk.get_bone_pose_position(b) + sk.get_bone_pose_rotation(b).get_euler()
-		var vel: Vector3 = hero.velocity
-		if Vector2(vel.x, vel.z).length() > 1.5 and probe.is_equal_approx(_hero_pose):
-			_hero_frozen_t += step
-			if _hero_frozen_t > 1.5:
-				var ha = hero.get("_ha")
-				var what: String = ("«%s»%s" % [ha.current(), " (верх тела)" if ha._upper else ""]) if ha and ha.current() != "" else "ходьба"
-				add("ERROR", "HERO_ANIM", "Герой", "движется %.1f м/с, а анимация стоит на месте: %s" % [Vector2(vel.x, vel.z).length(), what])
-				_hero_frozen_t = 0.0
-		else:
-			_hero_frozen_t = 0.0
-		_hero_pose = probe
 	# Монстры рядом
 	var en = main.get("enemies")
 	if en == null:
@@ -706,20 +909,6 @@ func _monitor(dt: float) -> void:
 			continue
 		var m: Dictionary = _mobs.get(e, {"pos": ep, "slide": 0.0, "cd": ep.distance_to(hp), "ct": 0.0})
 		var spd := Vector2(ep.x - m["pos"].x, ep.z - m["pos"].z).length() / maxf(step, 0.01)
-		var ap: AnimationPlayer = e.get("_ap")
-		if ap and not e.dead:
-			if not ap.is_playing():
-				add("WARNING", "MOB_ANIM_STOP", who, "анимация остановилась (стоит в позе)")
-			var cur := String(ap.current_animation)
-			var C: Dictionary = e.get("C") if e.get("C") is Dictionary else {}
-			var stance: String = C.get("stance", "")
-			if spd > 1.6 and (cur == "" or cur == stance or cur.to_lower().contains("idle")) and str(e.st) in ["chase", "wander", "home", "idle"]:
-				m["slide"] += step
-				if m["slide"] > 1.0:
-					add("WARNING", "MOB_SLIDE", who, "двигается без анимации шага («%s», %.1f м/с)" % [cur, spd])
-					m["slide"] = -10.0
-			else:
-				m["slide"] = maxf(0.0, m["slide"])
 		# Гонится, но не приближается
 		if str(e.st) == "chase" and not e.dead:
 			m["ct"] += step

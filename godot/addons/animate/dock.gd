@@ -2,6 +2,9 @@
 extends VBoxContainer
 
 const Generator = preload("res://addons/animate/generator.gd")
+const Inspector = preload("res://addons/animate/inspector.gd")
+const AutoFix = preload("res://addons/animate/autofix.gd")
+const SkeletonBuilder = preload("res://addons/animate/skeleton_builder.gd")
 var editor: EditorPlugin
 var skeleton: Skeleton3D
 var player: AnimationPlayer
@@ -15,13 +18,14 @@ var angle_y: HSlider
 var angle_z: HSlider
 var pose_keys: Dictionary = {}
 var current_animation: Animation
+var helper_name: LineEdit
 
 func setup(plugin: EditorPlugin) -> void:
     editor = plugin
 
 func _ready() -> void:
     custom_minimum_size = Vector2(290, 350)
-    _label("ANIMATE 0.1 — генератор анимаций", true)
+    _label("ANIMATE 2.0 — генератор и диагностика", true)
     _button("Использовать выделенный Skeleton3D / GLB", _select_skeleton)
     status = _label("Выбери Skeleton3D в дереве сцены")
     _label("Описание движения", true)
@@ -34,6 +38,16 @@ func _ready() -> void:
     intensity = _spin("Амплитуда", 1.0, 0.1, 2.0, 0.1)
     _button("Сгенерировать по описанию", _generate)
     _button("Сохранить анимацию .tres", _save)
+    add_child(HSeparator.new())
+    _label("Диагностика и безопасное исправление", true)
+    _button("Проверить скелет и анимацию", _inspect)
+    _button("Исправить копию анимации", _autofix)
+    add_child(HSeparator.new())
+    _label("Вспомогательные кости (экспериментально)", true)
+    helper_name = LineEdit.new()
+    helper_name.placeholder_text = "Имя новой кости, например WeaponSocket"
+    add_child(helper_name)
+    _button("Добавить кость к выбранной", _add_helper)
     add_child(HSeparator.new())
     _label("Ручной редактор поз", true)
     bone_picker = OptionButton.new()
@@ -179,3 +193,28 @@ func _save() -> void:
         EditorInterface.get_resource_filesystem().scan()
     else:
         status.text = "Ошибка сохранения: %d" % error
+
+func _inspect() -> void:
+    if skeleton == null or not is_instance_valid(skeleton):
+        status.text = "Сначала выбери Skeleton3D"
+        return
+    var issues: Array[String] = Inspector.inspect(skeleton, current_animation)
+    status.text = "Диагностика (%d):\n%s" % [issues.size(), "\n".join(issues)]
+
+func _autofix() -> void:
+    if skeleton == null or current_animation == null:
+        status.text = "Нужны скелет и созданная анимация"
+        return
+    var report: Dictionary = AutoFix.fix_animation(current_animation, skeleton)
+    if report["animation"] != null:
+        current_animation = report["animation"]
+    status.text = "AutoFix (копия):\n%s" % "\n".join(report["changes"])
+
+func _add_helper() -> void:
+    if skeleton == null or bone_picker.item_count == 0:
+        status.text = "Выбери скелет и родительскую кость"
+        return
+    var parent_name := skeleton.get_bone_name(bone_picker.get_selected_id())
+    status.text = SkeletonBuilder.add_helper_bone(skeleton, helper_name.text, parent_name)
+    if status.text.begins_with("OK:"):
+        bone_picker.add_item(helper_name.text, skeleton.get_bone_count() - 1)

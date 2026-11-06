@@ -39,4 +39,14 @@ func _ready() -> void:
 	get_viewport().get_texture().get_image().save_png(out + "an_preview.png")
 	p._stop_show()
 	print("tree active after stop: ", main.hero._ha.tree.active)
+	p.open()
+	p._check_skeleton()
+	print("СКЕЛЕТ: ", p._status.text.get_slice("\n", 0), " | ", p._status.text.get_slice("\n", 1))
+	p._autofix()
+	print("ИСПРАВЛЕНИЕ: ", p._status.text.replace("\n", " / "))
+	await p._check_models()
+	print("МОДЕЛИ: ", p._status.text.get_slice("\n", 0))
+	for i in 3:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(out + "an_diag.png")
 	get_tree().quit()

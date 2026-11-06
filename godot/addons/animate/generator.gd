@@ -34,12 +34,12 @@ static func find_bones(skeleton: Skeleton3D) -> Dictionary:
 static func parse_prompt(prompt: String) -> Dictionary:
     var s := prompt.to_lower()
     var motion := "idle"
-    if "бег" in s or "беж" in s or "run" in s:
+    if "рывок" in s or "dash" in s:
+        motion = "dash"
+    elif "бег" in s or "беж" in s or "run" in s:
         motion = "run"
     elif "ход" in s or "идет" in s or "идёт" in s or "walk" in s:
         motion = "walk"
-    elif "рывок" in s or "dash" in s:
-        motion = "dash"
     elif "удар" in s or "меч" in s or "slash" in s:
         motion = "slash"
     elif "присед" in s or "crouch" in s:
@@ -58,6 +58,7 @@ static func parse_prompt(prompt: String) -> Dictionary:
 ## prefix — путь от корня AnimationPlayer до скелета ("" — проигрыватель смотрит прямо на скелет)
 static func generate(skeleton: Skeleton3D, motion: String, duration: float, intensity: float, fps: int = 30, prefix: String = "") -> Animation:
     var anim := Animation.new()
+    fps = maxi(1, fps)
     duration = maxf(0.2, duration)
     intensity = clampf(intensity, 0.1, 2.0)
     anim.length = duration

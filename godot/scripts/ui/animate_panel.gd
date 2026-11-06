@@ -1,11 +1,16 @@
-## Окно ANIMATE (начальная версия): анимация по описанию движения — генерируется на скелете
-## героя (addons/animate/generator.gd) и сразу показывается на нём; можно сохранить в память
-## телефона (user://animate/) и показать сохранённую снова. Открывается из окна CARDINAL.
+## Окно ANIMATE 2.0: анимация по описанию движения — генерируется на скелете героя
+## (addons/animate/generator.gd) и сразу показывается на нём; можно сохранить в память телефона
+## (user://animate/) и показать сохранённую снова. Диагностика — зона ANIMATE (не CARDINAL):
+## проверка моделей и анимаций героя и монстров (scripts/animate_audit.gd), проверка скелета героя
+## и созданной анимации (addons/animate/inspector.gd), безопасное исправление копии анимации
+## (addons/animate/autofix.gd). Открывается из окна CARDINAL.
 extends Control
 
 signal closed
 
 const DIR := "user://animate/"
+const Inspector = preload("res://addons/animate/inspector.gd")
+const AutoFix = preload("res://addons/animate/autofix.gd")
 const QUICK := ["быстрый бег", "шаг", "удар мечом", "рывок", "присед", "прыжок", "взмах рукой", "стойка"]
 
 var hero: Node
@@ -19,13 +24,15 @@ var _list: VBoxContainer
 var _anim: Animation
 var _motion := ""
 var _overlay: CanvasLayer
+var _audit: AnimateAudit
 
 func _ready() -> void:
 	var vb := UiKit.modal(self, close)
 	vb.custom_minimum_size = Vector2(560, 0)
+	vb.add_theme_constant_override("separation", 4)
 	var head := HBoxContainer.new()
 	vb.add_child(head)
-	var title := UiKit.label("✦ ANIMATE 0.1 — анимация по описанию", 18, UiKit.GOLD)
+	var title := UiKit.label("✦ ANIMATE 2.0 — анимации и модели", 18, UiKit.GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	var x := UiKit.button("✕")
@@ -36,8 +43,14 @@ func _ready() -> void:
 	_prompt.text = "быстрый бег"
 	_prompt.custom_minimum_size = Vector2(0, 40)
 	vb.add_child(_prompt)
-	var chips := HFlowContainer.new()
-	vb.add_child(chips)
+	# быстрые варианты — одной строкой с прокруткой (окно должно помещаться на экран)
+	var csc := ScrollContainer.new()
+	csc.custom_minimum_size = Vector2(540, 40)
+	csc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vb.add_child(csc)
+	var chips := HBoxContainer.new()
+	chips.add_theme_constant_override("separation", 6)
+	csc.add_child(chips)
 	for q in QUICK:
 		var b := UiKit.button(q, false, 12)
 		b.custom_minimum_size = Vector2(0, 32)
@@ -71,12 +84,26 @@ func _ready() -> void:
 	save.custom_minimum_size = Vector2(140, 42)
 	save.pressed.connect(_save)
 	row.add_child(save)
-	_status = UiKit.label("", 12, Color(1, 1, 1, 0.7))
+	# Диагностика (зона ANIMATE)
+	var drow := HBoxContainer.new()
+	drow.add_theme_constant_override("separation", 8)
+	vb.add_child(drow)
+	for d in [["🔍 Модели и анимации", _check_models], ["🦴 Скелет героя", _check_skeleton], ["🛠 Исправить копию", _autofix]]:
+		var b := UiKit.button(d[0], false, 13)
+		b.custom_minimum_size = Vector2(0, 36)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(d[1])
+		drow.add_child(b)
+	var ssc := ScrollContainer.new()
+	ssc.custom_minimum_size = Vector2(540, 40)
+	vb.add_child(ssc)
+	_status = UiKit.label("", 12, Color(1, 1, 1, 0.75))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vb.add_child(_status)
+	_status.custom_minimum_size = Vector2(530, 0)
+	ssc.add_child(_status)
 	vb.add_child(UiKit.label("Сохранённые", 13, Color(1, 1, 1, 0.7)))
 	var sc := ScrollContainer.new()
-	sc.custom_minimum_size = Vector2(540, 66)
+	sc.custom_minimum_size = Vector2(540, 50)
 	vb.add_child(sc)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -91,7 +118,7 @@ func _slider(lo: float, hi: float, step: float, v: float, parent: Control) -> HS
 	s.max_value = hi
 	s.step = step
 	s.value = v
-	s.custom_minimum_size = Vector2(250, 26)
+	s.custom_minimum_size = Vector2(250, 20)
 	parent.add_child(s)
 	return s
 
@@ -107,6 +134,45 @@ func open() -> void:
 func close() -> void:
 	visible = false
 	closed.emit()
+
+## Проверка моделей и анимаций героя и всех монстров (может занять несколько секунд)
+func _check_models() -> void:
+	if hero == null:
+		return
+	if _audit == null:
+		_audit = AnimateAudit.new()
+		add_child(_audit)
+	if _audit.running:
+		return
+	_status.text = "Проверяю модели и анимации…"
+	await _audit.run(hero)
+	var c := _audit.counts()
+	var lines: Array = ["Модели и анимации: ошибок %d, предупреждений %d, заметок %d (отчёт: animate_audit.json)" % [c["ERROR"], c["WARNING"], c["INFO"]]]
+	for k in _audit.issues:
+		var i: Dictionary = _audit.issues[k]
+		if i["sev"] != "INFO" and lines.size() < 12:
+			lines.append("%s %s: %s" % ["✖" if i["sev"] == "ERROR" else "⚠", i["subject"], i["msg"]])
+	_status.text = "\n".join(lines)
+
+## Проверка скелета героя и созданной анимации
+func _check_skeleton() -> void:
+	var r := _rig()
+	if r.is_empty():
+		_status.text = "У героя нет скелета"
+		return
+	var issues: Array[String] = Inspector.inspect(r[0], _anim)
+	_status.text = "Скелет героя%s (%d):\n%s" % [" и анимация" if _anim else "", issues.size(), "\n".join(issues)]
+
+## Безопасное исправление: только копия созданной анимации
+func _autofix() -> void:
+	var r := _rig()
+	if r.is_empty() or _anim == null:
+		_status.text = "Сначала сгенерируй движение"
+		return
+	var rep: Dictionary = AutoFix.fix_animation(_anim, r[0])
+	if rep["animation"] != null:
+		_anim = rep["animation"]
+	_status.text = "Исправление (копия):\n" + "\n".join(rep["changes"])
 
 ## Скелет и проигрыватель анимаций героя
 func _rig() -> Array:

@@ -95,7 +95,8 @@ func _ready() -> void:
 
 func _main() -> Node:
 	var n: Node = get_parent()
-	while n and not (n.get("hero") != null and n.get("enemies") != null):
+	# главный узел игры (main.gd); у интерфейса тоже есть hero и enemies — по ним искать нельзя
+	while n and not n.has_method("enter_dungeon"):
 		n = n.get_parent()
 	return n
 
@@ -124,7 +125,7 @@ func _render() -> void:
 	var at := CardinalDirector.autotest
 	if at and at.playing:
 		var n := at.counts()
-		_play.text = "■ Стоп автотеста (ошибок %d, предупр. %d)" % [n["ERROR"], n["WARNING"]]
+		_play.text = "■ Стоп · пройдено %d/%d · ошибок %d" % [at.coverage()["PASS"], at.checks.size(), n["ERROR"]]
 	else:
 		_play.text = "▶ Кардинал играет и ищет ошибки"
 	if at:
