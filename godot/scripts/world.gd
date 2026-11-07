@@ -33,6 +33,7 @@ const TREE_MODELS := {
 }
 const PINE_HEIGHT := 9.0        # высота ели при размере 1 (м)
 const OAK_HEIGHT := 8.0
+const TREE_MIN_GAP := 0.35       # деревья ближе 0,35 их средней высоты (~3,7 м) друг к другу — одно убирается
 const TREE_CHUNK := 40.0        # деревья собраны по участкам 40×40 м
 const TREE_FULL := 25.0         # ближе — полная модель (у присланных деревьев — половина треугольников)
 const TREE_NEAR := 60.0         # до сюда — подробная копия (~60 тыс. треугольников, файл *_near)
@@ -381,20 +382,38 @@ func _build_vegetation() -> void:
 	# лиственные — Autumn Ember и Ancient Woodland Guardian по очереди. Каждое дерево в двух
 	# версиях: подробная вблизи и лёгкая вдали; деревья собраны по участкам, далёкие не рисуются.
 	var placed := {"pine": [], "oak": []}   # [позиция, поворот, высота]
+	var cand := []   # [вид, позиция, поворот, высота, радиус ствола]
 	for t in p["pines"]:
 		var pos := Vector3(t[0], t[2], t[1])
-		if _near_tower(pos):
-			continue
-		var s: float = t[3] * TREE_SCALE
-		placed["pine"].append([pos, t[4], PINE_HEIGHT * s])
-		_tree_collider(body, pos, 0.3 * s)
+		if not _near_tower(pos):
+			cand.append(["pine", pos, t[4], PINE_HEIGHT * t[3] * TREE_SCALE, 0.3 * t[3] * TREE_SCALE])
 	for t in p["oaks"]:
 		var pos := Vector3(t[0], t[2], t[1])
-		if _near_tower(pos):
+		if not _near_tower(pos):
+			cand.append(["oak", pos, t[4], OAK_HEIGHT * t[3] * TREE_SCALE, 0.33 * t[3] * TREE_SCALE])
+	# Деревья, стоящие слишком близко друг к другу (кроны сливаются), — из пары остаётся одно, большее
+	cand.sort_custom(func(a, b): return a[3] > b[3])
+	var grid := {}   # участок 10 м → оставленные деревья [позиция, высота]
+	for c in cand:
+		var pos: Vector3 = c[1]
+		var h: float = c[3]
+		var gx := floori(pos.x / 10.0)
+		var gz := floori(pos.z / 10.0)
+		var close := false
+		for dx in [-1, 0, 1]:
+			for dz in [-1, 0, 1]:
+				for o in grid.get(Vector2i(gx + dx, gz + dz), []):
+					var lim: float = TREE_MIN_GAP * (h + float(o[1])) / 2.0
+					if Vector2(pos.x - o[0].x, pos.z - o[0].z).length_squared() < lim * lim:
+						close = true
+		if close:
 			continue
-		var s: float = t[3] * TREE_SCALE
-		placed["oak"].append([pos, t[4], OAK_HEIGHT * s])
-		_tree_collider(body, pos, 0.33 * s)
+		var key := Vector2i(gx, gz)
+		if not grid.has(key):
+			grid[key] = []
+		grid[key].append([pos, h])
+		placed[c[0]].append([pos, c[2], h])
+		_tree_collider(body, pos, c[4])
 	_build_tree_models(placed)
 	# Трава
 	var tufts := []
