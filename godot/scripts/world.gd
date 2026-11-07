@@ -64,7 +64,7 @@ func _near_tower(p: Vector3) -> bool:   # и не внутри увеличен�
 func _tree_path(name: String, lod: int) -> String:
 	return "res://models/tree_%s%s.glb" % [name, ["", "_near", "_mid", "_far"][lod]]
 
-func _build_tree_models(placed: Dictionary) -> void:
+func _build_tree_models(placed: Dictionary, body: StaticBody3D = null) -> void:
 	# Какие модели есть
 	var avail := {}
 	for kind in TREE_MODELS:
@@ -103,6 +103,11 @@ func _build_tree_models(placed: Dictionary) -> void:
 			var pos: Vector3 = it[0]
 			var y: float = pos.y - box.position.y * k - 0.15
 			var tr := Transform3D(Basis(Vector3.UP, it[1]).scaled(Vector3.ONE * k), Vector3(pos.x, y, pos.z)) * (md["local"] as Transform3D)
+			# Ствол не проходится насквозь: столкновение по настоящему стволу этой модели
+			if body:
+				var tk: Vector3 = _trunk_of(nm, meshes[nm])
+				var c3: Vector3 = Transform3D(Basis(Vector3.UP, it[1]).scaled(Vector3.ONE * k), Vector3(pos.x, y, pos.z)) * Vector3(tk.x, box.position.y, tk.z)
+				_tree_collider(body, Vector3(c3.x, pos.y, c3.z), maxf(0.3, tk.y * k), it[2] * 0.6)
 			var v := rng.randf_range(0.82, 1.08)   # деревья чуть разные по цвету
 			var item := [tr, Color(v, v * rng.randf_range(0.96, 1.04), v)]
 			var key := [floori(pos.x / TREE_CHUNK), floori(pos.z / TREE_CHUNK), nm]
@@ -431,8 +436,7 @@ func _build_vegetation() -> void:
 			grid[key] = []
 		grid[key].append([pos, h])
 		placed[c[0]].append([pos, c[2], h])
-		_tree_collider(body, pos, c[4])
-	_build_tree_models(placed)
+	_build_tree_models(placed, body)
 	# Трава
 	var tufts := []
 	for t in p["tufts"]:
@@ -645,14 +649,48 @@ func _build_rocks() -> void:
 					_rock_nodes.append(mmi)
 			add_child(mmi)
 
-func _tree_collider(body: StaticBody3D, pos: Vector3, r: float) -> void:
+func _tree_collider(body: StaticBody3D, pos: Vector3, r: float, height := 6.0) -> void:
 	var shape := CylinderShape3D.new()
 	shape.radius = r
-	shape.height = 6.0
+	shape.height = height
 	var cs := CollisionShape3D.new()
 	cs.shape = shape
-	cs.position = pos + Vector3(0, 2.0, 0)
+	cs.position = pos + Vector3(0, height / 2.0 - 0.5, 0)
 	body.add_child(cs)
+
+## Ствол модели дерева в системе модели: (центр x, радиус, центр z) — по вершинам сетки на высоте
+## 6–16 % от низа (над корнями, ниже кроны). Берётся облегчённая модель — форма та же, вершин мало.
+var _trunks := {}
+func _trunk_of(nm: String, lods: Array) -> Vector3:
+	if _trunks.has(nm):
+		return _trunks[nm]
+	var box: AABB = lods[0]["aabb"]
+	var md: Dictionary = lods[2]
+	var t: Transform3D = md["local"]
+	var lo := box.position.y + box.size.y * 0.06
+	var hi := box.position.y + box.size.y * 0.16
+	var pts := []
+	var mesh: Mesh = md["mesh"]
+	for si in mesh.get_surface_count():
+		var arr: Array = mesh.surface_get_arrays(si)
+		for v in arr[Mesh.ARRAY_VERTEX]:
+			var w: Vector3 = t * v
+			if w.y >= lo and w.y <= hi:
+				pts.append(Vector2(w.x, w.z))
+	var res := Vector3(box.get_center().x, box.size.y * 0.04, box.get_center().z)
+	if pts.size() >= 8:
+		var xs := pts.map(func(p): return p.x)
+		var zs := pts.map(func(p): return p.y)
+		xs.sort()
+		zs.sort()
+		var c := Vector2(xs[xs.size() / 2], zs[zs.size() / 2])
+		var ds := pts.map(func(p): return (p - c).length())
+		ds.sort()
+		# 70 % точек пояса — ствол; крайние — ветки и корни. Не толще 12 % высоты.
+		res = Vector3(c.x, minf(ds[int(ds.size() * 0.7)], box.size.y * 0.12), c.y)
+	_trunks[nm] = res
+	print("Дерево %s: ствол r=%.2f (%.0f%% высоты)" % [nm, res.y, 100.0 * res.y / box.size.y])
+	return res
 
 # ---------- Костёр на площади
 func _build_campfire() -> void:
