@@ -29,90 +29,56 @@ var _d_need: Label
 var _up: Button
 var _evo: Button
 
+var _tab_col: VBoxContainer
+
 func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	visible = false
-	process_mode = Node.PROCESS_MODE_ALWAYS
-	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.02, 0.05, 0.45)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: close())
-	add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiKit.window_box())
-	panel.custom_minimum_size = Vector2(700, 320)
-	center.add_child(panel)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 8)
-	panel.add_child(vb)
-	# Шапка: ник и уровень, очки навыков, сброс, закрыть
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 12)
-	vb.add_child(head)
-	_title = _lbl("", 18, UiKit.GOLD)
-	head.add_child(_title)
-	_points = _lbl("", 13, UiKit.CREAM)
-	_points.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for t in [["skills", "Навыки"], ["stats", "Характеристики"]]:
-		var tb := _btn(t[1], false)
-		var key: String = t[0]
-		tb.pressed.connect(func():
-			_tab = key
-			_reset_armed = false
-			_reset.text = "Сбросить"
-			_render())
-		head.add_child(tb)
-		_tabs[key] = tb
-	head.add_child(_points)
+	var vb := UiKit.modal(self, close)
+	# Шапка: табличка «Навыки», ник и уровень, очки, сброс, закрыть
+	var extra := UiKit.header(vb, "Навыки", close)
+	_title = _lbl("", 14, UiKit.CREAM)
+	extra.add_child(_title)
+	_points = _lbl("", 14, UiKit.GOLD)
+	extra.add_child(_points)
 	_reset = _btn("Сбросить", false)
 	_reset.pressed.connect(_on_reset)
-	head.add_child(_reset)
-	var x := _btn("✕", false)
-	x.pressed.connect(close)
-	head.add_child(x)
+	extra.add_child(_reset)
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 10)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vb.add_child(body)
+	# Слева — вкладки
+	var tc: Array = UiKit.tab_column(160)
+	body.add_child(tc[0])
+	_tab_col = tc[1]
 	# Левая половина: список навыков с прокруткой
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_stretch_ratio = 1.0
-	scroll.custom_minimum_size = Vector2(0, 250)
-	body.add_child(scroll)
+	scroll.custom_minimum_size = Vector2(240, 250)
+	body.add_child(UiKit.card(scroll, 6))
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 6)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_list)
 	# Правая половина: описание навыка, ниже — «Улучшить» и рядом «Эволюция»
 	var info := PanelContainer.new()
-	var ib := StyleBoxFlat.new()
-	ib.bg_color = Color(1, 1, 1, 0.05)
-	ib.border_color = Color(0.45, 0.85, 1.0, 0.3)
-	ib.set_border_width_all(1)
-	ib.set_corner_radius_all(UiKit.RADIUS)
-	ib.set_content_margin_all(10)
-	info.add_theme_stylebox_override("panel", ib)
+	info.add_theme_stylebox_override("panel", UiKit.card_box(12))
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.size_flags_stretch_ratio = 1.0
 	body.add_child(info)
 	var dv := VBoxContainer.new()
 	dv.add_theme_constant_override("separation", 5)
 	info.add_child(dv)
-	_d_name = _lbl("", 18, UiKit.CREAM)
+	_d_name = _lbl("", 19, Color("#f4f7fc"))
 	dv.add_child(_d_name)
-	_d_kind = _lbl("", 11, Color("#8fd8ff"))
+	_d_kind = _lbl("", 11, Color("#8fc4ff"))
 	dv.add_child(_d_kind)
-	_d_rank = _lbl("", 14, UiKit.GOLD)
+	_d_rank = _lbl("", 15, UiKit.CREAM)
 	dv.add_child(_d_rank)
-	_d_now = _wrap(_lbl("", 13, Color(1, 1, 1, 0.9)))
+	_d_now = _wrap(_lbl("", 13, UiKit.TEXT))
 	dv.add_child(_d_now)
-	_d_next = _wrap(_lbl("", 12, Color(1, 1, 1, 0.6)))
+	_d_next = _wrap(_lbl("", 12, UiKit.DIM))
 	dv.add_child(_d_next)
 	_d_need = _lbl("", 12, Color("#ff9a7a"))
 	dv.add_child(_d_need)
@@ -140,7 +106,7 @@ func _ready() -> void:
 
 func _wrap(l: Label) -> Label:
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size = Vector2(300, 0)
+	l.custom_minimum_size = Vector2(270, 0)
 	return l
 
 func _lbl(t: String, fs: int, c: Color) -> Label:
@@ -183,8 +149,18 @@ func _on_reset() -> void:
 func _render() -> void:
 	var free := Game.points_free()
 	_title.text = "👤 %s · Ур. %d" % [Game.player_name if Game.player_name != "" else "Странник", Game.level]
-	for k in _tabs:
-		(_tabs[k] as Button).text = ("● " if k == _tab else "") + ("Навыки" if k == "skills" else "Характеристики")
+	for c in _tab_col.get_children():
+		_tab_col.remove_child(c)
+		c.queue_free()
+	for t in [["skills", "⚔  Навыки"], ["stats", "📊  Характеристики"]]:
+		var key: String = t[0]
+		var tb := UiKit.tab(t[1], key == _tab, 13)
+		tb.pressed.connect(func():
+			_tab = key
+			_reset_armed = false
+			_reset.text = "Сбросить"
+			_render())
+		_tab_col.add_child(tb)
 	for c in _list.get_children():
 		_list.remove_child(c)
 		c.queue_free()
@@ -206,14 +182,11 @@ func _render() -> void:
 		row.add_theme_font_size_override("font_size", 14)
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:
-			var st := StyleBoxFlat.new()
-			st.bg_color = Color(1, 0.72, 0.29, 0.2) if id == _sel else Color(0.45, 0.85, 1.0, 0.06)
-			st.border_color = UiKit.GOLD if id == _sel else Color(0.45, 0.85, 1.0, 0.3)
-			st.set_border_width_all(2 if id == _sel else 1)
-			st.set_corner_radius_all(UiKit.RADIUS)
+			var st := UiKit.glow(UiKit.box(Color("#1d4f9a"), Color("#7cc0ff"), 8, 0, 1), 6, 0.45) if id == _sel \
+				else UiKit.box(Color("#0f1a2e"), UiKit.LINE, 8, 0, 1)
 			st.content_margin_left = 10
 			row.add_theme_stylebox_override(state, st)
-		var fc := Color(1, 0.91, 0.69, 0.45 if locked else 1.0)
+		var fc := Color(0.93, 0.95, 0.98, 0.45 if locked else 1.0)
 		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 			row.add_theme_color_override(k, fc)
 		row.pressed.connect(func():
@@ -234,15 +207,12 @@ func _render_stats() -> void:
 		row.add_theme_font_size_override("font_size", 14)
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:
-			var sb := StyleBoxFlat.new()
-			sb.bg_color = Color(1, 0.72, 0.29, 0.2) if id == _sel_stat else Color(0.45, 0.85, 1.0, 0.06)
-			sb.border_color = UiKit.GOLD if id == _sel_stat else Color(0.45, 0.85, 1.0, 0.3)
-			sb.set_border_width_all(2 if id == _sel_stat else 1)
-			sb.set_corner_radius_all(UiKit.RADIUS)
+			var sb := UiKit.glow(UiKit.box(Color("#1d4f9a"), Color("#7cc0ff"), 8, 0, 1), 6, 0.45) if id == _sel_stat \
+				else UiKit.box(Color("#0f1a2e"), UiKit.LINE, 8, 0, 1)
 			sb.content_margin_left = 10
 			row.add_theme_stylebox_override(state, sb)
 		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-			row.add_theme_color_override(k, Color(1, 0.91, 0.69))
+			row.add_theme_color_override(k, Color(0.93, 0.95, 0.98))
 		row.pressed.connect(func():
 			_sel_stat = id
 			_render())

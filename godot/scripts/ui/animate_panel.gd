@@ -30,14 +30,8 @@ func _ready() -> void:
 	var vb := UiKit.modal(self, close)
 	vb.custom_minimum_size = Vector2(560, 0)
 	vb.add_theme_constant_override("separation", 4)
-	var head := HBoxContainer.new()
-	vb.add_child(head)
-	var title := UiKit.label("✦ ANIMATE 2.0 — анимации и модели", 18, UiKit.GOLD)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	var x := UiKit.button("✕")
-	x.pressed.connect(close)
-	head.add_child(x)
+	UiKit.header(vb, "ANIMATE 2.0", close)
+	vb.add_child(UiKit.label("анимации и модели", 12, UiKit.DIM))
 	_prompt = LineEdit.new()
 	_prompt.placeholder_text = "Например: быстрый бег, удар мечом, прыжок"
 	_prompt.text = "быстрый бег"

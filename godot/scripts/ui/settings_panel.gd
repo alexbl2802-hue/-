@@ -14,15 +14,7 @@ var _view_btns: Array = []
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var vb := UiKit.modal(self, close)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 12)
-	vb.add_child(head)
-	var title := UiKit.label("⚙ Настройки", 18, UiKit.GOLD)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	var x := UiKit.button("✕")
-	x.pressed.connect(close)
-	head.add_child(x)
+	UiKit.header(vb, "Настройки", close)
 	# Чувствительность камеры
 	_sens_lbl = UiKit.label("", 14)
 	vb.add_child(_sens_lbl)

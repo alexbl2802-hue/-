@@ -91,24 +91,25 @@ func _build_dialog() -> void:
 	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_dlg.add_child(cc)
 	_dlg_box = PanelContainer.new()
-	_dlg_box.add_theme_stylebox_override("panel", UiKit.box(Color(0.04, 0.05, 0.1, 0.94), Color(0.5, 0.85, 1.0, 0.8), 2, 12))
+	_dlg_box.add_theme_stylebox_override("panel", UiKit.window_box())
 	cc.add_child(_dlg_box)
 	var vb := VBoxContainer.new()
 	vb.custom_minimum_size = Vector2(380, 0)
 	vb.add_theme_constant_override("separation", 10)
 	_dlg_box.add_child(vb)
-	var t := UiKit.label("Новая игра", 22, UiKit.GOLD)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UiKit.decorate(_dlg_box)
+	var t := UiKit.title_plate("Новая игра")
+	t.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	vb.add_child(t)
-	vb.add_child(UiKit.label("Имя героя", 13, Color(1, 1, 1, 0.75)))
+	vb.add_child(UiKit.label("Имя героя", 13, UiKit.DIM))
 	_name = LineEdit.new()
 	_name.placeholder_text = "Введи имя или ник"
 	_name.max_length = 16
 	_name.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.add_theme_font_size_override("font_size", 18)
-	_name.add_theme_stylebox_override("normal", UiKit.box(Color(0, 0.04, 0.08, 0.6), Color(0.45, 0.85, 1.0, 0.6), 2, 9))
-	_name.add_theme_stylebox_override("focus", UiKit.box(Color(0, 0, 0, 0.5), UiKit.GOLD, 10, 9))
-	_name.add_theme_color_override("font_color", Color("#fff3d8"))
+	_name.add_theme_stylebox_override("normal", UiKit.box(Color("#0b1322"), UiKit.LINE, 8, 9, 1))
+	_name.add_theme_stylebox_override("focus", UiKit.glow(UiKit.box(Color("#0b1322"), Color("#7cc0ff"), 8, 9, 1), 5, 0.45))
+	_name.add_theme_color_override("font_color", UiKit.CREAM)
 	_name.text_submitted.connect(func(_t): _name.release_focus())
 	vb.add_child(_name)
 	_warn = UiKit.label("Сохранённый прогресс будет удалён", 12, Color("#ff9a8a"))

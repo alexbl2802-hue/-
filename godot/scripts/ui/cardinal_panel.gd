@@ -15,15 +15,7 @@ var _t := 0.0
 func _ready() -> void:
 	var vb := UiKit.modal(self, close)
 	vb.custom_minimum_size = Vector2(560, 0)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 12)
-	vb.add_child(head)
-	var title := UiKit.label("◈ CARDINAL SYSTEM", 18, UiKit.GOLD)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	var x := UiKit.button("✕")
-	x.pressed.connect(close)
-	head.add_child(x)
+	UiKit.header(vb, "CARDINAL SYSTEM", close)
 	_status = UiKit.label("", 14)
 	vb.add_child(_status)
 	# Множитель добычи (добавочные предметы по таблицам Cardinal)

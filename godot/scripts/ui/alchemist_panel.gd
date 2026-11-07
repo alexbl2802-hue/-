@@ -11,17 +11,10 @@ var _note: Label
 
 func _ready() -> void:
 	var vb := UiKit.modal(self, close)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 14)
-	vb.add_child(head)
-	head.add_child(UiKit.label("⚗ Лавка алхимика", 18, UiKit.GOLD))
-	_money = UiKit.label("", 15, Color("#ffd34d"))
-	_money.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(_money)
-	var x := UiKit.button("✕")
-	x.pressed.connect(close)
-	head.add_child(x)
-	vb.add_child(UiKit.label("С монстров зелья не падают — их покупают или варят здесь из эссенций монстров.", 12, Color(1, 1, 1, 0.7)))
+	var extra := UiKit.header(vb, "Лавка алхимика", close)
+	_money = UiKit.label("", 16, Color("#ffe08a"))
+	extra.add_child(_money)
+	vb.add_child(UiKit.label("С монстров зелья не падают — их покупают или варят здесь из эссенций монстров.", 12, UiKit.DIM))
 	_stock = UiKit.label("", 14)
 	vb.add_child(_stock)
 	var rows := VBoxContainer.new()
