@@ -206,7 +206,7 @@ const MANOR_SIZE := 23.5      # особняк — во всю ширину дв
 const FORGE_POS := Vector3(20.0, 0.0, -25.5)   # кузница из модели — на месте огорода (старое место мало)
 const FORGE_SIZE := 11.0
 const WELL_SIZE := 3.6
-const STALL_SIZE := 3.6       # лавка из модели — по длине прежнего навеса
+const STALL_SIZE := 5.4       # лавка из модели — в полтора раза больше прежнего навеса (было 3,6)
 static func _house(x: float, z: float, w: float, d: float, floors: int, face: String, k: int, stone: Material) -> void:
 	# Дом — модель коттеджа (Meshy, как есть), дверью на улицу; если модели нет — прежний дом из коробок
 	if HouseModel.exists(HouseModel.COTTAGE):
@@ -320,7 +320,7 @@ static func _plaza(stone: Material) -> void:
 	var goods := [0xd8402a, 0xe8b030, 0x6aa040, 0xa05a2a]
 	var stalls := [[7.5, -7.0], [7.0, 7.5]]
 	if HouseModel.exists(HouseModel.STALL):
-		for st in stalls:   # торговые лавки — присланная модель Market Stall (как есть)
+		for st in [[7.5, -6.0], [7.0, 6.0]]:   # торговые лавки — присланная модель Market Stall (как есть); чуть ближе к поперечной улице, чтобы большие лавки не упирались в дома
 			HouseModel.place(_root, HouseModel.STALL, Vector3(st[0], G, st[1]), 0.0, STALL_SIZE, _body)
 		return
 	for i in 2:
