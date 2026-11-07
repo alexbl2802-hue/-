@@ -53,10 +53,10 @@ func _buttons() -> Array:
 	var s := size
 	# Основной удар — в правом нижнем углу; навыки — дугой вокруг него (ближний круг),
 	# прыжок, бег, блок и уклонение — дальним кругом
-	var ac := Vector2(s.x - 20 - 48, s.y - 18 - 48)
+	var ac := Vector2(s.x - 16 - 38, s.y - 14 - 38)
 	var at := func(r: float, deg: float) -> Vector2: return ac + Vector2(cos(deg_to_rad(deg)), sin(deg_to_rad(deg))) * r
 	var list := [
-		{"id": "attack", "c": ac, "r": 48.0, "label": "⚔", "fs": 41, "border": Color(1, 0.55, 0.43, 0.75)},
+		{"id": "attack", "c": ac, "r": 38.0, "label": "⚔", "fs": 32, "border": Color(1, 0.55, 0.43, 0.75)},
 		{"id": "inventory", "rect": Rect2(10, 10, 32, 32), "label": "🎒", "fs": 16},
 		{"id": "potion", "rect": Rect2(48, 10, 32, 32), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
 		{"id": "skills", "rect": Rect2(86, 10, 32, 32), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
@@ -65,23 +65,23 @@ func _buttons() -> Array:
 	]
 	# Ближний круг — навыки
 	if art_icon != "":
-		list.append({"id": "art", "c": at.call(RING_IN, 180.0), "r": 30.0, "label": art_icon, "fs": 26, "border": Color(1, 0.85, 0.4, 0.8)})
+		list.append({"id": "art", "c": at.call(RING_IN, 180.0), "r": 24.0, "label": art_icon, "fs": 20, "border": Color(1, 0.85, 0.4, 0.8)})
 	if skill_ranks["horizontal"] > 0:
-		list.append({"id": "horizontal", "c": at.call(RING_IN, 210.0), "r": 30.0, "label": "↔", "fs": 26, "border": Color(0.5, 0.85, 1, 0.8)})
+		list.append({"id": "horizontal", "c": at.call(RING_IN, 210.0), "r": 24.0, "label": "↔", "fs": 20, "border": Color(0.5, 0.85, 1, 0.8)})
 	if skill_ranks["whirl"] > 0:
-		list.append({"id": "whirl", "c": at.call(RING_IN, 240.0), "r": 30.0, "label": "🌀", "fs": 26, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "whirl", "c": at.call(RING_IN, 240.0), "r": 24.0, "label": "🌀", "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
-		list.append({"id": "dash", "c": at.call(RING_IN, 270.0), "r": 30.0, "label": dash_icon, "fs": 26, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "dash", "c": at.call(RING_IN, 270.0), "r": 24.0, "label": dash_icon, "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
 	# Дальний круг — уклонение, блок, прыжок, бег
 	# Уклонение: назад, вбок или кувырок — по наклону джойстика
-	list.append({"id": "dodge", "c": at.call(RING_OUT, 180.0), "r": 28.0, "label": "↶", "fs": 26, "border": Color(0.6, 0.95, 0.8, 0.75)})
-	list.append({"id": "block", "c": at.call(RING_OUT, 203.0), "r": 28.0, "label": "🔰", "fs": 24, "border": Color(0.75, 0.8, 0.9, 0.7)})
-	list.append({"id": "jump", "c": at.call(RING_OUT, 226.0), "r": 28.0, "label": "⤒", "fs": 24})
-	list.append({"id": "run", "c": at.call(RING_OUT, 249.0), "r": 28.0, "label": "🏃", "fs": 22})
+	list.append({"id": "dodge", "c": at.call(RING_OUT, 180.0), "r": 23.0, "label": "↶", "fs": 21, "border": Color(0.6, 0.95, 0.8, 0.75)})
+	list.append({"id": "block", "c": at.call(RING_OUT, 203.0), "r": 23.0, "label": "🔰", "fs": 19, "border": Color(0.75, 0.8, 0.9, 0.7)})
+	list.append({"id": "jump", "c": at.call(RING_OUT, 226.0), "r": 23.0, "label": "⤒", "fs": 19})
+	list.append({"id": "run", "c": at.call(RING_OUT, 249.0), "r": 23.0, "label": "🏃", "fs": 17})
 	return list
 
-const RING_IN := 118.0     # радиус дуги навыков вокруг удара
-const RING_OUT := 182.0     # дальний круг (до миникарты не достаёт)
+const RING_IN := 90.0     # радиус дуги навыков вокруг удара
+const RING_OUT := 146.0     # дальний круг (до миникарты не достаёт)
 
 func _act_rect() -> Rect2:
 	if act_text == "":

@@ -1045,7 +1045,7 @@ func _update_move(dt: float) -> Vector3:
 					_sweep_begin()
 					if ATTACK_RINGS:
 						Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
-				_sweep(3.4 * _wt()["reach"], _horizontal_one)
+				_sweep(_blade_reach(), _horizontal_one)
 		elif not _move_hit and _move_t >= HZ_HIT:
 			_move_hit = true
 			_horizontal_hit()
@@ -1116,6 +1116,10 @@ var _unblock_t := -1.0
 var _hand_bone := -1
 var _sweep_prev := INF
 var _sweep_hits := {}
+
+## Докуда достаёт клинок от центра героя: рука (~0,6 м) + длина клинка оружия + запас
+func _blade_reach() -> float:
+	return 0.6 + TRAIL_LEN * _wt()["reach"] + 0.3
 
 func _key_t(keys: Array, t: float) -> float:
 	if t <= keys[0][0]:
@@ -1668,6 +1672,7 @@ func _animate_31(sk: Skeleton3D) -> void:
 const HM_ACCEL := 15.0
 const HM_DECEL := 19.0
 const HM_AIR := 0.3
+const REVERSE_FROM := 6.0      # м/с: быстрее — разворот через резкую остановку
 var _hm_vel := Vector3.ZERO
 
 func _physics_process(dt: float) -> void:
@@ -1704,6 +1709,11 @@ func _physics_process(dt: float) -> void:
 	if blocking:
 		speed *= 0.4
 	var hv := Vector3.ZERO
+	# Разворот на бегу: сначала резкая остановка (клип Meshy), потом бег в другую сторону —
+	# без «проскальзывания», когда ноги уже бегут назад, а тело ещё едет вперёд
+	if mag > 0.12 and _move == "" and attack_t < 0.0 and _art_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and is_on_floor() \
+			and _hm_vel.length() > REVERSE_FROM and dir.normalized().dot(_hm_vel.normalized()) < -0.2 and _ha and _ha._names.has("stop"):
+		_start_move("stop", _hm_vel.normalized())
 	if mag > 0.12:
 		dir = dir.normalized()
 		# В блоке герой не разворачивается — смотрит на врага и отступает спиной вперёд
@@ -1752,8 +1762,8 @@ func _physics_process(dt: float) -> void:
 				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
 	if _art_t >= 0.0 or _move != "" or _dash_t >= 0.0:
 		# Скорость рывка и приёмов не переносится в обычный бег: после рывка (исчез — появился)
-		# герой сразу бежит со своей обычной скоростью от джойстика
-		_hm_vel = hv_stick
+		# герой сразу бежит со своей обычной скоростью от джойстика; после остановки — разгон с места
+		_hm_vel = Vector3.ZERO if _move == "stop" else hv_stick
 	_update_cloth(dt)
 	hv += _root_motion(dt)
 	hv += _push
@@ -1865,7 +1875,7 @@ func _animate(dt: float) -> void:
 					_sweep_begin()
 					if ATTACK_RINGS:
 						Fx.ring(global_position + Vector3(0, 0.6, 0), Color("#bfefff"), 7.0, 0.4)
-				_sweep(3.3, _whirl_one)
+				_sweep(_blade_reach(), _whirl_one)
 		elif not _spin_hit and _spin_t >= (WHIRL_HIT if whirl_anim else 0.2):
 			_spin_hit = true
 			_whirl_hit()

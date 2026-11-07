@@ -88,11 +88,12 @@ func _ready() -> void:
 	# Баннер
 	_banner_box = VBoxContainer.new()
 	_banner_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_banner_box.position.y = 92
+	_banner_box.position.y = 70   # под полосками жизни и опыта, под ником и уровнем
 	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner_box.modulate.a = 0.0
-	_banner = _label(32, Color("#f4ecd8"))
-	_banner_sub = _label(15, Color(0.96, 0.93, 0.85, 0.85))
+	_banner_box.add_theme_constant_override("separation", 0)
+	_banner = _label(15, Color("#f4ecd8"))
+	_banner_sub = _label(10, Color(0.96, 0.93, 0.85, 0.85))
 	_banner_box.add_child(_banner)
 	_banner_box.add_child(_banner_sub)
 	root.add_child(_banner_box)
@@ -186,13 +187,15 @@ func hp_color(f: float) -> Color:
 func set_status(text: String) -> void:
 	_status.text = text
 
+const BANNER_ALPHA := 0.5
+
 func banner(title: String, sub := "") -> void:
 	_banner.text = title
 	_banner_sub.text = sub
 	if _tween:
 		_tween.kill()
 	_tween = create_tween()
-	_tween.tween_property(_banner_box, "modulate:a", 1.0, 0.5)
+	_tween.tween_property(_banner_box, "modulate:a", BANNER_ALPHA, 0.5)   # полупрозрачно — не мешает
 	_tween.tween_interval(2.4)
 	_tween.tween_property(_banner_box, "modulate:a", 0.0, 0.8)
 
@@ -320,13 +323,14 @@ func _draw_boss_bar() -> void:
 	if not boss:
 		return
 	var font := _enemy_bars.get_theme_default_font()
-	var w := 380.0
+	# Полоска босса — под надписями этажа и босса, мельче и полупрозрачная
+	var w := 260.0
 	var x := (_enemy_bars.size.x - w) / 2.0
-	var y := 78.0
+	var y := 112.0
 	var t: String = boss.T["name"]
-	_enemy_bars.draw_string_outline(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 15, 4, Color(0, 0, 0, 0.85))
-	_enemy_bars.draw_string(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 15, Color("#ffb070"))
-	var r := Rect2(x, y + 6, w, 11)
+	_enemy_bars.draw_string_outline(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 11, 3, Color(0, 0, 0, 0.5))
+	_enemy_bars.draw_string(font, Vector2(x, y), t, HORIZONTAL_ALIGNMENT_CENTER, w, 11, Color(1.0, 0.69, 0.44, 0.75))
+	var r := Rect2(x, y + 4, w, 7)
 	_enemy_bars.draw_rect(r.grow(2), Color(0, 0, 0, 0.6))
 	_enemy_bars.draw_rect(Rect2(r.position, Vector2(w * clampf(boss.hp / boss.T["hp"], 0, 1), r.size.y)), hp_color(boss.hp / boss.T["hp"]))
 	_enemy_bars.draw_rect(r.grow(2), Color(1, 0.75, 0.4, 0.6), false, 1.5)

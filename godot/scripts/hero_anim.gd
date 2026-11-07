@@ -117,7 +117,9 @@ func act(kind: String, pos: float, scale: float, upper := false) -> void:
 		act_time = pos
 		tree.set("parameters/act_seek/seek_request", pos)
 	act_scale = scale
-	tree.set("parameters/act_ts/scale", scale)
+	# Поза ставится перемоткой каждый кадр (scale 0): темп оставляем 1, иначе темп 0 останавливает
+	# и плавный переход от прошлого действия — новая анимация так и не проявлялась (Горизонталь, Вихрь)
+	tree.set("parameters/act_ts/scale", 1.0 if scale == 0.0 and pos >= 0.0 else scale)
 	if upper != _upper:
 		_upper = upper
 		_mix.filter_enabled = upper
