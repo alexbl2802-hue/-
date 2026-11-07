@@ -432,12 +432,19 @@ func _build_gear(sk: Skeleton3D) -> void:
 	for i in sk.get_bone_count():
 		if sk.get_bone_name(i).ends_with("LeftForeArm"):
 			b = i
+	# Щит крепится к кисти: кулак — между запястьем и основанием среднего пальца
+	var hand_b := sk.find_bone(sk.get_bone_name(b).replace("ForeArm", "Hand"))
+	if hand_b >= 0:
+		b = hand_b
 	var att := BoneAttachment3D.new()
 	sk.add_child(att)
 	att.bone_name = sk.get_bone_name(b)
 	att.bone_idx = b
-	var elbow: Vector3 = sk.get_bone_global_rest(b).origin
-	var wrist: Vector3 = sk.get_bone_global_rest(sk.find_bone(sk.get_bone_name(b).replace("ForeArm", "Hand"))).origin
+	var wrist: Vector3 = sk.get_bone_global_rest(b).origin
+	var fist := wrist + Vector3(0.07, 0, 0)
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("LeftHandMiddle1"):
+			fist = wrist.lerp(sk.get_bone_global_rest(i).origin, 0.75)
 	var g: Transform3D = sk.get_bone_global_rest(b)
 	_shields = {}
 	for kind in ["round", "heater", "tower"]:
@@ -447,7 +454,9 @@ func _build_gear(sk: Skeleton3D) -> void:
 		# в T-позе левая рука вдоль +X ладонью вниз; щит — на тыльной стороне предплечья (+Y),
 		# лицом наружу, верхом к большому пальцу (+Z): в стойке, когда ладонь смотрит к телу,
 		# щит стоит вертикально и прикрывает бок
-		var center := elbow.lerp(wrist, 0.45) + Vector3(0, 0.075, 0)
+		# Щит держится в руке: ручка в сжатом кулаке, щит с тыльной стороны кисти (+Y в T-позе),
+		# верхом к большому пальцу (+Z) — как в клипах блока Meshy
+		var center := fist + Vector3(0, 0.07, 0)
 		var basis := Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0))
 		sh.transform = g.affine_inverse() * Transform3D(basis, center)
 		sh.scale = Vector3.ONE / CHAR_SCALE * 1.0
