@@ -544,10 +544,14 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 			_ha.act("slash", 0.08 if _new_swing or _ha.current() != "slash" else -1.0, sp, upper)
 	elif not on_floor:
 		if _ha._names.get("air", "") == JUMP_CLIP[0]:
-			# Прыжок с ударом: отрезок клипа от толчка, проигрывается один раз
-			_ha.act("air", JUMP_CLIP[1] if _ha.current() != "air" else -1.0, JUMP_CLIP[2])
+			# Прыжок по ключевым позам клипа, в такт полёту: на подъёме — от отрыва к верхней
+			# точке по скорости взлёта, на спуске — от верхней точки к касанию земли
+			_ha.act("air", _jump_clip_t(), 0.0)
 		else:
 			_ha.act("air", 0.17, 0.0)   # в прыжке — поза полёта из бега
+	elif _land_t >= 0.0 and _ha._names.get("air", "") == JUMP_CLIP[0]:
+		# Приземление: амортизация по клипу (присел на касании — выпрямился)
+		_ha.act("air", minf(JUMP_TOUCH + _land_t * JUMP_LAND_RATE, JUMP_RECOVER), 0.0)
 	else:
 		_ha.stop()
 	_new_swing = false
@@ -922,6 +926,38 @@ const STOP_FROM := 8.5         # с какой скорости бега отп�
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
 const WHIRL_CLIP := ["Sword_Spin_360", 0.0, 0.92 / WHIRL_TIME]   # [клип, с какой секунды, темп] — весь оборот за время вихря
 const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
+# Ключевые позы прыжка в Basic_Jump (секунды клипа, замер по стопам и тазу — tools/gait):
+# присед 1,38–1,60 · отрыв 1,72 · верхняя точка 2,02 · касание 2,38 · амортизация до 3,40
+const JUMP_TAKEOFF := 1.70
+const JUMP_APEX := 2.02
+const JUMP_TOUCH := 2.38
+const JUMP_RECOVER := 3.10
+const JUMP_LAND_RATE := 2.4     # амортизация 2,38→3,10 за ~0,3 с
+# Высота нижней стопы в клипе (ед. модели) — клип сам «подлетает»; это вычитается, полёт ведёт физика
+const JUMP_TOE := [[1.70, 0.01], [1.75, 0.19], [1.80, 0.53], [1.85, 0.90], [1.90, 1.21], [1.95, 1.49], [2.00, 1.73],
+	[2.05, 1.75], [2.10, 1.61], [2.15, 1.30], [2.20, 1.01], [2.25, 0.72], [2.30, 0.42], [2.35, 0.11], [2.40, 0.03]]
+var _land_t := -1.0            # время с касания земли после прыжка (−1 — не приземляется)
+var _jump_t := 0.0             # текущая секунда клипа прыжка
+
+## Секунда клипа прыжка по фазе полёта (скорость по вертикали)
+func _jump_clip_t() -> float:
+	var vy := velocity.y
+	if vy > 0.0:
+		_jump_t = lerpf(JUMP_TAKEOFF, JUMP_APEX, clampf(1.0 - vy / JUMP, 0.0, 1.0))
+	else:
+		_jump_t = lerpf(JUMP_APEX, JUMP_TOUCH - 0.05, clampf(-vy / JUMP, 0.0, 1.0))
+	return _jump_t
+
+## На сколько клип прыжка поднял ноги (м) — модель опускается на это, чтобы стопы были там, где герой
+func _jump_lift(t: float) -> float:
+	if t <= JUMP_TOE[0][0] or t >= JUMP_TOE[-1][0]:
+		return 0.0
+	for i in range(1, JUMP_TOE.size()):
+		if t <= JUMP_TOE[i][0]:
+			var a: Array = JUMP_TOE[i - 1]
+			var b: Array = JUMP_TOE[i]
+			return lerpf(a[1], b[1], (t - a[0]) / (b[0] - a[0])) * CHAR_SCALE
+	return 0.0
 const RUN_FIGHT := "Sword_Run"                      # бег, когда рядом враги — присланный клип
 const RUN_FIGHT_STRIDE := 3.0
 const FIGHT_NEAR := 12.0
@@ -1638,7 +1674,13 @@ func _physics_process(dt: float) -> void:
 	elif was_air:
 		if _fall_top - global_position.y > LAND_FALL and _move == "" and not dead and _ha and _ha._names.has("land"):
 			_start_move("land", Vector3.ZERO)
+		elif _speed_now < 1.5 and _move == "" and attack_t < 0.0:
+			_land_t = 0.0   # обычное приземление стоя — амортизация; на бегу — сразу бег
 		_fall_top = -INF
+	if _land_t >= 0.0:
+		_land_t += dt
+		if _land_t * JUMP_LAND_RATE >= JUMP_RECOVER - JUMP_TOUCH or _speed_now > 1.5 or not is_on_floor() or attack_t >= 0.0:
+			_land_t = -1.0
 	if _dash_t >= 0.0:
 		_dash_hits()
 	if not in_world2:   # во втором мире свои стены по краям плато
@@ -1733,6 +1775,9 @@ func _animate(dt: float) -> void:
 		var calm := on_floor and not dead and _speed_now < FOOT_IK_MAX_SPEED and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""
 		_model.position.y += _feet.update(dt, calm, facing)
 	_lean_update(dt, on_floor)
+	# Прыжок: подъём, заложенный в клипе, вычитается — высоту прыжка задаёт физика
+	if _ha and not on_floor and _ha.current() == "air" and _ha._names.get("air", "") == JUMP_CLIP[0]:
+		_model.position.y -= _jump_lift(_jump_t)
 	if _dash_t >= 0.0:
 		# Длинный прыжок: тело летит по дуге над землёй
 		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)

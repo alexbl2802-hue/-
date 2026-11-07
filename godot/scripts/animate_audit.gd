@@ -432,4 +432,47 @@ func audit_gait() -> void:
 		if stride < 0.2:
 			add("WARNING", "GAIT_NO_STRIDE", clip, "опорная стопа не уходит назад — клип шагает на месте")
 		await get_tree().process_frame
+	_audit_jump(ap, sk, toes, x)
 	n.queue_free()
+
+## Прыжок по ключевым позам: отрыв, верхняя точка, касание — и совпадают ли они с числами героя
+func _audit_jump(ap: AnimationPlayer, sk: Skeleton3D, toes: Array, x: Transform3D) -> void:
+	var hs: Script = load("res://scripts/hero.gd")
+	var cm: Dictionary = hs.get_script_constant_map()
+	var clip: String = cm.get("JUMP_CLIP", [""])[0]
+	if clip == "" or not ap.has_animation(clip):
+		add("WARNING", "JUMP_CLIP", "hero", "нет клипа прыжка %s" % clip)
+		return
+	var anim := ap.get_animation(clip)
+	ap.play(clip)
+	var ts := []
+	var ys := []
+	var t := 0.0
+	while t <= anim.length:
+		ap.seek(t, true)
+		sk.force_update_all_bone_transforms()
+		ts.append(t)
+		ys.append(minf((x * sk.get_bone_global_pose(toes[0]).origin).y, (x * sk.get_bone_global_pose(toes[1]).origin).y))
+		t += 0.02
+	var ground: float = ys.min()
+	var take := -1.0
+	var apex := -1.0
+	var touch := -1.0
+	var top := -INF
+	for i in ts.size():
+		if take < 0.0 and ys[i] > ground + 0.05:
+			take = ts[i]
+		if take >= 0.0 and ys[i] > top:
+			top = ys[i]
+			apex = ts[i]
+	for i in ts.size():
+		if apex >= 0.0 and ts[i] > apex and ys[i] < ground + 0.05:
+			touch = ts[i]
+			break
+	if take < 0.0 or touch < 0.0:
+		add("WARNING", "JUMP_PHASES", clip, "в клипе не найдены отрыв или касание земли")
+		return
+	add("INFO", "JUMP", clip, "отрыв %.2f с, верхняя точка %.2f с (ноги на %.2f м), касание %.2f с" % [take, apex, top - ground, touch])
+	for k in [["JUMP_TAKEOFF", take], ["JUMP_APEX", apex], ["JUMP_TOUCH", touch]]:
+		if cm.has(k[0]) and absf(float(cm[k[0]]) - float(k[1])) > 0.08:
+			add("WARNING", "JUMP_SYNC", clip, "%s в игре %.2f с, а в клипе %.2f с — прыжок не в такт" % [k[0], cm[k[0]], k[1]])
