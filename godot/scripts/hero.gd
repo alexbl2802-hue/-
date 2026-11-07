@@ -286,7 +286,16 @@ func _attach_character() -> void:
 		if _anim.has_animation(JUMP_CLIP[0]):
 			acts["air"] = JUMP_CLIP[0]
 		# Ходьба по скорости: стойка → боевой шаг → спринт (клипы Meshy)
-		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], [WALK_CLIP, LOCO_WALK_FROM], [WALK_CLIP, LOCO_FAST_FROM], [RUN_CLIP, LOCO_FAST_FULL]], RUN)
+		# Шаг → бег → спринт (клипы Meshy), у каждого свой темп по длине шага
+		var walk := WALK_PLAIN if _anim.has_animation(WALK_PLAIN) else WALK_CLIP
+		var sprint := SPRINT_CLIP if _anim.has_animation(SPRINT_CLIP) else RUN_CLIP
+		if _anim.has_animation(SPRINT_CLIP):
+			_anim.get_animation(SPRINT_CLIP).loop_mode = Animation.LOOP_LINEAR
+		if _anim.has_animation(WALK_PLAIN):
+			_anim.get_animation(WALK_PLAIN).loop_mode = Animation.LOOP_LINEAR
+		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], [walk, LOCO_WALK_FROM],
+			[walk, LOCO_WALK_TOP], [RUN_CLIP, LOCO_FAST_FULL], [RUN_CLIP, LOCO_RUN_TOP], [sprint, LOCO_SPRINT]], RUN)
+		_loco_clips = ["", walk, walk, RUN_CLIP, RUN_CLIP, sprint]
 	# След клинка
 	_trail = SwordTrail.new()
 	add_child(_trail)
@@ -465,23 +474,24 @@ func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 ## Анимации модели: стойка, ходьба, бег, удар, вихрь, рывок, прыжок
 ## Анимация через дерево: ходьба смешивается по скорости, действия накладываются поверх
 func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
-	# Темп шага — по длине шага модели, чтобы стопы не скользили
-	var fast := clampf((_speed_now - LOCO_FAST_FROM) / (LOCO_FAST_FULL - LOCO_FAST_FROM), 0.0, 1.0)
-	# Рядом враги — бег с мечом наготове, иначе — спринт
-	var run_stride: float = RUN_STRIDE_M
-	if _anim.has_animation(RUN_FIGHT) and enemies:
+	# Рядом враги — боевой шаг и бег с мечом наготове; в блоке — шаг назад
+	if enemies:
 		_fight_check -= dt
 		if _fight_check <= 0.0:
 			_fight_check = 0.5
 			_in_fight = not enemies.alive_near(global_position, FIGHT_NEAR).is_empty()
-			_ha.set_loco_anim(3, RUN_FIGHT if _in_fight else RUN_CLIP)
-		if _in_fight:
-			run_stride = RUN_FIGHT_STRIDE
-	var stride_t := _speed_now / lerpf(WALK_STRIDE_M, run_stride, fast)
-	if _anim.has_animation(BACKSTEP_CLIP):
-		var walk_anim := BACKSTEP_CLIP if _backstep else WALK_CLIP
-		_ha.set_loco_anim(1, walk_anim)
-		_ha.set_loco_anim(2, walk_anim)
+	var walk_anim: String = _loco_clips[1]
+	var run_anim: String = RUN_CLIP
+	if _in_fight:
+		walk_anim = WALK_CLIP   # бег в бою — тот же Kirito_Sword_Run: Sword_Run шагает на месте (проверка ANIMATE)
+	if _backstep and _anim.has_animation(BACKSTEP_CLIP):
+		walk_anim = BACKSTEP_CLIP
+	for i in [1, 2]:
+		_set_loco(i, walk_anim)
+	for i in [3, 4]:
+		_set_loco(i, run_anim)
+	# Темп шага — по длине шага клипа на этой скорости, чтобы опорная стопа не скользила
+	var stride_t := _speed_now / _stride_at(_speed_now)
 	_ha.locomotion(_speed_now, lerpf(1.0, stride_t, clampf(_speed_now / LOCO_WALK_FROM, 0.0, 1.0)))
 	var upper := on_floor and moving and _speed_now > 1.0
 	if _move != "":
@@ -854,8 +864,58 @@ const MESHY_MOVES := {
 }
 const WALK_CLIP := "Walk_Fight_Forward"           # боевой шаг (Meshy)
 const RUN_CLIP := "Kirito_Sword_Run"               # бег героя (из модели героя)
-const WALK_STRIDE_M := 0.6     # м за секунду клипа шага (замер tests/pose_view.tscn)
-const RUN_STRIDE_M := 3.5     # бег Kirito_Sword_Run: м за секунду клипа
+const WALK_STRIDE_M := 0.6     # шаг назад в блоке (Walk_Backward_with_Sword): м за секунду клипа
+# Шаг → бег → спринт: клипы и длина шага (м за секунду клипа: опорная стопа уходит назад с этой
+# скоростью; замер по стопе, tests/gait.tscn). Темп клипа = скорость героя / длина шага.
+const WALK_PLAIN := "Walking"                       # обычный шаг
+const SPRINT_CLIP := "RunFast"                      # быстрый бег: длинный шаг, долгая фаза полёта
+const STRIDE_M := {"Walking": 1.61, "Walk_Fight_Forward": 1.14, "Kirito_Sword_Run": 5.37, "RunFast": 12.49,
+	"Sword_Run": 3.0, "Walk_Backward_with_Sword": 0.6}
+const LOCO_WALK_TOP := 2.2     # м/с: до этой скорости — шаг
+const LOCO_RUN_TOP := 7.5      # бег до этой скорости, дальше переходит в спринт
+const LOCO_SPRINT := 10.0      # с этой скорости — спринт целиком
+var _loco_clips := []          # клип в каждой точке смеси шаг/бег/спринт
+var _loco_now := {}            # что сейчас стоит в точке
+
+## Наклон корпуса: в поворот на бегу (внутрь дуги) и вперёд при разгоне, назад при торможении
+const LEAN_TURN := 0.045      # рад на (рад/с поворота × м/с)
+const LEAN_TURN_MAX := 0.22
+const LEAN_ACCEL := 0.018     # рад на м/с²
+const LEAN_ACCEL_MAX := 0.12
+var _lean_prev_facing := 0.0
+var _lean_prev_speed := 0.0
+var _lean := Vector2.ZERO     # x — вперёд/назад, y — вбок
+
+func _lean_update(dt: float, on_floor: bool) -> void:
+	if _char == null or dt <= 0.0:
+		return
+	var turn := angle_difference(_lean_prev_facing, facing) / dt
+	var accel := (_speed_now - _lean_prev_speed) / dt
+	_lean_prev_facing = facing
+	_lean_prev_speed = _speed_now
+	var want := Vector2.ZERO
+	if on_floor and not dead and _dash_t < 0.0 and _move == "" and _art_t < 0.0:
+		want.y = clampf(-turn * _speed_now * LEAN_TURN, -LEAN_TURN_MAX, LEAN_TURN_MAX)
+		want.x = clampf(accel * LEAN_ACCEL, -LEAN_ACCEL_MAX, LEAN_ACCEL_MAX)
+	_lean = _lean.lerp(want, 1.0 - exp(-8.0 * dt))
+	_char.rotation = Vector3(_lean.x, 0.0, _lean.y)
+
+func _set_loco(i: int, clip: String) -> void:
+	if _loco_now.get(i, "") != clip:
+		_loco_now[i] = clip
+		_ha.set_loco_anim(i, clip)
+
+## Длина шага на этой скорости: по клипам точек смеси, между точками — плавно
+func _stride_at(v: float) -> float:
+	var pts := [[LOCO_WALK_FROM, 1], [LOCO_WALK_TOP, 2], [LOCO_FAST_FULL, 3], [LOCO_RUN_TOP, 4], [LOCO_SPRINT, 5]]
+	var st := func(i: int) -> float: return float(STRIDE_M.get(_loco_now.get(i, _loco_clips[i]), 1.0))
+	if v <= pts[0][0]:
+		return st.call(1)
+	for k in range(1, pts.size()):
+		if v <= pts[k][0]:
+			var t: float = (v - pts[k - 1][0]) / (pts[k][0] - pts[k - 1][0])
+			return lerpf(st.call(pts[k - 1][1]), st.call(pts[k][1]), t)
+	return st.call(5)
 const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
 const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
@@ -1663,8 +1723,11 @@ func _animate(dt: float) -> void:
 	_model.position.y = bob
 	_update_trail(dt)
 	if _feet:
-		var calm := on_floor and _speed_now < 0.8 and not dead and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""
+		# Стопы встают на землю под собой и стоя, и на ходу, и на бегу (на склонах и ступенях
+		# не проваливаются и не висят); в прыжке, рывке и приёмах — выключено
+		var calm := on_floor and not dead and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""
 		_model.position.y += _feet.update(dt, calm, facing)
+	_lean_update(dt, on_floor)
 	if _dash_t >= 0.0:
 		# Длинный прыжок: тело летит по дуге над землёй
 		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)

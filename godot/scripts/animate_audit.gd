@@ -41,6 +41,7 @@ func run(h: Node) -> void:
 	hero = h
 	issues.clear()
 	await audit_models()
+	await audit_gait()
 	var list: Array = issues.values()
 	list.sort_custom(func(a, b): return ["ERROR", "WARNING", "INFO"].find(a["sev"]) < ["ERROR", "WARNING", "INFO"].find(b["sev"]))
 	var f := FileAccess.open(REPORT, FileAccess.WRITE)
@@ -361,3 +362,74 @@ func _feet(sk: Skeleton3D, rest: Array, lo: float, height: float) -> Array:
 		if sk.get_bone_children(b).is_empty() and sk.get_bone_parent(b) >= 0 and rest[b].origin.y < lo + height * 0.25:
 			out.append(b)   # концы лап у земли
 	return out
+
+## Шаг, бег и спринт героя по ключевым позам (метод контактов: контакт → опускание → проход →
+## подъём): опускается ли таз при постановке ноги, есть ли у бега фаза полёта (обе ноги в воздухе),
+## уходит ли опорная стопа назад (длина шага); результат и замеры — в отчёт
+const GAIT_CLIPS := {"Walking": "walk", "Walk_Fight_Forward": "walk", "Kirito_Sword_Run": "run", "Sword_Run": "run", "RunFast": "sprint"}
+
+func audit_gait() -> void:
+	var path := "res://models/hero.glb"
+	if not ResourceLoader.exists(path):
+		return
+	var n: Node3D = (load(path) as PackedScene).instantiate()
+	add_child(n)
+	var sk: Skeleton3D = n.find_children("*", "Skeleton3D", true, false)[0]
+	var ap: AnimationPlayer = n.find_children("*", "AnimationPlayer", true, false)[0]
+	var toes := []
+	var hips := -1
+	for i in sk.get_bone_count():
+		var nm := sk.get_bone_name(i)
+		if nm.ends_with("LeftToeBase") or nm.ends_with("RightToeBase"):
+			toes.append(i)
+		if nm.ends_with("Hips") and hips < 0:
+			hips = i
+	if toes.size() < 2 or hips < 0:
+		add("WARNING", "GAIT_BONES", "hero", "Нет костей носков или таза — шаг не проверить")
+		n.queue_free()
+		return
+	var x := _to_model(sk, n)
+	for clip in GAIT_CLIPS:
+		if not ap.has_animation(clip):
+			continue
+		var kind: String = GAIT_CLIPS[clip]
+		var anim := ap.get_animation(clip)
+		ap.play(clip)
+		var steps := 120
+		var dt := anim.length / steps
+		var rows := []
+		for s in steps + 1:
+			ap.seek(anim.length * s / steps, true)
+			sk.force_update_all_bone_transforms()
+			rows.append([x * sk.get_bone_global_pose(hips).origin, x * sk.get_bone_global_pose(toes[0]).origin, x * sk.get_bone_global_pose(toes[1]).origin])
+		var ymin := INF
+		var hy_min := INF
+		var hy_max := -INF
+		for r in rows:
+			ymin = minf(ymin, minf(r[1].y, r[2].y))
+			hy_min = minf(hy_min, r[0].y)
+			hy_max = maxf(hy_max, r[0].y)
+		var air := 0
+		var back := 0.0
+		var cnt := 0
+		for s in range(1, rows.size()):
+			var low := 1 if rows[s][1].y < rows[s][2].y else 2
+			if rows[s][low].y > ymin + 0.08:
+				air += 1
+			if rows[s][low].y < ymin + 0.035:
+				back += -(rows[s][low].z - rows[s - 1][low].z)
+				cnt += 1
+		var stride := back / maxf(1, cnt) / dt
+		var air_pct := 100.0 * air / steps
+		var bob := hy_max - hy_min
+		add("INFO", "GAIT", clip, "длина шага %.2f м/с клипа, таз ходит на %.0f мм, в полёте %.0f%% цикла" % [stride, bob * 1000.0, air_pct])
+		if bob < 0.02:
+			add("WARNING", "GAIT_NO_DOWN", clip, "таз почти не опускается при постановке ноги — шаг «деревянный»")
+		if kind != "walk" and air_pct < 10.0:
+			add("WARNING", "GAIT_NO_FLIGHT", clip, "у бега нет фазы полёта (обе ноги в воздухе)")
+		if kind == "walk" and air_pct > 20.0:
+			add("WARNING", "GAIT_WALK_FLIGHT", clip, "в шаге обе ноги долго в воздухе — похоже на бег")
+		if stride < 0.2:
+			add("WARNING", "GAIT_NO_STRIDE", clip, "опорная стопа не уходит назад — клип шагает на месте")
+		await get_tree().process_frame
+	n.queue_free()
