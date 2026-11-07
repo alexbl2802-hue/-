@@ -331,3 +331,19 @@ static func fit(center: Control, panel: Control) -> void:
 	var k := minf(UI_SCALE, minf((vp.x - 16.0) / panel.size.x, (vp.y - 10.0) / panel.size.y))
 	center.pivot_offset = center.size / 2.0
 	center.scale = Vector2(k, k)
+
+## Прокрутка списков пальцем: кнопки и надписи внутри ScrollContainer пропускают касание дальше,
+## и список листается, если вести по нему пальцем (нажатие кнопки при этом отменяется).
+## Подключается один раз для всей игры (Game._ready → get_tree().node_added).
+static func pass_in_scroll(n: Node) -> void:
+	if not (n is Control) or n is ScrollContainer or n is Range or n is LineEdit or n is TextEdit:
+		return
+	var c := n as Control
+	if c.mouse_filter != Control.MOUSE_FILTER_STOP:
+		return
+	var p := n.get_parent()
+	while p != null:
+		if p is ScrollContainer:
+			c.mouse_filter = Control.MOUSE_FILTER_PASS
+			return
+		p = p.get_parent()

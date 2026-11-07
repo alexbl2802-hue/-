@@ -4,6 +4,8 @@
 ## • часть, которая уже есть на телефоне (то же имя = то же содержимое), заново не качается;
 ## • оборванная загрузка продолжается с того места, где прервалась (запрос Range);
 ## • части, которых больше нет в списке (старые версии моделей), удаляются.
+## На телефоне части качает системный загрузчик Android (DownloadManager): загрузка идёт и когда
+## игра свёрнута, прогресс виден в шторке уведомлений. Если он недоступен — качаем сами (HTTPClient).
 extends Control
 
 const REPO := "https://github.com/alexbl2802-hue/-/releases/download/"
@@ -34,6 +36,16 @@ var _tries := 0               # повторов подряд без успех�
 var _wait := 0.0
 const STALL := 25.0           # столько секунд тишины — и переподключаемся
 const AUTO_TRIES := 6         # сами повторяем столько раз, потом показываем кнопку
+# Системный загрузчик Android
+var _dm = null                # android.app.DownloadManager
+var _ctx = null               # Context приложения
+var _ext := ""                # папка частей во внешней памяти приложения (…/Android/data/<пакет>/files/packs/)
+var _ids := {}                # имя части → номер загрузки в DownloadManager
+var _dm_t := 0.0
+var _dm_retry := {}           # имя части → сколько раз загрузка не удалась
+const DM_IDS := "user://dm_ids.json"
+const DM_FAILED := 16
+const DM_SUCCESSFUL := 8
 
 func _ready() -> void:
 	_ls = LoadingScreen.new()
@@ -49,19 +61,29 @@ func _ready() -> void:
 	var env := OS.get_environment("ZEMLI_DATA_URL")   # для проверки: свой адрес вместо релиза
 	_base = env if env != "" else REPO + "v%s/" % ver
 	DirAccess.make_dir_recursive_absolute(DIR)
+	_dm_init()
 	_cleanup()
 	for p in _packs:
-		var f: String = DIR + p["name"]
+		var f := _pack_path(p["name"])
 		if FileAccess.file_exists(f) and _size(f) == int(p["size"]):
 			continue   # уже скачано
 		_queue.append(p)
 		_total += int(p["size"])
 	if _queue.is_empty():
 		_mount_and_load()
+	elif _dm != null and _dm_start():
+		_ls.text = ""
 	else:
+		_dm = null
 		_ls.text = ""
 		_phase = "download"
 		_next()
+
+## Где лежит часть: скачанная системным загрузчиком или нами самими
+func _pack_path(name: String) -> String:
+	if _ext != "" and FileAccess.file_exists(_ext + name):
+		return _ext + name
+	return DIR + name
 
 func _size(path: String) -> int:
 	var f := FileAccess.open(path, FileAccess.READ)
@@ -78,11 +100,173 @@ func _cleanup() -> void:
 		for f in d.get_files():
 			if not keep.has(f):
 				d.remove(f)
+	if _ext != "":
+		var e := DirAccess.open(_ext)
+		if e:
+			for f in e.get_files():
+				if not keep.has(f) and not _queue_has(f):
+					e.remove(f)
 	var u := DirAccess.open("user://")
 	if u:
 		for f in u.get_files():
 			if f.begins_with("data-") and f.contains(".pck"):
 				u.remove(f)
+
+## Файл относится к нужной части (в том числе временный файл загрузчика «.pending-…-имя»)
+func _queue_has(f: String) -> bool:
+	for p in _packs:
+		if f.contains(str(p["name"])):
+			return true
+	return false
+
+# ---------- Системный загрузчик Android (работает и в свёрнутой игре, виден в шторке)
+
+func _jerr() -> bool:
+	var e = JavaClassWrapper.get_exception()
+	if e != null:
+		push_warning("DownloadManager: %s" % str(e))
+		return true
+	return false
+
+func _dm_init() -> void:
+	if OS.get_name() != "Android" or not Engine.has_singleton("AndroidRuntime") or OS.get_environment("ZEMLI_DATA_URL") != "":
+		return
+	var rt = Engine.get_singleton("AndroidRuntime")
+	_ctx = rt.getApplicationContext()
+	if _ctx == null:
+		return
+	var dm = _ctx.getSystemService("download")
+	var dir = _ctx.getExternalFilesDir("packs")
+	if _jerr() or dm == null or dir == null:
+		return
+	_ext = str(dir.getAbsolutePath()) + "/"
+	_dm = dm
+
+## Поставить все недостающие части в очередь системного загрузчика (или подхватить уже идущие)
+func _dm_start() -> bool:
+	var old := {}
+	if FileAccess.file_exists(DM_IDS):
+		var j = JSON.parse_string(FileAccess.get_file_as_string(DM_IDS))
+		if j is Dictionary:
+			old = j
+	var rows := _dm_rows()
+	if rows.is_empty() and _jerr():
+		return false
+	_ids = {}
+	for k in _queue.size():
+		var n: String = _queue[k]["name"]
+		var id := int(old.get(n, -1))
+		if id >= 0 and rows.has(id) and int(rows[id][0]) != DM_FAILED:
+			_ids[n] = id   # уже качается (игру сворачивали или перезапускали)
+			continue
+		var nid := _dm_enqueue(n, k)
+		if nid < 0:
+			return false
+		_ids[n] = nid
+	_dm_save()
+	_ls.note.text = "Можно свернуть игру — загрузка продолжится, прогресс в уведомлениях"
+	_phase = "dm"
+	return true
+
+func _dm_enqueue(n: String, k: int) -> int:
+	if FileAccess.file_exists(_ext + n):
+		DirAccess.remove_absolute(_ext + n)   # иначе загрузчик сохранит под другим именем
+	var uri_c := JavaClassWrapper.wrap("android.net.Uri")
+	var req_c := JavaClassWrapper.wrap("android.app.DownloadManager$Request")
+	if uri_c == null or req_c == null:
+		return -1
+	var req = req_c.call("DownloadManager$Request", uri_c.parse(_base + n))
+	if _jerr() or req == null:
+		return -1
+	req.setTitle("Земли Приключений — данные игры")
+	req.setDescription("Часть %d из %d" % [k + 1, _queue.size()])
+	req.setNotificationVisibility(0)   # VISIBILITY_VISIBLE: прогресс в шторке, пока качается
+	req.setDestinationInExternalFilesDir(_ctx, "packs", n)
+	req.addRequestHeader("User-Agent", "ZemliPriklyucheniy")
+	var id = _dm.enqueue(req)
+	if _jerr() or id == null:
+		return -1
+	return int(id)
+
+func _dm_save() -> void:
+	var f := FileAccess.open(DM_IDS, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(_ids))
+
+## Все загрузки приложения: номер → [состояние, скачано байт, всего байт]
+func _dm_rows() -> Dictionary:
+	var out := {}
+	var q_c := JavaClassWrapper.wrap("android.app.DownloadManager$Query")
+	if q_c == null:
+		return out
+	var q = q_c.call("DownloadManager$Query")
+	var cur = _dm.query(q) if q != null else null
+	if _jerr() or cur == null:
+		return out
+	var i_id: int = cur.getColumnIndex("_id")
+	var i_st: int = cur.getColumnIndex("status")
+	var i_so: int = cur.getColumnIndex("bytes_so_far")
+	var i_to: int = cur.getColumnIndex("total_size")
+	while cur.moveToNext():
+		out[int(cur.getLong(i_id))] = [int(cur.getInt(i_st)), int(cur.getLong(i_so)), int(cur.getLong(i_to))]
+	cur.close()
+	_jerr()
+	return out
+
+func _dm_tick() -> void:
+	var rows := _dm_rows()
+	var have := 0
+	var left := 0
+	for p in _queue:
+		var n: String = p["name"]
+		var id := int(_ids.get(n, -1))
+		var r: Array = rows.get(id, [])
+		if r.is_empty():
+			left += 1
+			continue
+		if int(r[0]) == DM_SUCCESSFUL and _size(_ext + n) == int(p["size"]):
+			have += int(p["size"])
+			continue
+		if int(r[0]) == DM_SUCCESSFUL or int(r[0]) == DM_FAILED:
+			# Не скачалось или скачалось не то — ставим заново, после нескольких неудач качаем сами
+			_dm.remove(PackedInt64Array([id]))
+			_jerr()
+			_dm_retry[n] = int(_dm_retry.get(n, 0)) + 1
+			if int(_dm_retry[n]) > 3:
+				_dm_fallback()
+				return
+			_ids[n] = _dm_enqueue(n, _queue.find(p))
+			_dm_save()
+			left += 1
+			continue
+		have += mini(int(r[1]), int(p["size"]))
+		left += 1
+	_ls.target = 0.85 * float(have) / maxf(1.0, _total)
+	_ls.text = ""
+	_ls.note.text = "Данные игры: %d из %d МБ · можно свернуть игру — загрузка продолжится" % [have >> 20, _total >> 20]
+	if left == 0:
+		_phase = ""
+		if FileAccess.file_exists(DM_IDS):
+			DirAccess.remove_absolute(DM_IDS)
+		_mount_and_load()
+
+## Системный загрузчик не справился — докачиваем оставшееся сами
+func _dm_fallback() -> void:
+	var rest := []
+	for p in _queue:
+		var n: String = p["name"]
+		if _size(_ext + n) != int(p["size"]):
+			rest.append(p)
+			if _ids.has(n):
+				_dm.remove(PackedInt64Array([int(_ids[n])]))
+				_jerr()
+	_dm = null
+	_queue = rest
+	_done = _total
+	for p in rest:
+		_done -= int(p["size"])
+	_phase = "download"
+	_next()
 
 func _next() -> void:
 	if _queue.is_empty():
@@ -148,7 +332,12 @@ func _header(name: String) -> String:
 	return ""
 
 func _process(dt: float) -> void:
-	if _phase == "download" and _cli:
+	if _phase == "dm":
+		_dm_t -= dt
+		if _dm_t <= 0.0:
+			_dm_t = 0.5
+			_dm_tick()
+	elif _phase == "download" and _cli:
 		_idle += dt
 		_poll()
 		# Связь «зависла» (телефон сменил сеть, сервер молчит) — переподключаемся и докачиваем
@@ -312,8 +501,9 @@ func _resume() -> void:
 func _mount_and_load() -> void:
 	_cli = null
 	for p in _packs:
-		if not ProjectSettings.load_resource_pack(DIR + p["name"], false):
-			DirAccess.remove_absolute(DIR + p["name"])
+		var path := _pack_path(p["name"])
+		if not ProjectSettings.load_resource_pack(path, false):
+			DirAccess.remove_absolute(path)
 			_fail("Часть данных повреждена — нажми «Повторить», скачаю её заново.")
 			_queue = [p]
 			return

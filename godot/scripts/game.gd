@@ -47,6 +47,7 @@ var dmg := 22
 var armor := 0
 
 func _ready() -> void:
+	get_tree().node_added.connect(UiKit.pass_in_scroll)   # списки листаются пальцем, а не только ползунком
 	has_save = load_game()
 	if not has_save:
 		new_game()
