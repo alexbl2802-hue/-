@@ -321,7 +321,7 @@ static func modal(owner: Control, on_backdrop: Callable) -> VBoxContainer:
 	owner.visibility_changed.connect(func(): fit.call_deferred(center, panel))
 	return vb
 
-const UI_SCALE := 0.92   # общий размер окон
+const UI_SCALE := 0.82   # общий размер окон (было 0,92)
 
 ## Масштаб ставится слою по центру экрана (у окна внутри контейнера Godot его сбрасывает)
 static func fit(center: Control, panel: Control) -> void:

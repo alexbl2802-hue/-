@@ -23,7 +23,7 @@ static func build(parent: Node3D) -> Array:
 	_body.name = "TownBody"
 	_root.add_child(_body)
 	_map = []
-	var stone := Mats.tiled(Mats.brick_texture(), 0xc2b9a8)
+	var stone := Mats.tiled(Mats.stone_wall(), 0x7e838b, 0.18)   # кладка как на фото: светлые блоки со мхом
 	_walls(stone)
 	_towers_and_gates(stone)
 	_streets()
@@ -170,12 +170,12 @@ static func _multi(mm: MultiMesh, mat: Material) -> void:
 
 # ---------- Башни: 4 угловые и по две у ворот; арки и открытые створки
 static func _towers_and_gates(stone: Material) -> void:
-	var tower_mat := Mats.tiled(Mats.brick_texture(), 0xc2b9a8)
-	var roof_red := Mats.lp(0x9a3b2a)
+	var tower_mat := Mats.tiled(Mats.stone_wall(), 0x7e838b, 0.18)
+	var roof_red := Mats.roof_material(10.0, 3.0)   # синяя черепица, как у домов
 	var dark_wood := Mats.lp(0x3a2414)
 	var tower := func(x: float, z: float, r: float, h: float) -> void:
 		_mesh(_cyl(r, r * 1.08, h + 1.0, 12), tower_mat, Vector3(x, G + (h - 1.0) / 2.0, z))
-		_mesh(_cyl(0.0, r * 1.25, r * 1.5, 12), roof_red, Vector3(x, G + h + r * 0.75, z))
+		_mesh(_cyl(0.0, r * 1.3, r * 2.0, 16), roof_red, Vector3(x, G + h + r, z))
 		_round(x, z, r)
 	for x in [-W, W]:
 		for z in [-W, W]:
@@ -191,7 +191,7 @@ static func _towers_and_gates(stone: Material) -> void:
 
 # ---------- Улицы и площадь
 static func _streets() -> void:
-	var road := Mats.tiled(Mats.cobble_texture(), 0xa89f92, 0.25, 1.0)
+	var road := Mats.tiled(Mats.stone_path(), 0x74777c, 0.22, 1.0)
 	var main := PlaneMesh.new()
 	main.size = Vector2(6, W * 2 + 4)
 	_mesh(main, road, Vector3(0, G + 0.03, 0), false)
@@ -284,7 +284,7 @@ static func _forge(stone: Material) -> void:
 		var x1 := FORGE_POS.x - FORGE_SIZE * 0.44
 		var path := PlaneMesh.new()
 		path.size = Vector2(x1 - x0, 3.0)
-		_mesh(path, Mats.tiled(Mats.cobble_texture(), 0xa89f92, 0.25, 1.0), Vector3((x0 + x1) / 2.0, G + 0.03, FORGE_POS.z), false)
+		_mesh(path, Mats.tiled(Mats.stone_path(), 0x74777c, 0.22, 1.0), Vector3((x0 + x1) / 2.0, G + 0.03, FORGE_POS.z), false)
 		for lx in [x0 + 3.0, x0 + 7.0, x1 - 2.2]:
 			for sz in [-1.0, 1.0]:
 				_lantern(lx, FORGE_POS.z + sz * 2.1)
@@ -370,7 +370,7 @@ static func _manor(stone: Material) -> void:
 	# Дорожка от площади к дому
 	var path := PlaneMesh.new()
 	path.size = Vector2(4, 10.5)
-	_mesh(path, Mats.tiled(Mats.cobble_texture(), 0xa89f92, 0.25, 1.0), Vector3(-19, G + 0.03, -12.2), false)
+	_mesh(path, Mats.tiled(Mats.stone_path(), 0x74777c, 0.22, 1.0), Vector3(-19, G + 0.03, -12.2), false)
 	# Особняк — модель Meshy (как есть) на месте прежнего дома с башенкой
 	if HouseModel.exists(HouseModel.MANOR):
 		var mh := HouseModel.place(_root, HouseModel.MANOR, Vector3(-19, G, -21.5), 0.0, MANOR_SIZE)

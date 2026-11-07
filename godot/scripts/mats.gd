@@ -192,6 +192,46 @@ static func brick_texture() -> ImageTexture:
 	_cache["brick"] = t
 	return t
 
+## Каменная кладка как на присланном фото: светлые округлые блоки, тёмные швы, мох
+## (tools/stone_textures.py). Для стен и башен города.
+static func stone_wall() -> Texture2D:
+	return _baked("stone_wall")
+
+## Мостовая из каменных плит того же вида — улицы и дорожки
+static func stone_path() -> Texture2D:
+	return _baked("stone_path")
+
+## Синяя черепица, как на крышах домов — крыши башен
+static func roof_tiles() -> Texture2D:
+	return _baked("roof_tiles")
+
+static func _baked(name: String) -> Texture2D:
+	if _cache.has(name):
+		return _cache[name]
+	var path := "res://textures/%s_albedo.png" % name
+	if not ResourceLoader.exists(path):
+		return brick_texture() if name != "stone_path" else cobble_texture()
+	var t: Texture2D = load(path)
+	t.set_meta("normal", load("res://textures/%s_normal.png" % name))
+	_cache[name] = t
+	return t
+
+## Крыша-конус башни: черепица по кругу, ряды снизу вверх
+static func roof_material(around := 10.0, up := 3.0) -> StandardMaterial3D:
+	var key := "roof%.1f_%.1f" % [around, up]
+	if _cache.has(key):
+		return _cache[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = roof_tiles()
+	m.normal_enabled = true
+	m.normal_texture = roof_tiles().get_meta("normal")
+	m.uv1_scale = Vector3(around, up, 1.0)
+	m.roughness = 0.75
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	toon(m)
+	_cache[key] = m
+	return m
+
 ## Брусчатка: округлые камни, выпуклые к середине, тёмные швы
 static func cobble_texture() -> ImageTexture:
 	if _cache.has("cobble"):

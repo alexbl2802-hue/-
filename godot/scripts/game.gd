@@ -122,8 +122,9 @@ func _take(id: String, n: int) -> void:
 
 # ---------- Кузница: улучшение оружия и соединение вещей
 ## Улучшить надетое оружие на +1 за золото
-func upgrade_weapon() -> bool:
-	var w = equip["weapon"]
+## Улучшить оружие у кузнеца: надетое или любое из инвентаря (w — сама вещь)
+func upgrade_weapon(target = null) -> bool:
+	var w = target if target != null else equip["weapon"]
 	if w == null or w["u"] >= Items.MAX_UPGRADE:
 		return false
 	var cost := Items.upgrade_cost(w["u"])
@@ -275,8 +276,8 @@ func wear_weapon() -> void:
 	elif w["d"] == int(mx * 0.2):
 		message.emit("Оружие изнашивается", Color("#ffc060"), Vector3.ZERO)
 
-func repair_weapon() -> bool:
-	var w = equip["weapon"]
+func repair_weapon(target = null) -> bool:
+	var w = target if target != null else equip["weapon"]
 	if w == null or not w.has("d") or w["d"] >= Items.max_dur(w):
 		return false
 	var cost := Items.repair_cost(w)

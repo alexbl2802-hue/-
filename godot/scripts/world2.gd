@@ -121,7 +121,7 @@ func _ground_color(x: float, z: float, y: float) -> Color:
 func _build_village() -> void:
 	var g := height_at(VILLAGE.x, VILLAGE.y)
 	var c := Vector3(VILLAGE.x, g, VILLAGE.y)
-	var stone := Mats.tiled(Mats.cobble_texture(), 0xb8ae9c, 0.25, 1.0)
+	var stone := Mats.tiled(Mats.stone_path(), 0x74777c, 0.22, 1.0)
 	var plaza := MeshInstance3D.new()
 	var pm := CylinderMesh.new()
 	pm.top_radius = 16.0

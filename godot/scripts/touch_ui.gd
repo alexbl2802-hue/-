@@ -55,11 +55,11 @@ func _buttons() -> Array:
 		{"id": "attack", "c": Vector2(s.x - 24 - 45.5, s.y - 28 - 45.5), "r": 45.5, "label": "⚔", "fs": 39, "border": Color(1, 0.55, 0.43, 0.75)},
 		{"id": "jump", "c": Vector2(s.x - 126 - 33, s.y - 20 - 33), "r": 33.0, "label": "⤒", "fs": 27},
 		{"id": "run", "c": Vector2(s.x - 40 - 28, s.y - 130 - 28), "r": 28.0, "label": "🏃", "fs": 23},
-		{"id": "inventory", "rect": Rect2(12, 12, 40, 40), "label": "🎒", "fs": 20},
-		{"id": "potion", "rect": Rect2(58, 12, 40, 40), "label": "🧪", "fs": 20, "badge": str(potions), "dim": potions == 0},
-		{"id": "skills", "rect": Rect2(104, 12, 40, 40), "label": "👤", "fs": 20, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
-		{"id": "menu", "rect": Rect2(150, 12, 40, 40), "label": "☰", "fs": 20},
-		{"id": "cardinal", "rect": Rect2(196, 12, 40, 40), "label": "◈", "fs": 20},
+		{"id": "inventory", "rect": Rect2(10, 10, 32, 32), "label": "🎒", "fs": 16},
+		{"id": "potion", "rect": Rect2(48, 10, 32, 32), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
+		{"id": "skills", "rect": Rect2(86, 10, 32, 32), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
+		{"id": "menu", "rect": Rect2(124, 10, 32, 32), "label": "☰", "fs": 16},
+		{"id": "cardinal", "rect": Rect2(162, 10, 32, 32), "label": "◈", "fs": 16},
 	]
 	list.append({"id": "block", "c": Vector2(s.x - 236, s.y - 140), "r": 30.0, "label": "🔰", "fs": 26, "border": Color(0.75, 0.8, 0.9, 0.7)})
 	if art_icon != "":

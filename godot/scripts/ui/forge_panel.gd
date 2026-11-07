@@ -177,23 +177,54 @@ func _render_forge() -> void:
 		row.add_child(b)
 		_forge_box.add_child(row)
 
+var _up_sel = null   # выбранное для улучшения оружие (сама вещь: надетая или из инвентаря)
+
+## Всё оружие героя: надетое и из инвентаря
+func _weapons() -> Array:
+	var out := []
+	if Game.equip["weapon"] != null:
+		out.append(Game.equip["weapon"])
+	for st in Game.inv:
+		if Items.get_item(st["id"])["kind"] == "weapon":
+			out.append(st)
+	return out
+
 func _render_upgrade() -> void:
 	_clear(_up_box)
 	_up_box.add_child(_caption("Улучшение предмета"))
-	var w = Game.equip["weapon"]
-	if w == null:
-		var l := UiKit.label("Надень оружие, чтобы улучшить его", 12, UiKit.DIM)
+	var all := _weapons()
+	if all.is_empty():
+		var l := UiKit.label("Нет оружия для улучшения", 12, UiKit.DIM)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_up_box.add_child(l)
 		return
+	if _up_sel == null or not all.any(func(x): return is_same(x, _up_sel)):
+		_up_sel = all[0]
+	# Выбор оружия: надетое (с меткой) и всё оружие из инвентаря
+	var pick := HBoxContainer.new()
+	pick.add_theme_constant_override("separation", 6)
+	for x in all:
+		var xi := Items.get_item(x["id"])
+		var b := UiKit.slot(xi["icon"], Items.color(x), "+%d" % x["u"] if x["u"] > 0 else "", "надето" if is_same(x, Game.equip["weapon"]) else "", 44.0, is_same(x, _up_sel))
+		b.pressed.connect(func():
+			_up_sel = x
+			_note.text = ""
+			_render())
+		pick.add_child(b)
+	var ps := ScrollContainer.new()
+	ps.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	ps.custom_minimum_size = Vector2(390, 50)
+	ps.add_child(pick)
+	_up_box.add_child(ps)
+	var w = _up_sel
 	var it := Items.get_item(w["id"])
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 18)
-	row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % w["u"] if w["u"] > 0 else "", "", 60.0))
+	row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % w["u"] if w["u"] > 0 else "", "", 52.0))
 	if w["u"] < Items.MAX_UPGRADE:
-		row.add_child(UiKit.label("➜", 26, UiKit.GOLD))
-		row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % (w["u"] + 1), "", 60.0, true))
+		row.add_child(UiKit.label("➜", 24, UiKit.GOLD))
+		row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % (w["u"] + 1), "", 52.0, true))
 	_up_box.add_child(row)
 	var nm := UiKit.label("%s  ·  %s  ·  ступень %d / %d" % [it["name"], Items.rank_of(w)["name"], w["u"], Items.MAX_UPGRADE], 12, Items.color(w))
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -215,7 +246,7 @@ func _render_upgrade() -> void:
 		var rb := UiKit.button("Целое" if full else "Починить · 🪙 %d" % Items.repair_cost(w), false, 12)
 		rb.disabled = full or Game.gold < Items.repair_cost(w)
 		rb.pressed.connect(func():
-			if Game.repair_weapon():
+			if Game.repair_weapon(w):
 				_note.text = "🔧 Оружие как новое"
 			_render())
 		rep.add_child(rb)
@@ -231,8 +262,8 @@ func _render_upgrade() -> void:
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	b.disabled = Game.gold < cost
 	b.pressed.connect(func():
-		if Game.upgrade_weapon():
-			_note.text = "⚒ %s — урон +%d" % [Items.title(Game.equip["weapon"]), Items.stat(Game.equip["weapon"], "dmg")]
+		if Game.upgrade_weapon(w):
+			_note.text = "⚒ %s — урон +%d" % [Items.title(w), Items.stat(w, "dmg")]
 		_render())
 	_up_box.add_child(b)
 

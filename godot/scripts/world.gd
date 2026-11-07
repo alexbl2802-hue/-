@@ -33,7 +33,9 @@ const TREE_MODELS := {
 }
 const PINE_HEIGHT := 9.0        # высота ели при размере 1 (м)
 const OAK_HEIGHT := 8.0
-const TREE_MIN_GAP := 0.35       # деревья ближе 0,35 их средней высоты (~3,7 м) друг к другу — одно убирается
+const TREE_MIN_GAP := 0.45       # деревья ближе 0,45 их средней высоты (~4,7 м) друг к другу — одно убирается
+const TREE_MAX_SLOPE := 0.88     # на склонах круче ~28° деревья не растут
+const TREE_BASE_R := 0.28        # радиус основания с корнями — доля высоты дерева
 const TREE_CHUNK := 40.0        # деревья собраны по участкам 40×40 м
 const TREE_FULL := 25.0         # ближе — полная модель (у присланных деревьев — половина треугольников)
 const TREE_NEAR := 60.0         # до сюда — подробная копия (~60 тыс. треугольников, файл *_near)
@@ -43,6 +45,18 @@ var _tree_far_nodes: Array = []
 
 ## Модель дерева: lod 0 — вблизи, 1 — среднее расстояние, 2 — вдали
 ## Внутри основания башни и у входа ничего не растёт
+## Высота дерева на склоне: на крутом не растёт (-INF), на пологом опускается так, чтобы основание
+## с корнями не висело над склоном, а уходило в землю нижним краем
+func _tree_y(pos: Vector3, h: float) -> float:
+	if WorldGen.normal_y_at(pos.x, pos.z) < TREE_MAX_SLOPE:
+		return -INF
+	var r := h * TREE_BASE_R
+	var low := WorldGen.ground_at(pos.x, pos.z)
+	for k in 8:
+		var a := TAU * k / 8.0
+		low = minf(low, WorldGen.ground_at(pos.x + cos(a) * r, pos.z + sin(a) * r))
+	return minf(pos.y, low)
+
 func _near_tower(p: Vector3) -> bool:   # и не внутри увеличенного города
 	return Vector2(p.x - TOWER_POS.x, p.z - TOWER_POS.y).length() < TOWER_R + 6.0 \
 		or WorldGen.town_dist(p.x, p.z) < WorldGen.TOWN_WALL + 3.0
@@ -282,7 +296,7 @@ func _build_terrain3d() -> void:
 		ta.set("normal_texture", load("res://textures/t3d/%s_normal_rough.png" % T3D_TEX[i]))
 		ta.set("uv_scale", T3D_UV[i])
 		if T3D_TEX[i] == "grass":
-			ta.set("albedo_color", Color(0.8, 0.82, 0.68))   # трава чуть приглушённее
+			ta.set("albedo_color", Color(0.52, 0.58, 0.42))   # луг естественнее, без «кислотной» зелени
 		ta.set("detiling_rotation", 0.3)
 		ta.set("detiling_shift", 0.3)
 		assets.call("set_texture_asset", i, ta)
@@ -385,12 +399,16 @@ func _build_vegetation() -> void:
 	var cand := []   # [вид, позиция, поворот, высота, радиус ствола]
 	for t in p["pines"]:
 		var pos := Vector3(t[0], t[2], t[1])
-		if not _near_tower(pos):
-			cand.append(["pine", pos, t[4], PINE_HEIGHT * t[3] * TREE_SCALE, 0.3 * t[3] * TREE_SCALE])
+		var h: float = PINE_HEIGHT * t[3] * TREE_SCALE
+		pos.y = _tree_y(pos, h)
+		if not _near_tower(pos) and pos.y > -INF:
+			cand.append(["pine", pos, t[4], h, 0.3 * t[3] * TREE_SCALE])
 	for t in p["oaks"]:
 		var pos := Vector3(t[0], t[2], t[1])
-		if not _near_tower(pos):
-			cand.append(["oak", pos, t[4], OAK_HEIGHT * t[3] * TREE_SCALE, 0.33 * t[3] * TREE_SCALE])
+		var h: float = OAK_HEIGHT * t[3] * TREE_SCALE
+		pos.y = _tree_y(pos, h)
+		if not _near_tower(pos) and pos.y > -INF:
+			cand.append(["oak", pos, t[4], h, 0.33 * t[3] * TREE_SCALE])
 	# Деревья, стоящие слишком близко друг к другу (кроны сливаются), — из пары остаётся одно, большее
 	cand.sort_custom(func(a, b): return a[3] > b[3])
 	var grid := {}   # участок 10 м → оставленные деревья [позиция, высота]
@@ -425,6 +443,93 @@ func _build_vegetation() -> void:
 	var grass := ShaderMaterial.new()
 	grass.shader = load("res://shaders/grass.gdshader")
 	_multimesh(_grass_mesh(), grass, tufts, false)
+	_build_grass_field()
+
+## Густая трава вокруг героя (shaders/grass_field.gdshader): сетка пучков ходит за камерой,
+## растёт только на лугах — не на камне, песке, дорогах, в городе, у башни и в воде
+const GRASS_SPACING := 0.45
+const GRASS_RADIUS := 17.0
+
+func _build_grass_field() -> void:
+	var n := WorldGen.seg + 1
+	var hi := Image.create_from_data(n, n, false, Image.FORMAT_RF, WorldGen.heights.to_byte_array())
+	var mask := Image.create(n, n, false, Image.FORMAT_L8)
+	var c := WorldGen.colors
+	for j in n:
+		for i in n:
+			var k := j * n + i
+			var x := -WorldGen.HALF + i * WorldGen.step
+			var z := -WorldGen.HALF + j * WorldGen.step
+			var r := c[k * 3]
+			var g := c[k * 3 + 1]
+			var b := c[k * 3 + 2]
+			var h := WorldGen.heights[k]
+			var ok := g - maxi(r, b) > 8 and h > WorldGen.WATER + 0.4 and WorldGen.normal_y_at(x, z) > 0.8 \
+				and WorldGen.town_dist(x, z) > WorldGen.TOWN_WALL + 2.0 and not _near_tower(Vector3(x, 0, z))
+			mask.set_pixel(i, j, Color(1, 1, 1) if ok else Color(0, 0, 0))
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/grass_field.gdshader")
+	m.set_shader_parameter("height_tex", ImageTexture.create_from_image(hi))
+	m.set_shader_parameter("mask_tex", ImageTexture.create_from_image(mask))
+	m.set_shader_parameter("height_rect", Vector4(-WorldGen.HALF, -WorldGen.HALF, WorldGen.WORLD, WorldGen.WORLD))
+	m.set_shader_parameter("spacing", GRASS_SPACING)
+	m.set_shader_parameter("radius", GRASS_RADIUS)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _blade_clump()
+	var cells := []
+	var half := int(GRASS_RADIUS / GRASS_SPACING)
+	for gz in range(-half, half + 1):
+		for gx in range(-half, half + 1):
+			if Vector2(gx, gz).length() * GRASS_SPACING <= GRASS_RADIUS:
+				cells.append(Vector3(gx * GRASS_SPACING, 0, gz * GRASS_SPACING))
+	mm.instance_count = cells.size()
+	for i in cells.size():
+		mm.set_instance_transform(i, Transform3D(Basis(), cells[i]))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "GrassField"
+	mmi.multimesh = mm
+	mmi.material_override = m
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.custom_aabb = AABB(Vector3(-WorldGen.HALF, -50, -WorldGen.HALF), Vector3(WorldGen.WORLD, 200, WorldGen.WORLD))
+	add_child(mmi)
+
+## Пучок из шести тонких травинок: каждая — три сужающихся отрезка с изгибом наружу
+func _blade_clump() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r := RandomNumberGenerator.new()
+	r.seed = 9
+	for k in 6:
+		var a := TAU * k / 6.0 + r.randf() * 0.8
+		var dir := Vector3(cos(a), 0, sin(a))
+		var side := Vector3(-sin(a), 0, cos(a))
+		var h := 0.38 + r.randf() * 0.32
+		var w := 0.03 + r.randf() * 0.015
+		var lean := 0.12 + r.randf() * 0.18
+		var base := dir * r.randf_range(0.02, 0.12)
+		var pts := []
+		for sgm in 4:
+			var t := sgm / 3.0
+			pts.append([base + dir * lean * t * t + Vector3(0, h * t, 0), w * (1.0 - t * 0.85)])
+		for sgm in 3:
+			var p0: Vector3 = pts[sgm][0]
+			var p1: Vector3 = pts[sgm + 1][0]
+			var w0: float = pts[sgm][1]
+			var w1: float = pts[sgm + 1][1]
+			if sgm < 2:
+				st.add_vertex(p0 - side * w0)
+				st.add_vertex(p0 + side * w0)
+				st.add_vertex(p1 + side * w1)
+				st.add_vertex(p0 - side * w0)
+				st.add_vertex(p1 + side * w1)
+				st.add_vertex(p1 - side * w1)
+			else:
+				st.add_vertex(p0 - side * w0)
+				st.add_vertex(p0 + side * w0)
+				st.add_vertex(p1)
+	st.generate_normals()
+	return st.commit()
 
 ## Пучок травы: семь тонких изогнутых травинок разной высоты, расходятся в стороны
 func _grass_mesh() -> ArrayMesh:

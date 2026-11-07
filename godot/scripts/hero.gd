@@ -1109,6 +1109,8 @@ var _since_swing := 99.0
 func _start_swing() -> void:
 	attack_t = 0.0
 	_attack_hit = false
+	_swing_hits = {}
+	_blade_prev = []
 	_combo_queued = false
 	# Автонаведение на ближайшего врага рядом — удобно на телефоне
 	var best: Node3D = null
@@ -1133,6 +1135,67 @@ func _wt() -> Dictionary:
 func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0, v.z)
 
+## Урон по касанию: весь взмах клинок проверяется на столкновение с монстрами — кого задел,
+## тому сразу урон (каждому один раз за удар). Между кадрами клинок «протягивается»
+## промежуточными положениями, чтобы быстрый взмах не проскакивал сквозь врага.
+const BLADE_FROM := 0.06      # доля взмаха, с которой клинок уже бьёт
+const BLADE_TO := 0.46
+var _swing_hits := {}
+var _blade_prev := []         # [основание, кончик] клинка в прошлом кадре
+
+func _blade_sweep(t: float) -> void:
+	if t < BLADE_FROM or t > BLADE_TO:
+		_blade_prev = []
+		return
+	if _sword == null or not _sword.is_visible_in_tree():
+		if not _attack_hit and t >= 0.2:   # без видимого меча — прежний удар по сектору
+			_attack_hit = true
+			_sword_hit()
+		return
+	var g := _sword.global_transform
+	var up := g.basis.y.normalized()
+	var reach: float = _wt()["reach"]
+	var a := g.origin + up * 0.1
+	var b := g.origin + up * (TRAIL_LEN * reach + 0.15)
+	var segs := [[a, b]]
+	if _blade_prev.size() == 2:
+		for k in [0.33, 0.66]:
+			segs.append([(_blade_prev[0] as Vector3).lerp(a, k), (_blade_prev[1] as Vector3).lerp(b, k)])
+	_blade_prev = [a, b]
+	var finisher := combo == 2
+	var wt := _wt()
+	for e in enemies.alive_near(global_position, 6.0):
+		if _swing_hits.has(e.get_instance_id()):
+			continue
+		var sc: float = float(e.T.get("scale", 1.0))
+		var er: float = float(e.T.get("r", 0.5)) * sc + 0.3
+		var lo: Vector3 = e.global_position + Vector3(0, 0.2, 0)
+		var hi: Vector3 = e.global_position + Vector3(0, maxf(0.6, float(e.T.get("bar", 2.0)) * 0.9), 0)
+		var touched := false
+		for sg in segs:
+			var cp := Geometry3D.get_closest_points_between_segments(sg[0], sg[1], lo, hi)
+			if cp[0].distance_to(cp[1]) < er:
+				touched = true
+				break
+		if not touched:
+			continue
+		_swing_hits[e.get_instance_id()] = true
+		var v := _flat(e.global_position - global_position)
+		var d := maxf(0.01, v.length())
+		_deal(e, COMBO_MULT[combo] * wt["dmg"], v / d)
+		Game.wear_weapon()
+		_finisher_landed = true
+		if finisher:
+			e.knock(2.2)   # третий удар отбрасывает далеко
+
+## Конец третьего удара: кольцо и эффект добивания, если попал
+func _finisher_end() -> void:
+	if ATTACK_RINGS:
+		Fx.ring(global_position + Vector3(sin(facing), 0.1, cos(facing)) * 1.4, Color("#ffd479"), 2.0, 0.35)
+	if _finisher_landed:
+		_finisher_fx()
+	_finisher_landed = false
+
 func _sword_hit() -> void:
 	var finisher := combo == 2
 	var wt := _wt()
@@ -1149,12 +1212,7 @@ func _sword_hit() -> void:
 		_finisher_landed = true
 		if finisher:
 			e.knock(2.2)   # третий удар отбрасывает далеко
-	if finisher:
-		if ATTACK_RINGS:
-				Fx.ring(global_position + Vector3(sin(facing), 0.1, cos(facing)) * 1.4, Color("#ffd479"), 2.0, 0.35)
-		if _finisher_landed:
-			_finisher_fx()
-	_finisher_landed = false
+	# Кольцо и эффект добивания — в _finisher_end() в конце взмаха
 
 var _finisher_landed := false
 
@@ -1530,10 +1588,10 @@ func _animate(dt: float) -> void:
 		_arms[0].rotation = Vector3(ax, 0, az)
 		if t > 0.14 and t < 0.36:
 			sm.albedo_color.a = 0.55 * (1.0 - absf(t - 0.22) / 0.14)
-		if not _attack_hit and t >= 0.2:
-			_attack_hit = true
-			_sword_hit()
+		_blade_sweep(t)
 		if t >= 0.48:
+			if combo == 2:
+				_finisher_end()
 			attack_t = -1.0
 			_since_swing = 0.0
 			if _combo_queued and combo < 2:
