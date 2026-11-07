@@ -119,7 +119,23 @@ func act(kind: String, pos: float, scale: float, upper := false) -> void:
 	act_scale = scale
 	# Поза ставится перемоткой каждый кадр (scale 0): темп оставляем 1, иначе темп 0 останавливает
 	# и плавный переход от прошлого действия — новая анимация так и не проявлялась (Горизонталь, Вихрь)
-	tree.set("parameters/act_ts/scale", 1.0 if scale == 0.0 and pos >= 0.0 else scale)
+	tree.set("parameters/act_ts/scale", scale)
+	if upper != _upper:
+		_upper = upper
+		_mix.filter_enabled = upper
+
+## Действие по ключевым позам: клип ведётся к нужной секунде t не перемоткой каждый кадр
+## (так дерево анимаций в игре показывало исходную позу модели), а темпом: перемотка — только
+## в начале и при большом расхождении, дальше клип просто играет быстрее или медленнее
+func follow(kind: String, t: float, dt: float, upper := false) -> void:
+	if kind != _cur or absf(t - act_time) > 0.35:
+		act(kind, t, 1.0, upper)
+		return
+	var sc := clampf((t - act_time) / maxf(dt, 0.001), -4.0, 8.0)
+	if absf(sc) < 0.05:
+		sc = 0.05 if sc >= 0.0 else -0.05   # не ноль: при нуле замирает и переход между клипами
+	act_scale = sc
+	tree.set("parameters/act_ts/scale", sc)
 	if upper != _upper:
 		_upper = upper
 		_mix.filter_enabled = upper

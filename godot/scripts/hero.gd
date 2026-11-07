@@ -506,19 +506,19 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 			sc = MESHY_MOVES[_move][2]
 		if _move == "horizontal" and _ha._names.get("horizontal", "") == MESHY_MOVES["horizontal"][0]:
 			# «Горизонталь» по ключевым позам клипа: замах — в конец стойки, удар — в момент удара
-			_ha.act(_move, _key_t(HZ_KEYS, _move_t), 0.0)
+			_ha.follow(_move, _key_t(HZ_KEYS, _move_t), dt)
 		else:
 			_ha.act(_move, start if _move_new else -1.0, sc)
 		_move_new = false
 	elif blocking:
 		if _ha._names.has("block"):
 			# Защита по клипу: меч поднимается в стойку за BLOCK_RAISE и держится вертикально перед собой
-			_ha.act("block", lerpf(BLOCK_FROM, BLOCK_CLIP[1], clampf((_time - _block_start) / BLOCK_RAISE, 0.0, 1.0)), 0.0, upper)
+			_ha.follow("block", lerpf(BLOCK_FROM, BLOCK_CLIP[1], clampf((_time - _block_start) / BLOCK_RAISE, 0.0, 1.0)), dt, upper)
 		else:
 			_ha.act("slash", BLOCK_POSE, 0.0, upper)
 	elif _unblock_t >= 0.0 and _ha._names.has("block") and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0:
 		# Кнопку отпустили — меч опускается обратно по тому же клипу
-		_ha.act("block", lerpf(BLOCK_CLIP[1], BLOCK_FROM, clampf(_unblock_t / BLOCK_LOWER, 0.0, 1.0)), 0.0, upper)
+		_ha.follow("block", lerpf(BLOCK_CLIP[1], BLOCK_FROM, clampf(_unblock_t / BLOCK_LOWER, 0.0, 1.0)), dt, upper)
 	elif _art_t >= 0.0 and _ha._names.has("art_" + _art):
 		# Приём — клип Meshy: удар клипа совпадает с моментом удара приёма
 		var ac: Array = ART_CLIPS[_art]
@@ -538,7 +538,7 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	elif _spin_t >= 0.0:
 		if _ha._names.get("whirl", "") == WHIRL_CLIP[0]:
 			# Вихрь по ключевым позам: оборот клипа (0,15→0,75 с) — на время ударов вихря
-			_ha.act("whirl", _key_t(WHIRL_KEYS, _spin_t), 0.0)
+			_ha.follow("whirl", _key_t(WHIRL_KEYS, _spin_t), dt)
 		else:
 			_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
 	elif _dash_t >= 0.0:
@@ -558,12 +558,12 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		if _ha._names.get("air", "") == JUMP_CLIP[0]:
 			# Прыжок по ключевым позам клипа, в такт полёту: на подъёме — от отрыва к верхней
 			# точке по скорости взлёта, на спуске — от верхней точки к касанию земли
-			_ha.act("air", _jump_clip_t(), 0.0)
+			_ha.follow("air", _jump_clip_t(), dt)
 		else:
 			_ha.act("air", 0.17, 0.0)   # в прыжке — поза полёта из бега
 	elif _land_t >= 0.0 and _ha._names.get("air", "") == JUMP_CLIP[0]:
 		# Приземление: амортизация по клипу (присел на касании — выпрямился)
-		_ha.act("air", minf(JUMP_TOUCH + _land_t * JUMP_LAND_RATE, JUMP_RECOVER), 0.0)
+		_ha.follow("air", minf(JUMP_TOUCH + _land_t * JUMP_LAND_RATE, JUMP_RECOVER), dt)
 	else:
 		_ha.stop()
 	_new_swing = false
