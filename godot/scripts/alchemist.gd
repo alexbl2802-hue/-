@@ -120,8 +120,8 @@ static func build(parent: Node3D, pos: Vector3, yaw: float, body: StaticBody3D) 
 	body.add_child(cs2)
 
 ## Где стоять у лавки (перед дверью)
-static func front(pos: Vector3, yaw: float) -> Vector3:
-	return pos + Basis(Vector3.UP, yaw) * Vector3(-0.5, 0, 4.0)
+static func front(pos: Vector3, yaw: float, k := 1.0) -> Vector3:   # k — во сколько раз увеличен город
+	return pos + Basis(Vector3.UP, yaw) * Vector3(-0.5, 0, 4.0) * k
 
 static func _box(parent: Node3D, size: Vector3, mat: Material, pos: Vector3) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

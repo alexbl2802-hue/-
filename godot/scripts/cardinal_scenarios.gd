@@ -224,7 +224,7 @@ func _forge() -> void:
 func _alchemist() -> void:
 	at.set_step("лавка алхимика")
 	var al := Vector3(WorldGen.ALCHEMIST_POS.x, WorldGen.TOWN_Y, WorldGen.ALCHEMIST_POS.y)
-	_teleport(Alchemist.front(al, WorldGen.ALCHEMIST_YAW))
+	_teleport(Alchemist.front(al, WorldGen.ALCHEMIST_YAW, WorldGen.TOWN_SCALE))
 	var at_door: bool = await _await_act("open_alchemist")
 	var why := "" if at_door else " (" + _why() + ")"
 	hud.open_alchemist()

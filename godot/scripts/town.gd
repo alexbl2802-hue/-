@@ -4,7 +4,8 @@ class_name Town
 extends RefCounted
 
 const G := WorldGen.TOWN_Y
-const W := WorldGen.TOWN_WALL
+const S := WorldGen.TOWN_SCALE
+const W := WorldGen.TOWN_WALL / S   # город строится в прежних размерах и целиком увеличивается в S раз
 const GATE := 3.5
 
 static var _root: Node3D
@@ -15,6 +16,8 @@ static var _map: Array = []
 static func build(parent: Node3D) -> Array:
 	_root = Node3D.new()
 	_root.name = "Town"
+	_root.scale = Vector3.ONE * S
+	_root.position.y = G * (1.0 - S)   # земля внутри стен остаётся на высоте TOWN_Y
 	parent.add_child(_root)
 	_body = StaticBody3D.new()
 	_body.name = "TownBody"
@@ -34,14 +37,27 @@ static func build(parent: Node3D) -> Array:
 		_house(h[0], h[1], h[2], h[3], h[4], h[5], k, stone)
 	_garden()
 	_forge(stone)
-	Alchemist.build(_root, Vector3(WorldGen.ALCHEMIST_POS.x, G, WorldGen.ALCHEMIST_POS.y), WorldGen.ALCHEMIST_YAW, _body)
+	var al := WorldGen.ALCHEMIST_POS / S
+	Alchemist.build(_root, Vector3(al.x, G, al.y), WorldGen.ALCHEMIST_YAW, _body)
 	var aw := Alchemist.MODEL_SIZE / 2.0 if HouseModel.exists(HouseModel.ALCHEMIST) else 3.2
 	var ad := Alchemist.MODEL_SIZE * 0.33 if HouseModel.exists(HouseModel.ALCHEMIST) else 2.7
-	_map.append({"x0": WorldGen.ALCHEMIST_POS.x - aw, "x1": WorldGen.ALCHEMIST_POS.x + aw, "z0": WorldGen.ALCHEMIST_POS.y - ad, "z1": WorldGen.ALCHEMIST_POS.y + ad, "c": Color("#6a4a8a")})
+	_map.append({"x0": al.x - aw, "x1": al.x + aw, "z0": al.y - ad, "z1": al.y + ad, "c": Color("#6a4a8a")})
 	_plaza(stone)
 	_manor(stone)
 	_lanterns()
+	_npcs(parent)
+	for r in _map:   # миникарта — в настоящих (увеличенных) координатах
+		for key in ["x0", "x1", "z0", "z1"]:
+			r[key] = float(r[key]) * S
 	return _map
+
+# ---------- Жители: кузнец у двери кузницы, алхимик у входа в лавку (модели Meshy как есть, в рост человека)
+static func _npcs(parent: Node3D) -> void:
+	var fp := WorldGen.FORGE_POS
+	HouseModel.npc(parent, HouseModel.NPC_BLACKSMITH, Vector3(fp.x + 2.6, G, fp.y + 0.6), 0.0)
+	var al := Vector3(WorldGen.ALCHEMIST_POS.x, G, WorldGen.ALCHEMIST_POS.y)
+	var at := al + Basis(Vector3.UP, WorldGen.ALCHEMIST_YAW) * Vector3(1.8, 0.0, 3.2 * S)
+	HouseModel.npc(parent, HouseModel.NPC_ALCHEMIST, at, WorldGen.ALCHEMIST_YAW)
 
 # ---------- Помощники
 static func _mesh(mesh: Mesh, mat: Material, pos: Vector3, shadow := true) -> MeshInstance3D:
@@ -119,13 +135,13 @@ static func _walls(stone: Material) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	var seg_mesh := BoxMesh.new()
-	seg_mesh.size = Vector3(4, 5, 1.6)
+	seg_mesh.size = Vector3(4, 6, 1.6)   # на 1 м уходит в землю: у края увеличенного города земля чуть ниже
 	mm.mesh = seg_mesh
 	mm.instance_count = wall_segs.size()
 	for i in wall_segs.size():
 		var s: Array = wall_segs[i]
 		var b := Basis(Vector3.UP, PI / 2 if s[2] else 0.0)
-		mm.set_instance_transform(i, Transform3D(b, Vector3(s[0], G + 2.5, s[1])))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(s[0], G + 2.0, s[1])))
 		for o in [-1.0, 1.0]:
 			merlons.append([s[0] if s[2] else s[0] + o, s[1] + o if s[2] else s[1], s[2]])
 	_multi(mm, stone)
@@ -158,7 +174,7 @@ static func _towers_and_gates(stone: Material) -> void:
 	var roof_red := Mats.lp(0x9a3b2a)
 	var dark_wood := Mats.lp(0x3a2414)
 	var tower := func(x: float, z: float, r: float, h: float) -> void:
-		_mesh(_cyl(r, r * 1.08, h, 12), tower_mat, Vector3(x, G + h / 2.0, z))
+		_mesh(_cyl(r, r * 1.08, h + 1.0, 12), tower_mat, Vector3(x, G + (h - 1.0) / 2.0, z))
 		_mesh(_cyl(0.0, r * 1.25, r * 1.5, 12), roof_red, Vector3(x, G + h + r * 0.75, z))
 		_round(x, z, r)
 	for x in [-W, W]:
@@ -190,6 +206,7 @@ const MANOR_SIZE := 23.5      # особняк — во всю ширину дв
 const FORGE_POS := Vector3(20.0, 0.0, -25.5)   # кузница из модели — на месте огорода (старое место мало)
 const FORGE_SIZE := 11.0
 const WELL_SIZE := 3.6
+const STALL_SIZE := 3.6       # лавка из модели — по длине прежнего навеса
 static func _house(x: float, z: float, w: float, d: float, floors: int, face: String, k: int, stone: Material) -> void:
 	# Дом — модель коттеджа (Meshy, как есть), дверью на улицу; если модели нет — прежний дом из коробок
 	if HouseModel.exists(HouseModel.COTTAGE):
@@ -302,6 +319,10 @@ static func _plaza(stone: Material) -> void:
 	var cloths := [Mats.lp(0xb83a32), Mats.lp(0x2f5f9a)]
 	var goods := [0xd8402a, 0xe8b030, 0x6aa040, 0xa05a2a]
 	var stalls := [[7.5, -7.0], [7.0, 7.5]]
+	if HouseModel.exists(HouseModel.STALL):
+		for st in stalls:   # торговые лавки — присланная модель Market Stall (как есть)
+			HouseModel.place(_root, HouseModel.STALL, Vector3(st[0], G, st[1]), 0.0, STALL_SIZE, _body)
+		return
 	for i in 2:
 		var x: float = stalls[i][0]
 		var z: float = stalls[i][1]

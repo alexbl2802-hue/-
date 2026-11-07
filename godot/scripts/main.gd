@@ -441,7 +441,7 @@ func _process(_dt: float) -> void:
 				_act = hud.open_alchemist
 		elif mode < 0:
 			var al := Vector3(WorldGen.ALCHEMIST_POS.x, 0, WorldGen.ALCHEMIST_POS.y)
-			if Vector2(p.x, p.z).distance_to(Vector2(Alchemist.front(al, WorldGen.ALCHEMIST_YAW).x, Alchemist.front(al, WorldGen.ALCHEMIST_YAW).z)) < Alchemist.SHOP_RADIUS:
+			if Vector2(p.x, p.z).distance_to(Vector2(Alchemist.front(al, WorldGen.ALCHEMIST_YAW, WorldGen.TOWN_SCALE).x, Alchemist.front(al, WorldGen.ALCHEMIST_YAW, WorldGen.TOWN_SCALE).z)) < Alchemist.SHOP_RADIUS:
 				text = "⚗ Алхимик"
 				_act = hud.open_alchemist
 			if Vector2(p.x, p.z).distance_to(WorldGen.FORGE_POS) < 3.4:

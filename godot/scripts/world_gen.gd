@@ -7,10 +7,11 @@ const WORLD := 900.0
 const HALF := WORLD / 2.0
 const WATER := 0.0
 const TOWN_Y := 4.0
-const TOWN_WALL := 34.0
+const TOWN_SCALE := 1.25   # город увеличен в 1,25 раза: стены, улицы, дома, особняк (было 34 м до стены)
+const TOWN_WALL := 34.0 * TOWN_SCALE
 const TOWN_NAME := "Камнеград"
-const FORGE_POS := Vector2(20.0, -19.3)   # вход в кузницу (модель на месте огорода, дверью на юг)
-const ALCHEMIST_POS := Vector2(-21.0, 5.4)   # лавка алхимика в Камнеграде (дверью к поперечной улице)
+const FORGE_POS := Vector2(20.0, -19.3) * TOWN_SCALE   # вход в кузницу (модель на месте огорода, дверью на юг)
+const ALCHEMIST_POS := Vector2(-21.0, 5.4) * TOWN_SCALE   # лавка алхимика в Камнеграде (дверью к поперечной улице)
 const ALCHEMIST_YAW := PI
 
 static var seg := 0

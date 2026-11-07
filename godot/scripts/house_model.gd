@@ -9,6 +9,9 @@ const MANOR := "res://models/house_manor.glb"
 const WELL := "res://models/town_well.glb"            # колодец на площади
 const FORGE := "res://models/town_forge.glb"          # кузница (The Emberforge Workshop)
 const ALCHEMIST := "res://models/town_alchemist.glb"  # лавка алхимика (The Alchemist's Cottage)
+const STALL := "res://models/town_stall.glb"          # торговая лавка на площади (Market Stall)
+const NPC_BLACKSMITH := "res://models/npc_blacksmith.glb"   # кузнец (Ironclad Blacksmith)
+const NPC_ALCHEMIST := "res://models/npc_alchemist.glb"     # алхимик (The Stoic Alchemist)
 static var _cache := {}
 
 static func _scene(path: String) -> PackedScene:
@@ -62,3 +65,34 @@ static func _xf_to(root: Node3D, n: Node3D) -> Transform3D:
 		t = (cur as Node3D).transform * t
 		cur = cur.get_parent()
 	return t
+
+## Житель: модель в натуральный рост, лицом (ось +Z модели) по yaw, стоит и дышит (клип «Idle»).
+static func npc(parent: Node3D, path: String, pos: Vector3, yaw: float) -> Node3D:
+	var ps := _scene(path)
+	if ps == null:
+		return null
+	var n: Node3D = ps.instantiate()
+	n.position = pos
+	n.rotation.y = yaw
+	parent.add_child(n)
+	for m in n.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for si in mi.mesh.get_surface_count():
+			Mats.toon(mi.get_active_material(si))
+	var ap := n.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ap:
+		var clip := "Idle" if ap.has_animation("Idle") else ""
+		if clip != "":
+			ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+			ap.play(clip)
+	var body := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var sh := CapsuleShape3D.new()
+	sh.radius = 0.35
+	sh.height = 1.8
+	cs.shape = sh
+	cs.position.y = 0.9
+	body.add_child(cs)
+	n.add_child(body)
+	return n

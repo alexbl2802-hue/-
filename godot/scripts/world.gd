@@ -42,8 +42,9 @@ var _tree_far_nodes: Array = []
 
 ## Модель дерева: lod 0 — вблизи, 1 — среднее расстояние, 2 — вдали
 ## Внутри основания башни и у входа ничего не растёт
-func _near_tower(p: Vector3) -> bool:
-	return Vector2(p.x - TOWER_POS.x, p.z - TOWER_POS.y).length() < TOWER_R + 6.0
+func _near_tower(p: Vector3) -> bool:   # и не внутри увеличенного города
+	return Vector2(p.x - TOWER_POS.x, p.z - TOWER_POS.y).length() < TOWER_R + 6.0 \
+		or WorldGen.town_dist(p.x, p.z) < WorldGen.TOWN_WALL + 3.0
 
 func _tree_path(name: String, lod: int) -> String:
 	return "res://models/tree_%s%s.glb" % [name, ["", "_near", "_mid", "_far"][lod]]
