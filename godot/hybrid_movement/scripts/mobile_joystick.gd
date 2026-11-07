@@ -12,7 +12,7 @@ func _gui_input(event: InputEvent) -> void:
  if event is InputEventScreenTouch:
   if event.pressed and _finger == -1:
    _finger = event.index
-   _set_position(event.position)
+   _set_axis_at(event.position)
    accept_event()
   elif not event.pressed and event.index == _finger:
    _finger = -1
@@ -20,9 +20,9 @@ func _gui_input(event: InputEvent) -> void:
    _push()
    accept_event()
  elif event is InputEventScreenDrag and event.index == _finger:
-  _set_position(event.position)
+  _set_axis_at(event.position)
   accept_event()
-func _set_position(pos: Vector2) -> void:
+func _set_axis_at(pos: Vector2) -> void:
  _axis = ((pos - size * 0.5) / maxf(radius, 1.0)).limit_length(1.0)
  _push()
 func _push() -> void:
