@@ -1,5 +1,4 @@
-## Сенсорное управление: левая нижняя часть экрана — плавающий джойстик (mobile_joystick),
-## остальное — камера и щипок,
+## Сенсорное управление: левая часть экрана — джойстик, правая — камера и щипок,
 ## кнопки удара, прыжка, бега, действия, зелья, навыков и умений. Каждое касание
 ## отслеживается отдельно, поэтому можно одновременно идти, крутить камеру и нажимать кнопки.
 extends Control
@@ -38,11 +37,6 @@ var _joy_id := -1
 var _joy_origin := Vector2.ZERO
 var _joy_knob := Vector2.ZERO
 var _cam_id := -1
-# Джойстик из mobile_joystick (VirtualJoystick): плавающий, появляется под пальцем в левой нижней
-# части экрана; двойное касание с удержанием — бег. Его касания этот узел не забирает.
-var vjoy: ZemliVirtualJoystick
-var _vjoy_ids := {}
-var _sprint_joy := false
 var _pinch_id := -1
 var _pinch_d := 1.0
 var _time := 0.0
@@ -50,24 +44,6 @@ var _time := 0.0
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var demo: Control = (load("res://mobile_joystick/JoystickDemo.tscn") as PackedScene).instantiate()
-	add_child(demo)
-	vjoy = demo.get_node("VirtualJoystick") as ZemliVirtualJoystick
-	vjoy.movement_changed.connect(_on_vjoy_move)
-	vjoy.sprint_changed.connect(_on_vjoy_sprint)
-
-## Направление джойстика: вверх по экрану — вперёд
-func _on_vjoy_move(d: Vector2) -> void:
-	move = Vector2(d.x, -d.y) if is_visible_in_tree() else Vector2.ZERO
-
-## Двойное касание с удержанием — бег, пока палец на джойстике
-func _on_vjoy_sprint(active: bool) -> void:
-	if active:
-		_sprint_joy = true
-		run = true
-	elif _sprint_joy:
-		_sprint_joy = false
-		run = false
 
 func _process(dt: float) -> void:
 	_time += dt
@@ -75,28 +51,37 @@ func _process(dt: float) -> void:
 
 func _buttons() -> Array:
 	var s := size
+	# Основной удар — в правом нижнем углу; навыки — дугой вокруг него (ближний круг),
+	# прыжок, бег, блок и уклонение — дальним кругом
+	var ac := Vector2(s.x - 20 - 48, s.y - 18 - 48)
+	var at := func(r: float, deg: float) -> Vector2: return ac + Vector2(cos(deg_to_rad(deg)), sin(deg_to_rad(deg))) * r
 	var list := [
-		{"id": "attack", "c": Vector2(s.x - 24 - 45.5, s.y - 28 - 45.5), "r": 45.5, "label": "⚔", "fs": 39, "border": Color(1, 0.55, 0.43, 0.75)},
-		{"id": "jump", "c": Vector2(s.x - 126 - 33, s.y - 20 - 33), "r": 33.0, "label": "⤒", "fs": 27},
-		{"id": "run", "c": Vector2(s.x - 40 - 28, s.y - 130 - 28), "r": 28.0, "label": "🏃", "fs": 23},
+		{"id": "attack", "c": ac, "r": 48.0, "label": "⚔", "fs": 41, "border": Color(1, 0.55, 0.43, 0.75)},
 		{"id": "inventory", "rect": Rect2(10, 10, 32, 32), "label": "🎒", "fs": 16},
 		{"id": "potion", "rect": Rect2(48, 10, 32, 32), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
 		{"id": "skills", "rect": Rect2(86, 10, 32, 32), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
 		{"id": "menu", "rect": Rect2(124, 10, 32, 32), "label": "☰", "fs": 16},
 		{"id": "cardinal", "rect": Rect2(162, 10, 32, 32), "label": "◈", "fs": 16},
 	]
-	list.append({"id": "block", "c": Vector2(s.x - 236, s.y - 140), "r": 30.0, "label": "🔰", "fs": 26, "border": Color(0.75, 0.8, 0.9, 0.7)})
+	# Ближний круг — навыки
 	if art_icon != "":
-		list.append({"id": "art", "c": Vector2(s.x - 312, s.y - 100), "r": 32.0, "label": art_icon, "fs": 28, "border": Color(1, 0.85, 0.4, 0.8)})
-	# Уклонение: назад, вбок или кувырок — по наклону джойстика
-	list.append({"id": "dodge", "c": Vector2(s.x - 312, s.y - 32), "r": 28.0, "label": "↶", "fs": 28, "border": Color(0.6, 0.95, 0.8, 0.75)})
+		list.append({"id": "art", "c": at.call(RING_IN, 180.0), "r": 30.0, "label": art_icon, "fs": 26, "border": Color(1, 0.85, 0.4, 0.8)})
 	if skill_ranks["horizontal"] > 0:
-		list.append({"id": "horizontal", "c": Vector2(s.x - 312, s.y - 172), "r": 30.0, "label": "↔", "fs": 28, "border": Color(0.5, 0.85, 1, 0.8)})
+		list.append({"id": "horizontal", "c": at.call(RING_IN, 210.0), "r": 30.0, "label": "↔", "fs": 26, "border": Color(0.5, 0.85, 1, 0.8)})
 	if skill_ranks["whirl"] > 0:
-		list.append({"id": "whirl", "c": Vector2(s.x - 128 - 32, s.y - 98 - 32), "r": 32.0, "label": "🌀", "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "whirl", "c": at.call(RING_IN, 240.0), "r": 30.0, "label": "🌀", "fs": 26, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
-		list.append({"id": "dash", "c": Vector2(s.x - 204 - 32, s.y - 28 - 32), "r": 32.0, "label": dash_icon, "fs": 29, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "dash", "c": at.call(RING_IN, 270.0), "r": 30.0, "label": dash_icon, "fs": 26, "border": Color(0.5, 0.85, 1, 0.75)})
+	# Дальний круг — уклонение, блок, прыжок, бег
+	# Уклонение: назад, вбок или кувырок — по наклону джойстика
+	list.append({"id": "dodge", "c": at.call(RING_OUT, 180.0), "r": 28.0, "label": "↶", "fs": 26, "border": Color(0.6, 0.95, 0.8, 0.75)})
+	list.append({"id": "block", "c": at.call(RING_OUT, 203.0), "r": 28.0, "label": "🔰", "fs": 24, "border": Color(0.75, 0.8, 0.9, 0.7)})
+	list.append({"id": "jump", "c": at.call(RING_OUT, 226.0), "r": 28.0, "label": "⤒", "fs": 24})
+	list.append({"id": "run", "c": at.call(RING_OUT, 249.0), "r": 28.0, "label": "🏃", "fs": 22})
 	return list
+
+const RING_IN := 118.0     # радиус дуги навыков вокруг удара
+const RING_OUT := 182.0     # дальний круг (до миникарты не достаёт)
 
 func _act_rect() -> Rect2:
 	if act_text == "":
@@ -144,9 +129,6 @@ func release_all() -> void:
 	_joy_id = -1
 	_cam_id = -1
 	_pinch_id = -1
-	_vjoy_ids.clear()
-	if vjoy and vjoy._finger != -1:
-		vjoy._release()
 	move = Vector2.ZERO
 	jump = false
 	block = false
@@ -160,23 +142,21 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventScreenTouch:
 		if e.pressed:
 			var b := _hit(e.position)
-			if b == "" and vjoy and vjoy._finger == -1 and vjoy._can_activate(e.position):
-				_vjoy_ids[e.index] = true
-				return   # касание джойстика — его обработает VirtualJoystick
 			if b != "":
 				_btn_touch[e.index] = b
 				_press(b, true)
 			else:
 				_pts[e.index] = e.position
-				if _cam_id == -1:
+				if e.position.x < size.x * 0.42 and _joy_id == -1:
+					_joy_id = e.index
+					_joy_origin = e.position
+					_joy_knob = Vector2.ZERO
+				elif _cam_id == -1:
 					_cam_id = e.index
 				elif _pinch_id == -1:
 					_pinch_id = e.index
 					_pinch_d = _pinch_dist()
 		else:
-			if _vjoy_ids.has(e.index):
-				_vjoy_ids.erase(e.index)
-				return   # палец джойстика отпущен — тоже его событие
 			if _btn_touch.has(e.index):
 				_press(_btn_touch[e.index], false)
 				_btn_touch.erase(e.index)
@@ -214,8 +194,16 @@ func _input(e: InputEvent) -> void:
 
 func _draw() -> void:
 	var font := get_theme_default_font()
+	var line := Color(1, 0.9, 0.7, 0.35)
 	var text_c := Color(1, 0.9, 0.69)
-	# Джойстик рисует сам VirtualJoystick (mobile_joystick)
+	# Джойстик
+	if _joy_id == -1:
+		draw_arc(Vector2(60 + 55, size.y - 50 - 55), 55, 0, TAU, 48, Color(1, 0.9, 0.7, 0.25), 2.0)
+	else:
+		draw_circle(_joy_origin, 65, Color(1, 1, 1, 0.08))
+		draw_arc(_joy_origin, 65, 0, TAU, 48, line, 2.0)
+		draw_circle(_joy_origin + _joy_knob, 28, Color(1, 0.83, 0.47, 0.55))
+		draw_arc(_joy_origin + _joy_knob, 28, 0, TAU, 32, Color(1, 0.94, 0.78, 0.8), 2.0)
 	for b in _buttons():
 		var id: String = b["id"]
 		var on: bool = _down.get(id, false) or (id == "run" and run)
