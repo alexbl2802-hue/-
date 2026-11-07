@@ -11,7 +11,10 @@ const SAVE_PATH := "user://save.json"
 const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270],
 	"alpha_wolf": [180, 200], "goblin_chief": [190, 210], "sand_scorpion": [200, 220], "frost_king": [210, 230], "kobold_warlord": [230, 250],
 	"swamp_mother": [250, 270], "lava_lord": [270, 290], "crystal_guard": [290, 310], "shadow_wolf": [310, 330], "sky_king": [350, 380],
-	"stone_golem": [90, 100], "storm_wolf": [70, 80], "venom_spider": [60, 70], "thorn_beast": [85, 95]}
+	"stone_golem": [90, 100], "storm_wolf": [70, 80], "venom_spider": [60, 70], "thorn_beast": [85, 95],
+	# Мини-боссы этажей башни — опыт прежних стражей тех же этажей
+	"golem_warden": [180, 200], "crystal_spider": [190, 210], "toxic_mutant": [200, 220], "ice_beast": [210, 230], "fire_demon": [230, 250],
+	"forest_keeper": [250, 270], "elemental_guard": [270, 290], "shadow_wraith": [290, 310], "necromancer": [310, 330], "tower_lord": [350, 380]}
 
 static func enemy_xp(kind: String) -> int:
 	var r: Array = ENEMY_XP.get(kind, [10, 10])

@@ -70,6 +70,14 @@ func spawn_world2(w2: Node3D) -> void:
 static func boss_beaten(idx: int) -> bool:
 	return Game.bosses.has(idx)
 
+## Сколько обычных монстров (без босса) ещё живо в подземелье
+func monsters_left(idx: int) -> int:
+	var n := 0
+	for e in list:
+		if e.dungeon_idx == idx and not e.dead and not e.T.get("boss", false):
+			n += 1
+	return n
+
 ## Живой босс подземелья или null
 func boss_of(idx: int) -> Node3D:
 	for e in list:

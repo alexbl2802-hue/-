@@ -281,6 +281,8 @@ func enter_dungeon(i: int) -> void:
 		rig.snap()
 		enemies.reset_all()
 		if d.tower:
+			d.remove_meta("fight")
+			d.remove_meta("unlocked")
 			d.set_gate(false)
 			d.set_stairs(enemies.boss_beaten(i))
 		hero.busy = false
@@ -339,8 +341,9 @@ func _on_boss_killed(e: Node3D) -> void:
 	if d.tower:
 		d.set_gate(false)
 		d.set_stairs(true)
+		d.remove_meta("fight")
 		if d.def["floor"] < DungeonDefs.TOWER.size():
-			hud.banner("%s повержен!" % e.T["name"], "Ворота открыты · путь на этаж %d свободен" % (d.def["floor"] + 1))
+			hud.banner("%s повержен!" % e.T["name"], "Двери открыты · телепорт на этаж %d загорелся" % (d.def["floor"] + 1))
 		else:
 			hud.banner("%s повержен!" % e.T["name"], "Башня покорена! Лестница ведёт в новый мир — %s" % world2.NAME)
 	else:
@@ -465,14 +468,18 @@ func _process(_dt: float) -> void:
 			if d.tower:
 				_tower_update(d, p)
 				var boss: Node3D = enemies.boss_of(mode)
-				if boss and not d.gate_closed:
+				if boss and not d.in_room(p):
 					for g in d.gate_cells:
 						var gc: Vector3 = d.cell_center(g.x, g.y)
 						if Vector2(p.x - gc.x, p.z - gc.z).length() < 7.0:
-							text = "⚔ Страж этажа: %s · Ур. %d" % [boss.T["name"], boss.level]
+							var left: int = enemies.monsters_left(mode)
+							if left > 0:
+								text = "🔒 Комната %s откроется, когда победишь всех монстров этажа · осталось %d" % ["босса" if d.def.get("final", false) else "мини-босса", left]
+							else:
+								text = "⚔ %s: %s · Ур. %d" % ["Финальный босс" if d.def.get("final", false) else "Мини-босс", boss.T["name"], boss.level]
 				if d.stairs_open and Vector2(p.x - d.stairs_front.x, p.z - d.stairs_front.z).length() < 2.4:
 					if d.def["floor"] < DungeonDefs.TOWER.size():
-						text = "Подняться на этаж %d" % (d.def["floor"] + 1)
+						text = "Телепорт на этаж %d" % (d.def["floor"] + 1)
 						_act = enter_floor.bind(d.def["floor"] + 1)
 					else:
 						text = "Подняться в новый мир: " + world2.NAME
@@ -487,12 +494,27 @@ func _process(_dt: float) -> void:
 					_act = open_chest.bind(mode)
 	t.act_text = text
 
-## Комната стража: вошёл — ворота опускаются за спиной и не откроются, пока страж жив
+## Комната мини-босса: заперта, пока на этаже живы монстры; когда побеждены все — открывается.
+## Вошёл — двери закрываются за спиной до победы; после победы открываются и загорается телепорт.
 func _tower_update(d: Node3D, p: Vector3) -> void:
 	var boss: Node3D = enemies.boss_of(mode)
 	var inside: bool = d.in_room(p)
-	if boss and inside and not d.gate_closed:
-		d.set_gate(true)
-		hud.banner("Страж этажа: %s" % boss.T["name"], "Ур. %d · Ворота закрылись — назад пути нет" % boss.level)
-	elif d.gate_closed and not boss:
+	var final: bool = d.def.get("final", false)
+	if boss and inside:
+		if not d.has_meta("fight"):
+			d.set_meta("fight", true)
+			d.set_gate(true)
+			hud.banner("%s: %s" % ["Финальный босс" if final else "Мини-босс", boss.T["name"]], "Ур. %d · Двери закрылись до победы" % boss.level)
+	elif boss:
+		d.remove_meta("fight")
+		var left: int = enemies.monsters_left(mode)
+		if left > 0:
+			d.set_gate(true)   # заперто, пока живы монстры этажа
+			d.remove_meta("unlocked")
+		else:
+			d.set_gate(false)
+			if not d.has_meta("unlocked"):
+				d.set_meta("unlocked", true)
+				hud.banner("Все монстры этажа повержены", "Комната %s открыта" % ["босса" if final else "мини-босса"])
+	elif d.gate_closed:
 		d.set_gate(false)

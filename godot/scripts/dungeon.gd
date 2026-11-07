@@ -21,7 +21,8 @@ var chest := {}
 var tower := false              # этаж башни
 var gate_cells: Array = []      # клетки ворот комнаты стража
 var boss_pos := Vector3.ZERO    # где стоит страж этажа
-var stairs_pos := Vector3.ZERO  # лестница на следующий этаж
+var stairs_pos := Vector3.ZERO  # телепорт на следующий этаж
+var feature_pos := Vector3.ZERO # объект темы в центре большого зала
 var room := {}                  # клетки комнаты стража (Vector2i → true)
 var gate_closed := false
 var _gate_bars: Array = []      # [узел решётки, высота поднятой]
@@ -88,6 +89,7 @@ func build(d: Dictionary, idx: int) -> void:
 				"G": gate_cells.append(Vector2i(i, j))
 				"B": boss_pos = cell_center(i, j)
 				"U": stairs_pos = cell_center(i, j)
+				"F": feature_pos = cell_center(i, j)
 	# На каждом этаже башни — сундук в случайном месте: не у входа, не в комнате стража
 	if tower and chest.is_empty():
 		_place_random_chest(floors)
@@ -96,8 +98,10 @@ func build(d: Dictionary, idx: int) -> void:
 		_build_pillar(cell_center(p.x, p.y))
 	for t in torches:
 		_build_torch(t)
-	if cave:
+	if cave or def.get("crystals", false):
 		_build_crystals(floors, crystals)
+	if feature_pos != Vector3.ZERO:
+		_build_feature(feature_pos)
 	_build_decor(floors)
 	_build_exit()
 	if tower:
@@ -340,9 +344,9 @@ func _build_cave_torch(t: Vector2i, d: Vector2i) -> void:
 	var wz := c.z + d.y * off
 	var stick := _mesh(_cyl(0.06, 0.08, 0.7, 5), Mats.lp(0x4a3220), Vector3(wx, Y + 2.5, wz))
 	stick.rotation = Vector3(d.y * 0.4, 0, -d.x * 0.4)
-	var fl := _mesh(_cyl(0.0, 0.15, 0.4, 5), Mats.glow(0xffb040), Vector3(wx - d.x * 0.15, Y + 3.0, wz - d.y * 0.15))
+	var fl := _mesh(_cyl(0.0, 0.15, 0.4, 5), Mats.glow(_torch_flame()), Vector3(wx - d.x * 0.15, Y + 3.0, wz - d.y * 0.15))
 	var light := OmniLight3D.new()
-	light.light_color = WorldGen.hex(0xff8a30)
+	light.light_color = _torch_c()
 	light.light_energy = 2.2
 	light.omni_range = 18.0
 	light.omni_attenuation = 1.3
@@ -400,11 +404,11 @@ func _build_torch(t: Vector2i) -> void:
 	stick.basis = _basis_up_to(up)
 	var flame_mat := StandardMaterial3D.new()
 	flame_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	flame_mat.albedo_color = WorldGen.hex(0xffb040) * TORCH_FLAME
+	flame_mat.albedo_color = WorldGen.hex(_torch_flame()) * TORCH_FLAME
 	var top := base + up * 0.72
 	var fl := _mesh(_cyl(0.0, 0.15, 0.4, 5), flame_mat, top + Vector3(0, 0.18, 0))
 	var light := OmniLight3D.new()
-	light.light_color = WorldGen.hex(0xff8a30)
+	light.light_color = _torch_c()
 	light.light_energy = TORCH_LIGHT
 	light.omni_range = 18.0
 	light.omni_attenuation = 1.3
@@ -451,6 +455,9 @@ func _build_crystals(floors: Array, k_cells: Array) -> void:
 				cl["lit"] = true
 			n += 1
 	var hues := [0.52, 0.8]
+	if def.has("light") and not cave:   # кристаллы в цвет темы этажа
+		var lc := WorldGen.hex(def["light"])
+		hues = [lc.h, fposmod(lc.h + 0.06, 1.0)]
 	var cone := _cyl(0.0, 1.0, 1.0, 5)
 	var parts := [[], []]
 	var lights := 0
@@ -760,10 +767,9 @@ func set_gate(closed: bool) -> void:
 	for cs in _gate_shapes:
 		(cs as CollisionShape3D).set_deferred("disabled", not closed)
 
-## Лестница наверх: каменные ступени к люку в потолке; светится, когда страж побеждён
+## Телепорт на следующий этаж: каменный круг с рунами, кольцо и столб света; загорается после победы
 func _build_stairs(p: Vector3) -> void:
 	var stone := Mats.tiled(Mats.brick_texture(), Color(WorldGen.hex(def["wall"])).lightened(0.1).to_rgba32() >> 8, 0.25)
-	# Ступени поднимаются к стене, низ — со стороны свободной клетки
 	var cc := cell_of(p)
 	var front := Vector2i(0, 1)
 	for dv in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
@@ -771,30 +777,69 @@ func _build_stairs(p: Vector3) -> void:
 			front = dv
 	var root := Node3D.new()
 	root.position = Vector3(p.x, Y, p.z)
-	root.rotation.y = atan2(front.x, front.y)
 	add_child(root)
-	for k in 6:
-		_box(Vector3(2.4, 0.35 * (k + 1), 0.5), stone, Vector3(0, 0.175 * (k + 1), 1.2 - k * 0.5), root)
+	_mesh(_cyl(1.9, 2.1, 0.3, 24), stone, Vector3(p.x, Y + 0.15, p.z))
+	var col := WorldGen.hex(0x7fd8ff)
 	var ring := TorusMesh.new()
-	ring.inner_radius = 0.7
-	ring.outer_radius = 1.0
-	ring.rings = 20
-	ring.ring_segments = 4
+	ring.inner_radius = 1.45
+	ring.outer_radius = 1.75
+	ring.rings = 32
+	ring.ring_segments = 6
 	var glow := MeshInstance3D.new()
 	glow.mesh = ring
-	glow.material_override = Mats.glow(0xffd060)
+	glow.material_override = Mats.glow(0x7fd8ff)
 	root.add_child(glow)
-	glow.position = Vector3(0, 0.06, 2.6)
-	glow.scale = Vector3(1, 0.06, 1)
+	glow.position = Vector3(0, 0.34, 0)
+	glow.scale = Vector3(1, 0.15, 1)
+	var beam := MeshInstance3D.new()
+	beam.mesh = _cyl(1.4, 1.6, WALL_H - 0.5, 20)
+	var bm := StandardMaterial3D.new()
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	bm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	bm.albedo_color = Color(col.r, col.g, col.b, 0.22)
+	beam.material_override = bm
+	root.add_child(beam)
+	beam.position = Vector3(0, (WALL_H - 0.5) / 2.0 + 0.3, 0)
 	var light := OmniLight3D.new()
-	light.light_color = WorldGen.hex(0xffd060)
-	light.omni_range = 7.0
-	light.position = Vector3(0, 2.0, 1.5)
+	light.light_color = col
+	light.omni_range = 9.0
+	light.position = Vector3(0, 2.0, 0)
 	root.add_child(light)
-	_stairs_glow = [glow, light]
-	stairs_front = p + Vector3(front.x, 0, front.y) * 2.6
-	_col_box(Vector3(p.x, Y + 1.0, p.z), Vector3(2.4, 2.0, 2.4))
+	_stairs_glow = [glow, light, beam]
+	stairs_front = p
 	set_stairs(false)
+
+## Объект темы в центре зала: постамент и светящийся кристалл или столб огня цвета этажа
+func _build_feature(p: Vector3) -> void:
+	var lc := WorldGen.hex(def.get("light", 0xffffff))
+	var stone := Mats.tiled(Mats.brick_texture(), Color(WorldGen.hex(def["wall"])).darkened(0.1).to_rgba32() >> 8, 0.25)
+	_mesh(_cyl(1.6, 1.9, 0.6, 16), stone, Vector3(p.x, Y + 0.3, p.z), true)
+	_col_cyl(Vector3(p.x, Y, p.z), 1.7, 2.5)
+	var glowc := lc.to_rgba32() >> 8
+	if def.get("feature", "crystal") == "fire":
+		for k in 3:
+			var f := _mesh(_cyl(0.0, 0.7 - k * 0.15, 1.6 + k * 0.5, 7), Mats.glow(glowc), Vector3(p.x, Y + 0.6 + (1.6 + k * 0.5) / 2.0, p.z))
+			f.rotation.y = k * 0.7
+	else:
+		var cr := _mesh(_cyl(0.0, 0.6, 1.4, 6), Mats.glow(glowc), Vector3(p.x, Y + 2.2, p.z))
+		var cr2 := _mesh(_cyl(0.6, 0.0, 1.0, 6), Mats.glow(glowc), Vector3(p.x, Y + 1.0, p.z))
+		cr.rotation.y = 0.3
+		cr2.rotation.y = 0.3
+	var light := OmniLight3D.new()
+	light.light_color = lc
+	light.light_energy = 2.0
+	light.omni_range = 14.0
+	light.position = Vector3(p.x, Y + 2.5, p.z)
+	add_child(light)
+	_flickers.append({"light": light, "base": 2.0, "seed": 3.0, "slow": true})
+
+func _torch_c() -> Color:
+	return WorldGen.hex(def.get("torch", 0xff8a30))
+
+func _torch_flame() -> int:
+	return _torch_c().lightened(0.25).to_rgba32() >> 8
 
 var stairs_front := Vector3.ZERO   # где стоять, чтобы подняться
 
@@ -803,7 +848,9 @@ func set_stairs(on: bool) -> void:
 	if _stairs_glow.is_empty():
 		return
 	(_stairs_glow[0] as Node3D).visible = on
-	(_stairs_glow[1] as OmniLight3D).light_energy = 1.4 if on else 0.0
+	(_stairs_glow[1] as OmniLight3D).light_energy = 1.8 if on else 0.0
+	if _stairs_glow.size() > 2:
+		(_stairs_glow[2] as Node3D).visible = on
 
 ## Открытый сундук: крышка откидывается, внутри загорается золото
 func open_chest(instant := false) -> void:
