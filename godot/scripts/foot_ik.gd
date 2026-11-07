@@ -1,7 +1,7 @@
 ## Ноги на склонах: каждая стопа опускается или поднимается до земли под ней (луч вниз),
 ## таз опускается к нижней стопе, колени сгибаются через IK двух костей (TwoBoneIK3D).
-## Работает стоя, на ходу и на бегу (поднятая нога сохраняет высоту шага над землёй под собой);
-## в прыжке и действиях — выключено.
+## Работает стоя и на шаге (поднятая нога сохраняет высоту шага над землёй под собой);
+## на бегу, в прыжке и действиях — выключено.
 class_name FootIK
 extends Node
 
@@ -44,7 +44,7 @@ func setup(b: CharacterBody3D, skel: Skeleton3D) -> bool:
 		ik.set_pole_node(0, ik.get_path_to(p))
 		ik.influence = 0.0
 		ik.active = false
-		_legs.append({"foot": foot, "ik": ik, "target": t, "pole": p})
+		_legs.append({"foot": foot, "knee": knee, "up": up, "ik": ik, "target": t, "pole": p})
 	return true
 
 ## Вызывать каждый кадр физики после анимации. on — стоит ли персонаж спокойно на земле.
@@ -78,7 +78,17 @@ func update(dt: float, on: bool, facing: float) -> float:
 		var fp: Vector3 = feet[i]
 		var target := Vector3(fp.x, fp.y + deltas[i], fp.z)
 		(l["target"] as Node3D).global_position = target
-		(l["pole"] as Node3D).global_position = target + fwd * 1.2 + Vector3.UP * 0.6
+		# Колено гнётся туда же, куда в анимации: точка-ориентир — по направлению сгиба колена
+		# (от середины «бедро—стопа» к колену). Раньше она стояла впереди стопы, и при шаге назад
+		# оказывалась позади колена — нога выгибалась в обратную сторону.
+		var kp: Vector3 = sk.global_transform * sk.get_bone_global_pose(l["knee"]).origin
+		var hp: Vector3 = sk.global_transform * sk.get_bone_global_pose(l["up"]).origin
+		kp.y -= offset
+		hp.y -= offset
+		var bend := kp - (hp + fp) * 0.5
+		if bend.length() < 0.02:
+			bend = fwd
+		(l["pole"] as Node3D).global_position = kp + Vector3(0, deltas[i], 0) + bend.normalized() * 0.6
 		var ik: TwoBoneIK3D = l["ik"]
 		ik.active = true
 		ik.influence = weight

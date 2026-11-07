@@ -872,6 +872,7 @@ const SPRINT_CLIP := "RunFast"                      # быстрый бег: д�
 const STRIDE_M := {"Walking": 1.61, "Walk_Fight_Forward": 1.14, "Kirito_Sword_Run": 5.37, "RunFast": 12.49,
 	"Sword_Run": 3.0, "Walk_Backward_with_Sword": 0.6}
 const LOCO_WALK_TOP := 2.2     # м/с: до этой скорости — шаг
+const FOOT_IK_MAX_SPEED := 2.6 # IK ног — стоя и на шаге; на бегу выключен
 const LOCO_RUN_TOP := 7.5      # бег до этой скорости, дальше переходит в спринт
 const LOCO_SPRINT := 10.0      # с этой скорости — спринт целиком
 var _loco_clips := []          # клип в каждой точке смеси шаг/бег/спринт
@@ -1592,6 +1593,7 @@ func _physics_process(dt: float) -> void:
 		_hm_vel.x = move_toward(_hm_vel.x, hv.x, hm_rate * dt)
 		_hm_vel.z = move_toward(_hm_vel.z, hv.z, hm_rate * dt)
 	hv = _hm_vel
+	var hv_stick := hv   # скорость от джойстика (без рывка, приёмов и уклонений)
 	# Приём меча
 	if _art_t >= 0.0:
 		hv = _art_update(dt)
@@ -1613,7 +1615,9 @@ func _physics_process(dt: float) -> void:
 			if ATTACK_RINGS:
 				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
 	if _art_t >= 0.0 or _move != "" or _dash_t >= 0.0:
-		_hm_vel = Vector3(hv.x, 0.0, hv.z)   # после приёма или рывка — продолжаем с той же скорости
+		# Скорость рывка и приёмов не переносится в обычный бег: после рывка (исчез — появился)
+		# герой сразу бежит со своей обычной скоростью от джойстика
+		_hm_vel = hv_stick
 	_update_cloth(dt)
 	hv += _root_motion(dt)
 	hv += _push
@@ -1723,9 +1727,10 @@ func _animate(dt: float) -> void:
 	_model.position.y = bob
 	_update_trail(dt)
 	if _feet:
-		# Стопы встают на землю под собой и стоя, и на ходу, и на бегу (на склонах и ступенях
+		# Стопы встают на землю под собой стоя и на шаге (на склонах и ступенях
 		# не проваливаются и не висят); в прыжке, рывке и приёмах — выключено
-		var calm := on_floor and not dead and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""
+		# На бегу IK выключен — бег в клипе сам ставит ноги, IK только портил сгиб колена
+		var calm := on_floor and not dead and _speed_now < FOOT_IK_MAX_SPEED and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""
 		_model.position.y += _feet.update(dt, calm, facing)
 	_lean_update(dt, on_floor)
 	if _dash_t >= 0.0:
