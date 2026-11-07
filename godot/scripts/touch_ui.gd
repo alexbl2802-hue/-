@@ -1,4 +1,5 @@
-## Сенсорное управление: левая часть экрана — джойстик, правая — камера и щипок,
+## Сенсорное управление: левая нижняя часть экрана — плавающий джойстик (mobile_joystick),
+## остальное — камера и щипок,
 ## кнопки удара, прыжка, бега, действия, зелья, навыков и умений. Каждое касание
 ## отслеживается отдельно, поэтому можно одновременно идти, крутить камеру и нажимать кнопки.
 extends Control
@@ -37,6 +38,11 @@ var _joy_id := -1
 var _joy_origin := Vector2.ZERO
 var _joy_knob := Vector2.ZERO
 var _cam_id := -1
+# Джойстик из mobile_joystick (VirtualJoystick): плавающий, появляется под пальцем в левой нижней
+# части экрана; двойное касание с удержанием — бег. Его касания этот узел не забирает.
+var vjoy: ZemliVirtualJoystick
+var _vjoy_ids := {}
+var _sprint_joy := false
 var _pinch_id := -1
 var _pinch_d := 1.0
 var _time := 0.0
@@ -44,6 +50,24 @@ var _time := 0.0
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var demo: Control = (load("res://mobile_joystick/JoystickDemo.tscn") as PackedScene).instantiate()
+	add_child(demo)
+	vjoy = demo.get_node("VirtualJoystick") as ZemliVirtualJoystick
+	vjoy.movement_changed.connect(_on_vjoy_move)
+	vjoy.sprint_changed.connect(_on_vjoy_sprint)
+
+## Направление джойстика: вверх по экрану — вперёд
+func _on_vjoy_move(d: Vector2) -> void:
+	move = Vector2(d.x, -d.y) if is_visible_in_tree() else Vector2.ZERO
+
+## Двойное касание с удержанием — бег, пока палец на джойстике
+func _on_vjoy_sprint(active: bool) -> void:
+	if active:
+		_sprint_joy = true
+		run = true
+	elif _sprint_joy:
+		_sprint_joy = false
+		run = false
 
 func _process(dt: float) -> void:
 	_time += dt
@@ -120,6 +144,9 @@ func release_all() -> void:
 	_joy_id = -1
 	_cam_id = -1
 	_pinch_id = -1
+	_vjoy_ids.clear()
+	if vjoy and vjoy._finger != -1:
+		vjoy._release()
 	move = Vector2.ZERO
 	jump = false
 	block = false
@@ -133,21 +160,23 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventScreenTouch:
 		if e.pressed:
 			var b := _hit(e.position)
+			if b == "" and vjoy and vjoy._finger == -1 and vjoy._can_activate(e.position):
+				_vjoy_ids[e.index] = true
+				return   # касание джойстика — его обработает VirtualJoystick
 			if b != "":
 				_btn_touch[e.index] = b
 				_press(b, true)
 			else:
 				_pts[e.index] = e.position
-				if e.position.x < size.x * 0.42 and _joy_id == -1:
-					_joy_id = e.index
-					_joy_origin = e.position
-					_joy_knob = Vector2.ZERO
-				elif _cam_id == -1:
+				if _cam_id == -1:
 					_cam_id = e.index
 				elif _pinch_id == -1:
 					_pinch_id = e.index
 					_pinch_d = _pinch_dist()
 		else:
+			if _vjoy_ids.has(e.index):
+				_vjoy_ids.erase(e.index)
+				return   # палец джойстика отпущен — тоже его событие
 			if _btn_touch.has(e.index):
 				_press(_btn_touch[e.index], false)
 				_btn_touch.erase(e.index)
@@ -185,16 +214,8 @@ func _input(e: InputEvent) -> void:
 
 func _draw() -> void:
 	var font := get_theme_default_font()
-	var line := Color(1, 0.9, 0.7, 0.35)
 	var text_c := Color(1, 0.9, 0.69)
-	# Джойстик
-	if _joy_id == -1:
-		draw_arc(Vector2(60 + 55, size.y - 50 - 55), 55, 0, TAU, 48, Color(1, 0.9, 0.7, 0.25), 2.0)
-	else:
-		draw_circle(_joy_origin, 65, Color(1, 1, 1, 0.08))
-		draw_arc(_joy_origin, 65, 0, TAU, 48, line, 2.0)
-		draw_circle(_joy_origin + _joy_knob, 28, Color(1, 0.83, 0.47, 0.55))
-		draw_arc(_joy_origin + _joy_knob, 28, 0, TAU, 32, Color(1, 0.94, 0.78, 0.8), 2.0)
+	# Джойстик рисует сам VirtualJoystick (mobile_joystick)
 	for b in _buttons():
 		var id: String = b["id"]
 		var on: bool = _down.get(id, false) or (id == "run" and run)

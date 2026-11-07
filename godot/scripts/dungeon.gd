@@ -78,8 +78,13 @@ func build(d: Dictionary, idx: int) -> void:
 				"T": torches.append(Vector2i(i, j))
 				"P": pillars.append(Vector2i(i, j))
 				"K": crystals.append(Vector2i(i, j))
-				"E": spawns.append([d["monster"], cell_center(i, j)])
-				"O": spawns.append([d.get("monster2", "kobold"), cell_center(i, j)])
+				# Монстров вдвое больше: на каждой отметке — пара, по сторонам центра клетки
+				"E":
+					for o in [-1.0, 1.0]:
+						spawns.append([d["monster"], cell_center(i, j) + Vector3(o * CELL * 0.22, 0, -o * CELL * 0.12)])
+				"O":
+					for o in [-1.0, 1.0]:
+						spawns.append([d.get("monster2", "kobold"), cell_center(i, j) + Vector3(o * CELL * 0.22, 0, o * CELL * 0.12)])
 				"G": gate_cells.append(Vector2i(i, j))
 				"B": boss_pos = cell_center(i, j)
 				"U": stairs_pos = cell_center(i, j)
@@ -339,7 +344,7 @@ func _build_cave_torch(t: Vector2i, d: Vector2i) -> void:
 	var light := OmniLight3D.new()
 	light.light_color = WorldGen.hex(0xff8a30)
 	light.light_energy = 2.2
-	light.omni_range = 15.0
+	light.omni_range = 18.0
 	light.omni_attenuation = 1.3
 	light.position = Vector3(wx - d.x * 0.8, Y + 3.0, wz - d.y * 0.8)
 	add_child(light)
@@ -401,7 +406,7 @@ func _build_torch(t: Vector2i) -> void:
 	var light := OmniLight3D.new()
 	light.light_color = WorldGen.hex(0xff8a30)
 	light.light_energy = TORCH_LIGHT
-	light.omni_range = 15.0
+	light.omni_range = 18.0
 	light.omni_attenuation = 1.3
 	light.position = top + n * 0.6 + Vector3(0, 0.2, 0)
 	add_child(light)
@@ -483,7 +488,7 @@ func _build_crystals(floors: Array, k_cells: Array) -> void:
 			light.light_color = Color.from_hsv(hues[hi], 0.5, 1.0)
 			var e := (1.1 if cl.get("big", false) else 0.7) * CRYSTAL_BOOST
 			light.light_energy = e
-			light.omni_range = 11.0
+			light.omni_range = 14.0
 			light.omni_attenuation = 1.5
 			light.position = Vector3(bx - cl["a"] * 0.8, by + 0.5, bz - cl["b"] * 0.8)
 			add_child(light)
