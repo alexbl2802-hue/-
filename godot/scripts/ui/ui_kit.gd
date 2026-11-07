@@ -316,4 +316,18 @@ static func modal(owner: Control, on_backdrop: Callable) -> VBoxContainer:
 	vb.add_theme_constant_override("separation", 8)
 	panel.add_child(vb)
 	decorate(panel)
+	# Окно всегда целиком на экране: чуть меньше обычного и ещё меньше, если не влезает
+	panel.resized.connect(func(): fit(center, panel))
+	owner.visibility_changed.connect(func(): fit.call_deferred(center, panel))
 	return vb
+
+const UI_SCALE := 0.92   # общий размер окон
+
+## Масштаб ставится слою по центру экрана (у окна внутри контейнера Godot его сбрасывает)
+static func fit(center: Control, panel: Control) -> void:
+	if not center.is_inside_tree() or panel.size.x <= 0.0:
+		return
+	var vp := center.get_viewport_rect().size
+	var k := minf(UI_SCALE, minf((vp.x - 16.0) / panel.size.x, (vp.y - 10.0) / panel.size.y))
+	center.pivot_offset = center.size / 2.0
+	center.scale = Vector2(k, k)

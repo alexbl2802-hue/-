@@ -54,7 +54,7 @@ static func build(parent: Node3D) -> Array:
 # ---------- Жители: кузнец у двери кузницы, алхимик у входа в лавку (модели Meshy как есть, в рост человека)
 static func _npcs(parent: Node3D) -> void:
 	var fp := WorldGen.FORGE_POS
-	HouseModel.npc(parent, HouseModel.NPC_BLACKSMITH, Vector3(fp.x + 2.6, G, fp.y + 0.6), 0.0)
+	HouseModel.npc(parent, HouseModel.NPC_BLACKSMITH, Vector3(fp.x - 0.9, G, fp.y + 1.3), -PI / 2.0)   # перед домом, лицом к дорожке
 	var al := Vector3(WorldGen.ALCHEMIST_POS.x, G, WorldGen.ALCHEMIST_POS.y)
 	var at := al + Basis(Vector3.UP, WorldGen.ALCHEMIST_YAW) * Vector3(1.8, 0.0, 3.2 * S)
 	HouseModel.npc(parent, HouseModel.NPC_ALCHEMIST, at, WorldGen.ALCHEMIST_YAW)
@@ -276,8 +276,18 @@ static func _garden() -> void:
 # ---------- Кузница у поперечной улицы (окна улучшения пока закрыты)
 static func _forge(stone: Material) -> void:
 	if HouseModel.exists(HouseModel.FORGE):
-		HouseModel.place(_root, HouseModel.FORGE, Vector3(FORGE_POS.x, G, FORGE_POS.z), 0.0, FORGE_SIZE, _body)
-		_map.append({"x0": FORGE_POS.x - FORGE_SIZE / 2.0, "x1": FORGE_POS.x + FORGE_SIZE / 2.0, "z0": FORGE_POS.z - FORGE_SIZE * 0.44, "z1": FORGE_POS.z + FORGE_SIZE * 0.44, "c": Color("#6a5a4a")})
+		# Дверью к главной улице (на запад), чтобы кузницу было видно с улицы
+		HouseModel.place(_root, HouseModel.FORGE, Vector3(FORGE_POS.x, G, FORGE_POS.z), -PI / 2.0, FORGE_SIZE, _body)
+		_map.append({"x0": FORGE_POS.x - FORGE_SIZE * 0.44, "x1": FORGE_POS.x + FORGE_SIZE * 0.44, "z0": FORGE_POS.z - FORGE_SIZE / 2.0, "z1": FORGE_POS.z + FORGE_SIZE / 2.0, "c": Color("#6a5a4a")})
+		# Мощёная дорожка от главной улицы к двери, по сторонам — фонари
+		var x0 := 3.0
+		var x1 := FORGE_POS.x - FORGE_SIZE * 0.44
+		var path := PlaneMesh.new()
+		path.size = Vector2(x1 - x0, 3.0)
+		_mesh(path, Mats.tiled(Mats.cobble_texture(), 0xa89f92, 0.25, 1.0), Vector3((x0 + x1) / 2.0, G + 0.03, FORGE_POS.z), false)
+		for lx in [x0 + 3.0, x0 + 7.0, x1 - 2.2]:
+			for sz in [-1.0, 1.0]:
+				_lantern(lx, FORGE_POS.z + sz * 2.1)
 		return
 	var fx := 20.0
 	var fz := -6.0
@@ -420,20 +430,23 @@ static func _manor(stone: Material) -> void:
 
 # ---------- Фонари вдоль главной улицы (без источников света — бережём телефон)
 static func _lanterns() -> void:
-	var post := Mats.lp(0x3a2414)
-	var lantern := Mats.lp(0xffe0a0, 0.5, 0.0, 0xffb050, 1.6)
 	for z in [-28, -18, 18, 28]:
 		for sx in [-1, 1]:
-			_box(0.15, 3.2, 0.15, post, sx * 3.6, G + 1.6, z)
-			var l := BoxMesh.new()
-			l.size = Vector3(0.4, 0.5, 0.4)
-			_mesh(l, lantern, Vector3(sx * 3.6, G + 3.4, z), false)
-			# Ночью фонарь светит (яркость меняет смена дня и ночи в main.gd)
-			var light := OmniLight3D.new()
-			light.light_color = WorldGen.hex(0xffc070)
-			light.light_energy = 0.0
-			light.omni_range = 9.0
-			light.position = Vector3(sx * 3.6, G + 3.2, z)
-			light.add_to_group("night_lights")
-			_root.add_child(light)
-			_round(sx * 3.6, z, 0.25, 3.2)
+			_lantern(sx * 3.6, z)
+
+static func _lantern(x: float, z: float) -> void:
+	var post := Mats.lp(0x3a2414)
+	var lantern := Mats.lp(0xffe0a0, 0.5, 0.0, 0xffb050, 1.6)
+	_box(0.15, 3.2, 0.15, post, x, G + 1.6, z)
+	var l := BoxMesh.new()
+	l.size = Vector3(0.4, 0.5, 0.4)
+	_mesh(l, lantern, Vector3(x, G + 3.4, z), false)
+	# Ночью фонарь светит (яркость меняет смена дня и ночи в main.gd)
+	var light := OmniLight3D.new()
+	light.light_color = WorldGen.hex(0xffc070)
+	light.light_energy = 0.0
+	light.omni_range = 9.0
+	light.position = Vector3(x, G + 3.2, z)
+	light.add_to_group("night_lights")
+	_root.add_child(light)
+	_round(x, z, 0.25, 3.2)

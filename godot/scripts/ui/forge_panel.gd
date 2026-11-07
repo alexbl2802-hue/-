@@ -159,9 +159,12 @@ func _render_forge() -> void:
 		var info := VBoxContainer.new()
 		info.add_theme_constant_override("separation", 0)
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info.add_child(UiKit.label("%s — %s" % [it["name"], Items.rank_of(inst)["name"]], 13, Items.color(inst)))
-		info.add_child(UiKit.label(Items.lines(inst), 10, Color(1, 1, 1, 0.75)))
-		info.add_child(UiKit.label("Нужно: %s %s (%d/1) · 🔮 %d (%d) · 🪙 %d" % [mat["icon"], mat["name"], Game.count_of(rec["mat"]), rec["shards"], Game.count_of("shard"), rec["gold"]], 10, Color(1, 0.9, 0.7, 0.85)))
+		for l in [UiKit.label("%s — %s" % [it["name"], Items.rank_of(inst)["name"]], 13, Items.color(inst)),
+				UiKit.label(Items.lines(inst), 10, Color(1, 1, 1, 0.75)),
+				UiKit.label("Нужно: %s %s (%d/1) · 🔮 %d (%d) · 🪙 %d" % [mat["icon"], mat["name"], Game.count_of(rec["mat"]), rec["shards"], Game.count_of("shard"), rec["gold"]], 10, Color(1, 0.9, 0.7, 0.85))]:
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # длинные строки переносятся, окно не раздувается
+			l.custom_minimum_size = Vector2(230, 0)
+			info.add_child(l)
 		row.add_child(info)
 		var why := Game.can_forge(rec)
 		var b := UiKit.button("Выковать" if why == "" else why, why == "", 12)
