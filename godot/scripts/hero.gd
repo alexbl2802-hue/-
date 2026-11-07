@@ -432,7 +432,7 @@ func _build_gear(sk: Skeleton3D) -> void:
 	for i in sk.get_bone_count():
 		if sk.get_bone_name(i).ends_with("LeftForeArm"):
 			b = i
-	# Щит на ремнях предплечья (не крутится вместе с кистью), центр — ближе к кулаку
+	# Щит НА руке: на ремнях предплечья (не крутится вместе с кистью), центр — середина предплечья
 	var att := BoneAttachment3D.new()
 	sk.add_child(att)
 	att.bone_name = sk.get_bone_name(b)
@@ -448,13 +448,13 @@ func _build_gear(sk: Skeleton3D) -> void:
 		# в T-позе левая рука вдоль +X ладонью вниз; щит — снаружи предплечья (+Y), лицом наружу,
 		# верхом к большому пальцу (+Z). Рука целиком за щитом: от оси предплечья до задней стороны
 		# щита — больше толщины руки и кулака, поэтому щит не входит в руку
-		var center := elbow.lerp(wrist, 0.7) + Vector3(0, SHIELD_OFF, 0)
+		var center := elbow.lerp(wrist, 0.5) + Vector3(0, SHIELD_OFF, 0)
 		var basis := Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0))
 		sh.transform = g.affine_inverse() * Transform3D(basis, center)
 		sh.scale = Vector3.ONE / CHAR_SCALE * 1.0
 		_shields[kind] = sh
 
-const SHIELD_OFF := 0.13   # от оси предплечья до центра щита, м
+const SHIELD_OFF := 0.085   # от оси предплечья до щита: щит прижат к руке снаружи, рука его не прорезает
 
 func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 	for i in sk.get_bone_count():
