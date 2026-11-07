@@ -216,9 +216,24 @@ static func tab_column(width := 150.0) -> Array:   # [панель, VBox для 
 	p.custom_minimum_size = Vector2(width, 0)
 	return [p, vb]
 
-## Ячейка предмета: значок на заливке цвета редкости, рамка того же цвета, число в углу, подпись снизу
+## Иконка предмета: картинка из assets/icons/items (Items.icon_path), если она есть, иначе значок
+static func item_icon(it: Dictionary) -> String:
+	for id in Items.ALL:
+		if is_same(Items.ALL[id], it):
+			var p := Items.icon_path(id)
+			return p if ResourceLoader.exists(p) else str(it.get("icon", ""))
+	return str(it.get("icon", ""))
+
+## Ячейка предмета: значок на заливке цвета редкости, рамка того же цвета, число в углу, подпись снизу.
+## icon — значок-текст или путь к картинке (res://…)
 static func slot(icon: String, border: Color, count := "", caption := "", size := 42.0, selected := false) -> Button:
 	var b := Button.new()
+	if icon.begins_with("res://"):
+		b.icon = load(icon)
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		icon = ""
 	b.text = icon
 	b.custom_minimum_size = Vector2(size, size)
 	b.add_theme_font_size_override("font_size", int(size * 0.5))
@@ -232,6 +247,7 @@ static func slot(icon: String, border: Color, count := "", caption := "", size :
 			fill.a = 0.95
 			s = box(fill, border.lightened(0.15) if selected else border, 5, 0, 3 if selected else 2)
 			glow(s, 8 if selected else 3, 0.7 if selected else 0.3, border)
+		s.set_content_margin_all(size * 0.1)   # картинка не прилипает к рамке
 		b.add_theme_stylebox_override(state, s)
 	if not empty:   # блик сверху, как на гранёной плашке
 		var shine := Panel.new()

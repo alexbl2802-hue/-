@@ -175,10 +175,22 @@ func _render() -> void:
 		var row := Button.new()
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.text = "%s  %s      %d / %d" % [s["icon"], s["name"], r, s["max"]]
+		var icon_id := id
 		if id == "dash":   # у рывка — текущая форма эволюции
 			match SkillDefs.dash_form(Game.skills):
-				"slide": row.text = "🌬️  Скользящий шаг      %d / %d" % [Game.rank("dash_slide"), SkillDefs.SLIDE_MAX]
-				"blink": row.text = "✨  Мерцание      прорыв"
+				"slide":
+					row.text = "🌬️  Скользящий шаг      %d / %d" % [Game.rank("dash_slide"), SkillDefs.SLIDE_MAX]
+					icon_id = "slide"
+				"blink":
+					row.text = "✨  Мерцание      прорыв"
+					icon_id = "blink"
+		# Иконка навыка — картинка из assets/icons/skills (SkillDefs.icon_path), значок в тексте тогда не нужен
+		var ip := SkillDefs.icon_path(icon_id)
+		if ResourceLoader.exists(ip):
+			row.icon = load(ip)
+			row.expand_icon = false
+			row.add_theme_constant_override("icon_max_width", 30)
+			row.text = row.text.substr(row.text.find("  ") + 2)
 		row.add_theme_font_size_override("font_size", 14)
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:

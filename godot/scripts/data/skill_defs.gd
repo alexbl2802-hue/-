@@ -2,6 +2,9 @@
 class_name SkillDefs
 extends RefCounted
 
+static func icon_path(id: String) -> String:
+	return "res://assets/icons/skills/%s.png" % id
+
 const EVOLUTION_ENABLED := false  # эволюция остальных навыков на максимальном ранге — откроем позже
 
 const LIST := [

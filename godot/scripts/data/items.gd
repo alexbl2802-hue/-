@@ -1,17 +1,37 @@
 ## Предметы, ранги и добыча с монстров.
-## Вещь в инвентаре или на герое — словарь {id, n, r, u}: r — ранг (0–4), u — улучшение оружия (+0…+10).
+## Вещь в инвентаре или на герое — словарь {id, n, r, u}: r — ранг (0–5), u — улучшение оружия (+0…+10).
 class_name Items
 extends RefCounted
 
 ## Ранги: характеристики вещи умножаются на mult
 const RANKS := [
-	{"name": "Простой", "color": Color("#b4b4b4"), "mult": 1.0},
-	{"name": "Обычный", "color": Color("#7fd87f"), "mult": 1.3},
-	{"name": "Редкий", "color": Color("#5ab0ff"), "mult": 1.65},
-	{"name": "Великий", "color": Color("#c87dff"), "mult": 2.1},
-	{"name": "Легендарный", "color": Color("#ffa53a"), "mult": 2.7},
+	{"name": "Обычный", "color": Color("#a8adb6"), "mult": 1.0},
+	{"name": "Необычный", "color": Color("#55c76a"), "mult": 1.18},
+	{"name": "Редкий", "color": Color("#4b9fff"), "mult": 1.45},
+	{"name": "Эпический", "color": Color("#b36aff"), "mult": 1.85},
+	{"name": "Легендарный", "color": Color("#ffac42"), "mult": 2.35},
+	{"name": "Мифический", "color": Color("#ff5363"), "mult": 3.0},
 ]
-const MAX_RANK := 4
+const MAX_RANK := 5
+const RANK_WEIGHTS := [65.0, 22.0, 9.0, 3.0, 0.9, 0.1]
+
+static func icon_path(id: String) -> String:
+	return "res://assets/icons/items/%s.png" % id
+
+static func roll_rank(base_rank: int, rng: RandomNumberGenerator, luck: float = 1.0) -> int:
+	var minimum := clampi(base_rank, 0, MAX_RANK)
+	var total := 0.0
+	var weights: Array[float] = []
+	for rank in range(minimum, MAX_RANK + 1):
+		var weight: float = RANK_WEIGHTS[rank] * pow(clampf(luck, 0.5, 3.0), rank - minimum)
+		weights.append(weight)
+		total += weight
+	var ticket := rng.randf() * total
+	for i in weights.size():
+		ticket -= weights[i]
+		if ticket <= 0.0:
+			return minimum + i
+	return MAX_RANK
 
 ## rank — ранг, с которым вещь выпадает из монстров и сундуков
 const ALL := {
@@ -156,7 +176,7 @@ static func get_item(id: String) -> Dictionary:
 
 ## Новая вещь: ранг по умолчанию — тот, с которым она выпадает
 static func make(id: String, n := 1, r := -1) -> Dictionary:
-	var inst := {"id": id, "n": n, "r": ALL[id]["rank"] if r < 0 else r, "u": 0}
+	var inst := {"id": id, "n": n, "r": clampi(int(ALL[id]["rank"] if r < 0 else r), 0, MAX_RANK), "u": 0}
 	if ALL[id]["kind"] == "weapon":
 		inst["d"] = max_dur(inst)
 	return inst
@@ -187,7 +207,7 @@ static func normalize(v) -> Dictionary:
 	return inst
 
 static func rank_of(inst: Dictionary) -> Dictionary:
-	return RANKS[int(inst.get("r", 0))]
+	return RANKS[clampi(int(inst.get("r", 0)), 0, MAX_RANK)]
 
 static func color(inst: Dictionary) -> Color:
 	return rank_of(inst)["color"]

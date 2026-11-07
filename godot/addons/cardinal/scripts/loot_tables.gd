@@ -17,7 +17,17 @@ const CHESTS := {
 }
 static func get_table(kind: String, key: String) -> Array:
 	match kind:
-		'monster': return MONSTERS.get(key, MONSTERS['default']).duplicate(true)
-		'boss': return BOSSES.get(key, BOSSES['tower_guardian']).duplicate(true)
+		'monster': return _enemy_table(key)
+		'boss': return _enemy_table(key)
 		'chest': return CHESTS.get(key, []).duplicate(true)
 	return []
+
+static func _enemy_table(key: String) -> Array:
+	if not Items.LOOT.has(key):
+		return []
+	var pool: Array = Items.LOOT[key].get("pool", [])
+	var output: Array = []
+	for id in pool:
+		if Items.ALL.has(str(id)):
+			output.append({"id": str(id), "weight": Items.RANK_WEIGHTS[clampi(int(Items.ALL[str(id)]["rank"]), 0, Items.MAX_RANK)], "chance": 1.0, "min": 1, "max": 1})
+	return output

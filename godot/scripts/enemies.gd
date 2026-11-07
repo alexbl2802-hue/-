@@ -102,14 +102,9 @@ var _cardinal_loot := CardinalLootManager.new()
 
 func on_enemy_killed(e: Node3D) -> void:
 	if loot:
+		# Вся добыча — один расчёт CARDINAL (CardinalLootManager.roll_enemy внутри loot.roll);
+		# второй розыгрыш за то же убийство не делаем
 		loot.roll(e.type, e.global_position)
-		# Добавочная добыча по таблицам Cardinal (больше при высокой сложности)
-		var boss: bool = e.T.get("boss", false)
-		var key: String = "tower_guardian" if boss else str(e.model)
-		var items := _cardinal_loot.roll(CardinalLootTables.get_table("boss" if boss else "monster", key), Cardinal.difficulty, 2 if boss else 1)
-		for it in items:
-			if Items.ALL.has(it["id"]):
-				loot.drop(it["id"], maxi(1, roundi(int(it["amount"]) * CardinalDirector.loot_mult())), e.global_position)
 	CardinalDirector.on_kill()
 
 ## Вернуть живых монстров на свои места (после гибели героя)

@@ -45,8 +45,11 @@ func _part(parent: Node3D, mesh_key: String, mat: Material, pos: Vector3) -> voi
 	parent.add_child(mi)
 
 func drop(id: String, n: int, at: Vector3, r := -1) -> void:
+	if not Items.ALL.has(id) or n <= 0:
+		return
 	if r < 0:
 		r = Items.get_item(id)["rank"]
+	r = clampi(r, 0, Items.MAX_RANK)
 	var node := Node3D.new()
 	if id == "gold":
 		for k in 3:
@@ -71,39 +74,11 @@ func drop(id: String, n: int, at: Vector3, r := -1) -> void:
 	_items.append({"id": id, "n": n, "r": r, "node": node, "pos": pos, "vy": 5.0, "base": base, "t": 0.0})
 
 ## Бросаем кости: что выпало из монстра
+## One authoritative drop roll; CARDINAL resolves rewards, this node spawns pickups.
 func roll(type: String, at: Vector3) -> void:
-	var t: Dictionary = Items.LOOT[type]
-	if t.has("mat"):   # материал босса выпадает всегда
-		drop(t["mat"], 1, at)
-	var g: Array = t["gold"]
-	if randf() < g[0]:
-		drop("gold", randi_range(g[1], g[2]), at)
-	# Вместо зелий — эссенция монстра (зелья варит и продаёт алхимик); у боссов её много
-	var ess := maxf(float(t["potion"]), 0.45)
-	if randf() < ess:
-		drop("essence", randi_range(3, 5) if t.has("mat") else 1, at)
-	for _n in int(t.get("items", 1)):
-		if randf() >= t["item"]:
-			continue
-		# Эпические вещи выпадают реже
-		var pool: Array = t["pool"]
-		var w := []
-		var total := 0.0
-		for id in pool:
-			var wt: float = [1.0, 0.6, 0.25, 0.15, 0.1][Items.get_item(id)["rank"]]
-			w.append(wt)
-			total += wt
-		var r := randf() * total
-		var k := 0
-		while k < pool.size() - 1:
-			r -= w[k]
-			if r <= 0.0:
-				break
-			k += 1
-		drop(pool[k], 1, at)
-	# Тёмные осколки — только с монстров подземелий
-	if t.has("shard") and randf() < t["shard"][0]:
-		drop("shard", randi_range(t["shard"][1], t["shard"][2]), at)
+	var manager := CardinalLootManager.new()
+	for reward in manager.roll_enemy(type):
+		drop(str(reward["id"]), int(reward["amount"]), at, int(reward["rank"]))
 
 func _process(dt: float) -> void:
 	_full_warn -= dt

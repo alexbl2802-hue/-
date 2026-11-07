@@ -155,7 +155,7 @@ func _render_forge() -> void:
 		var mat := Items.get_item(rec["mat"])
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		row.add_child(UiKit.slot(it["icon"], Items.color(inst), "", "", 40.0))
+		row.add_child(UiKit.slot(UiKit.item_icon(it), Items.color(inst), "", "", 40.0))
 		var info := VBoxContainer.new()
 		info.add_theme_constant_override("separation", 0)
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -205,7 +205,7 @@ func _render_upgrade() -> void:
 	pick.add_theme_constant_override("separation", 6)
 	for x in all:
 		var xi := Items.get_item(x["id"])
-		var b := UiKit.slot(xi["icon"], Items.color(x), "+%d" % x["u"] if x["u"] > 0 else "", "надето" if is_same(x, Game.equip["weapon"]) else "", 44.0, is_same(x, _up_sel))
+		var b := UiKit.slot(UiKit.item_icon(xi), Items.color(x), "+%d" % x["u"] if x["u"] > 0 else "", "надето" if is_same(x, Game.equip["weapon"]) else "", 44.0, is_same(x, _up_sel))
 		b.pressed.connect(func():
 			_up_sel = x
 			_note.text = ""
@@ -221,10 +221,10 @@ func _render_upgrade() -> void:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 18)
-	row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % w["u"] if w["u"] > 0 else "", "", 52.0))
+	row.add_child(UiKit.slot(UiKit.item_icon(it), Items.color(w), "+%d" % w["u"] if w["u"] > 0 else "", "", 52.0))
 	if w["u"] < Items.MAX_UPGRADE:
 		row.add_child(UiKit.label("➜", 24, UiKit.GOLD))
-		row.add_child(UiKit.slot(it["icon"], Items.color(w), "+%d" % (w["u"] + 1), "", 52.0, true))
+		row.add_child(UiKit.slot(UiKit.item_icon(it), Items.color(w), "+%d" % (w["u"] + 1), "", 52.0, true))
 	_up_box.add_child(row)
 	var nm := UiKit.label("%s  ·  %s  ·  ступень %d / %d" % [it["name"], Items.rank_of(w)["name"], w["u"], Items.MAX_UPGRADE], 12, Items.color(w))
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -278,7 +278,7 @@ func _render_combine() -> void:
 		var it := Items.get_item(g["id"])
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		row.add_child(UiKit.slot(it["icon"], Items.color(inst), "", "", 36.0))
+		row.add_child(UiKit.slot(UiKit.item_icon(it), Items.color(inst), "", "", 36.0))
 		var info := VBoxContainer.new()
 		info.add_theme_constant_override("separation", 0)
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -288,7 +288,7 @@ func _render_combine() -> void:
 			var cost := Items.combine_cost(r)
 			info.add_child(UiKit.label("%s → %s · есть %d / %d · 🔮 %d  🪙 %d" % [Items.RANKS[r]["name"], Items.RANKS[r + 1]["name"], g["count"], Items.COMBINE_COUNT, cost[0], cost[1]], 10, Color(1, 1, 1, 0.75)))
 		else:
-			info.add_child(UiKit.label("Легендарный — высший ранг", 10, Items.RANKS[r]["color"]))
+			info.add_child(UiKit.label("%s — высший ранг" % Items.RANKS[r]["name"], 10, Items.RANKS[r]["color"]))
 		row.add_child(info)
 		var why := Game.can_combine(g["id"], r)
 		var b := UiKit.button("Соединить" if why == "" else why, why == "", 12)

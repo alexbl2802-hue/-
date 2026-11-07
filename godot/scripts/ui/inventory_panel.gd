@@ -102,7 +102,7 @@ func _render() -> void:
 			continue
 		var badge := str(st["n"]) if st["n"] > 1 else ("+%d" % st["u"] if st["u"] > 0 else "")
 		var sel: bool = _sel.get("i", -1) == i
-		var b := UiKit.slot(it["icon"], Items.color(st), badge, "", CELL, sel)
+		var b := UiKit.slot(UiKit.item_icon(it), Items.color(st), badge, "", CELL, sel)
 		var idx := i
 		b.pressed.connect(func():
 			_sel = {} if sel else {"i": idx}
@@ -133,7 +133,7 @@ func _render_info() -> void:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
 	_info.add_child(top)
-	top.add_child(UiKit.slot(it["icon"], Items.color(inst), "+%d" % inst["u"] if int(inst.get("u", 0)) > 0 else "", "", 60.0))
+	top.add_child(UiKit.slot(UiKit.item_icon(it), Items.color(inst), "+%d" % inst["u"] if int(inst.get("u", 0)) > 0 else "", "", 60.0))
 	var names := VBoxContainer.new()
 	names.add_theme_constant_override("separation", 2)
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -228,6 +228,6 @@ func _render_hero() -> void:
 			b.modulate.a = 0.5
 		else:
 			var it := Items.get_item(e["id"])
-			b = UiKit.slot(it["icon"], Items.color(e), "+%d" % e["u"] if e["u"] > 0 else "", SLOT_NAMES[slot][0], 48.0)
+			b = UiKit.slot(UiKit.item_icon(it), Items.color(e), "+%d" % e["u"] if e["u"] > 0 else "", SLOT_NAMES[slot][0], 48.0)
 			b.pressed.connect(func(): _sel = {"eq": slot}; _render())
 		eq.add_child(b)

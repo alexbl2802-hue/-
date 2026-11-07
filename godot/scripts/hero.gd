@@ -222,6 +222,7 @@ func _attach_character() -> void:
 	if _has_idle:
 		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
 	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
+	_animate_31(sk)
 	for m in _char.find_children("*", "MeshInstance3D", true, false):
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	var hand := -1
@@ -1448,7 +1449,34 @@ func drink_potion() -> void:
 	if heal > 0.0:
 		Fx.text("+%d ❤" % roundi(heal), global_position, Color("#7dff8a"))
 
+## ANIMATE 3.1 (res://animate_3_1/): генератор поз по описанию и проверка клипов и скелета героя.
+## Сигналы — в CARDINAL (issue_detected). Генератор клипы сам не создаёт: только по вызову.
+var animate_gen: AnimatePoseGenerator
+var animate_check: AnimateValidator
+
+func _animate_31(sk: Skeleton3D) -> void:
+	animate_gen = AnimatePoseGenerator.new()
+	animate_gen.name = "AnimatePoseGenerator"
+	animate_gen.skeleton = sk
+	animate_gen.animation_player = _anim
+	add_child(animate_gen)
+	animate_check = AnimateValidator.new()
+	animate_check.name = "AnimateValidator"
+	animate_check.skeleton = sk
+	animate_check.animation_player = _anim
+	add_child(animate_check)
+	animate_gen.warning.connect(func(m: String): Cardinal.issue_detected.emit("ANIMATE_WARNING", m))
+	animate_check.issue_found.connect(func(code: String, d: Dictionary): Cardinal.issue_detected.emit("ANIMATE_" + code.to_upper(), str(d)))
+	animate_check.validate_rig()
+
 # ---------- Движение
+## Hybrid Movement 3.0 (res://hybrid_movement/): плавный разгон и торможение героя от джойстика,
+## в прыжке управление слабее. Значения — из модуля (acceleration, deceleration, air_control).
+const HM_ACCEL := 15.0
+const HM_DECEL := 19.0
+const HM_AIR := 0.3
+var _hm_vel := Vector3.ZERO
+
 func _physics_process(dt: float) -> void:
 	_time += dt
 	_since_swing += dt
@@ -1491,6 +1519,16 @@ func _physics_process(dt: float) -> void:
 			_start_move("stop", Vector3(sin(facing), 0, cos(facing)))
 		_speed_now = lerpf(_speed_now, 0.0, minf(1.0, dt * 10.0))
 		_backstep = false
+	# Hybrid Movement 3.0: скорость от джойстика набирается и гасится плавно; удар на месте — стоп сразу
+	if attack_t >= 0.0 and hv.length_squared() < 0.001:
+		_hm_vel = Vector3.ZERO
+	else:
+		var hm_rate := HM_ACCEL if hv.length_squared() > 0.001 else HM_DECEL
+		if not is_on_floor():
+			hm_rate *= HM_AIR
+		_hm_vel.x = move_toward(_hm_vel.x, hv.x, hm_rate * dt)
+		_hm_vel.z = move_toward(_hm_vel.z, hv.z, hm_rate * dt)
+	hv = _hm_vel
 	# Приём меча
 	if _art_t >= 0.0:
 		hv = _art_update(dt)
@@ -1511,6 +1549,8 @@ func _physics_process(dt: float) -> void:
 			_model.visible = true
 			if ATTACK_RINGS:
 				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
+	if _art_t >= 0.0 or _move != "" or _dash_t >= 0.0:
+		_hm_vel = Vector3(hv.x, 0.0, hv.z)   # после приёма или рывка — продолжаем с той же скорости
 	_update_cloth(dt)
 	hv += _root_motion(dt)
 	hv += _push
