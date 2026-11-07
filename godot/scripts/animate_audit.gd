@@ -433,7 +433,69 @@ func audit_gait() -> void:
 			add("WARNING", "GAIT_NO_STRIDE", clip, "опорная стопа не уходит назад — клип шагает на месте")
 		await get_tree().process_frame
 	_audit_jump(ap, sk, toes, x)
+	_audit_skills(ap, sk, x)
 	n.queue_free()
+
+## Приёмы по ключевым позам: удар «Горизонтали» (пик скорости руки с мечом), оборот вихря
+## (поворот корпуса до 360°), стойка защиты — совпадают ли с числами героя
+func _audit_skills(ap: AnimationPlayer, sk: Skeleton3D, x: Transform3D) -> void:
+	var cm: Dictionary = (load("res://scripts/hero.gd") as Script).get_script_constant_map()
+	var hand := -1
+	var hips := -1
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("RightHand"):
+			hand = i
+		if sk.get_bone_name(i).ends_with("Hips") and hips < 0:
+			hips = i
+	if hand < 0 or hips < 0:
+		return
+	var sample := func(clip: String, t: float) -> Array:
+		ap.play(clip)
+		ap.seek(t, true)
+		sk.force_update_all_bone_transforms()
+		var hb := sk.get_bone_global_pose(hips).basis
+		return [x * sk.get_bone_global_pose(hand).origin, atan2(hb.z.x, hb.z.z)]
+	# «Горизонталь»: момент удара — самая быстрая рука на отрезке клипа
+	var hz: Array = cm.get("HZ_KEYS", [])
+	var clip := "Reaping_Swing"
+	if ap.has_animation(clip) and hz.size() >= 4:
+		var best := 0.0
+		var best_t := 0.0
+		var t: float = hz[1][1]
+		var prev: Vector3 = sample.call(clip, t)[0]
+		while t < hz[3][1]:
+			t += 0.02
+			var p: Vector3 = sample.call(clip, t)[0]
+			var v := (p - prev).length() / 0.02
+			if v > best:
+				best = v
+				best_t = t
+			prev = p
+		add("INFO", "SKILL", clip, "«Горизонталь»: удар клипа %.2f с (рука %.1f м/с), в игре %.2f с" % [best_t, best, hz[2][1]])
+		if absf(best_t - float(hz[2][1])) > 0.1:
+			add("WARNING", "SKILL_SYNC", clip, "удар «Горизонтали» не в такт: клип %.2f с, игра %.2f с" % [best_t, hz[2][1]])
+	# Вихрь: оборот корпуса на 360° внутри отрезка
+	var wk: Array = cm.get("WHIRL_KEYS", [])
+	clip = "Sword_Spin_360"
+	if ap.has_animation(clip) and wk.size() >= 2:
+		var acc := 0.0
+		var t: float = wk[0][1]
+		var py: float = sample.call(clip, t)[1]
+		while t < wk[1][1]:
+			t += 0.02
+			var y: float = sample.call(clip, t)[1]
+			acc += angle_difference(py, y)
+			py = y
+		add("INFO", "SKILL", clip, "вихрь: за отрезок клипа корпус поворачивается на %.0f°" % absf(rad_to_deg(acc)))
+		if absf(rad_to_deg(acc)) < 300.0:
+			add("WARNING", "SKILL_SYNC", clip, "вихрь не делает полный оборот за время ударов (%.0f°)" % absf(rad_to_deg(acc)))
+	# Защита: к стойке рука с мечом поднята перед собой
+	clip = "Block10"
+	if ap.has_animation(clip) and cm.has("BLOCK_CLIP"):
+		var p: Vector3 = sample.call(clip, float(cm["BLOCK_CLIP"][1]))[0]
+		add("INFO", "SKILL", clip, "защита: в стойке рука с мечом на высоте %.2f м, впереди на %.2f м" % [p.y, p.z])
+		if p.z < 0.15:
+			add("WARNING", "SKILL_SYNC", clip, "в стойке защиты меч не перед собой")
 
 ## Прыжок по ключевым позам: отрыв, верхняя точка, касание — и совпадают ли они с числами героя
 func _audit_jump(ap: AnimationPlayer, sk: Skeleton3D, toes: Array, x: Transform3D) -> void:

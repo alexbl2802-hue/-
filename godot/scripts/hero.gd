@@ -300,6 +300,9 @@ func _attach_character() -> void:
 	_trail = SwordTrail.new()
 	add_child(_trail)
 	_sk = sk
+	for i in sk.get_bone_count():
+		if sk.get_bone_name(i).ends_with("RightHand"):
+			_hand_bone = i
 	_load_root_motion()
 	# Ноги на склонах
 	var feet := FootIK.new()
@@ -501,13 +504,21 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		if MESHY_MOVES.has(_move) and _ha._names.get(_move, "") == MESHY_MOVES[_move][0]:
 			start = MESHY_MOVES[_move][1]
 			sc = MESHY_MOVES[_move][2]
-		_ha.act(_move, start if _move_new else -1.0, sc)
+		if _move == "horizontal" and _ha._names.get("horizontal", "") == MESHY_MOVES["horizontal"][0]:
+			# «Горизонталь» по ключевым позам клипа: замах — в конец стойки, удар — в момент удара
+			_ha.act(_move, _key_t(HZ_KEYS, _move_t), 0.0)
+		else:
+			_ha.act(_move, start if _move_new else -1.0, sc)
 		_move_new = false
 	elif blocking:
 		if _ha._names.has("block"):
-			_ha.act("block", BLOCK_CLIP[1], 0.0, upper)   # меч вертикально перед собой
+			# Защита по клипу: меч поднимается в стойку за BLOCK_RAISE и держится вертикально перед собой
+			_ha.act("block", lerpf(BLOCK_FROM, BLOCK_CLIP[1], clampf((_time - _block_start) / BLOCK_RAISE, 0.0, 1.0)), 0.0, upper)
 		else:
 			_ha.act("slash", BLOCK_POSE, 0.0, upper)
+	elif _unblock_t >= 0.0 and _ha._names.has("block") and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0:
+		# Кнопку отпустили — меч опускается обратно по тому же клипу
+		_ha.act("block", lerpf(BLOCK_CLIP[1], BLOCK_FROM, clampf(_unblock_t / BLOCK_LOWER, 0.0, 1.0)), 0.0, upper)
 	elif _art_t >= 0.0 and _ha._names.has("art_" + _art):
 		# Приём — клип Meshy: удар клипа совпадает с моментом удара приёма
 		var ac: Array = ART_CLIPS[_art]
@@ -526,7 +537,8 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 				_ha.act("slash", -1.0, sp)
 	elif _spin_t >= 0.0:
 		if _ha._names.get("whirl", "") == WHIRL_CLIP[0]:
-			_ha.act("whirl", WHIRL_CLIP[1] if _new_swing or _ha.current() != "whirl" else -1.0, WHIRL_CLIP[2])
+			# Вихрь по ключевым позам: оборот клипа (0,15→0,75 с) — на время ударов вихря
+			_ha.act("whirl", _key_t(WHIRL_KEYS, _spin_t), 0.0)
 		else:
 			_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
 	elif _dash_t >= 0.0:
@@ -1024,9 +1036,19 @@ func _update_move(dt: float) -> Vector3:
 	var hv := Vector3.ZERO
 	if m.has("speed") and _move_t >= m["from"] and _move_t < m["to"]:
 		hv = _move_dir * m["speed"]
-	if _move == "horizontal" and not _move_hit and _move_t >= HZ_HIT:
-		_move_hit = true
-		_horizontal_hit()
+	if _move == "horizontal":
+		if _hand_bone >= 0 and _ha and _ha._names.get("horizontal", "") == MESHY_MOVES["horizontal"][0]:
+			# Урон тому, мимо кого прошёл клинок (по руке с мечом в анимации), а не всем разом
+			if _move_t >= HZ_SWEEP[0] and _move_t <= HZ_SWEEP[1]:
+				if not _move_hit:
+					_move_hit = true
+					_sweep_begin()
+					if ATTACK_RINGS:
+						Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
+				_sweep(3.4 * _wt()["reach"], _horizontal_one)
+		elif not _move_hit and _move_t >= HZ_HIT:
+			_move_hit = true
+			_horizontal_hit()
 	if _move_t >= m["len"]:
 		if _move == "horizontal":
 			_set_blade_glow(Color(0, 0, 0, 0))
@@ -1061,6 +1083,77 @@ func _horizontal_hit() -> void:
 			Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
 	if hits > 0:
 		_finisher_fx()
+
+## Один враг под «Горизонталью»
+func _horizontal_one(e: Node3D, v: Vector3, d: float) -> void:
+	# «Горизонталь» — полукруг впереди: за спиной клинок уже на доводке и не режет
+	if absf(angle_difference(facing, atan2(v.x, v.z))) > HZ_ARC:
+		_sweep_hits.erase(e.get_instance_id())
+		return
+	var left := Vector3(cos(facing), 0, -sin(facing))
+	_deal(e, horizontal_mult(Game.rank("horizontal")) * _wt()["dmg"], (v / d + left * 0.8).normalized())
+	Game.wear_weapon()
+	if _sweep_hits.size() == 1:
+		_finisher_fx()
+
+## Один враг под вихрем
+func _whirl_one(e: Node3D, v: Vector3, d: float) -> void:
+	_deal(e, 1.2 + 0.3 * (Game.rank("whirl") - 1), v / d)
+	e.knock(1.5)
+
+# ---------- Ключевые позы приёмов (секунды клипа по времени приёма) и удар по ходу клинка
+# Замер клипов: рука с мечом и поворот корпуса (tests: tools/gait). Reaping_Swing: рука у бока 2,80 ·
+# замах 3,05 · удар (кисть 7 м/с) 3,28 · доводка 3,70. Sword_Spin_360: начало оборота 0,15 · 180° 0,44 ·
+# 360° 0,75. Block10: подъём меча 0 → стойка 0,35.
+const HZ_KEYS := [[0.0, 2.80], [HZ_CHARGE, 3.05], [HZ_HIT, 3.28], [HZ_LEN, 3.70]]
+const HZ_SWEEP := [0.27, 0.50]           # время приёма, когда клинок режет
+const WHIRL_KEYS := [[0.0, 0.10], [0.6, 0.75], [WHIRL_TIME, 0.88]]
+const WHIRL_SWEEP := [0.03, 0.62]
+const BLOCK_FROM := 0.0
+const BLOCK_RAISE := 0.15                # меч в защиту — за столько секунд
+const BLOCK_LOWER := 0.12
+var _unblock_t := -1.0
+var _hand_bone := -1
+var _sweep_prev := INF
+var _sweep_hits := {}
+
+func _key_t(keys: Array, t: float) -> float:
+	if t <= keys[0][0]:
+		return keys[0][1]
+	for i in range(1, keys.size()):
+		if t <= keys[i][0]:
+			return lerpf(keys[i - 1][1], keys[i][1], (t - keys[i - 1][0]) / (keys[i][0] - keys[i - 1][0]))
+	return keys[-1][1]
+
+## Направление руки с мечом от героя (рад, по миру)
+func _hand_angle() -> float:
+	var hp: Vector3 = _sk.global_transform * _sk.get_bone_global_pose(_hand_bone).origin
+	return atan2(hp.x - global_position.x, hp.z - global_position.z)
+
+func _sweep_begin() -> void:
+	_sweep_prev = INF
+	_sweep_hits = {}
+
+## Клинок прошёл от прошлого направления руки до нынешнего — урон врагам в этом секторе (один раз каждому)
+func _sweep(radius: float, on_hit: Callable) -> void:
+	var a := _hand_angle()
+	if _sweep_prev == INF:
+		_sweep_prev = a
+		return
+	var da := angle_difference(_sweep_prev, a)
+	for e in enemies.alive_near(global_position, radius + 1.5):
+		if _sweep_hits.has(e.get_instance_id()):
+			continue
+		var v := _flat(e.global_position - global_position)
+		var d := maxf(0.01, v.length())
+		if d > radius + e.T["r"] or absf(e.global_position.y - global_position.y) > 2.5:
+			continue
+		var rel := angle_difference(_sweep_prev, atan2(v.x, v.z))
+		var inside := (rel >= -0.08 and rel <= da + 0.08) if da >= 0.0 else (rel <= 0.08 and rel >= da - 0.08)
+		if inside or d < e.T["r"] + 0.3:
+			_sweep_hits[e.get_instance_id()] = true
+			on_hit.call(e, v, d)
+	_sweep_prev = a
 
 ## Последний удар серии: тряска камеры
 func _finisher_fx() -> void:
@@ -1601,6 +1694,13 @@ func _physics_process(dt: float) -> void:
 	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0 and _move == ""
 	if blocking and not was_blocking:
 		_block_start = _time
+		_unblock_t = -1.0
+	elif was_blocking and not blocking:
+		_unblock_t = 0.0
+	if _unblock_t >= 0.0:
+		_unblock_t += dt
+		if _unblock_t >= BLOCK_LOWER:
+			_unblock_t = -1.0
 	if blocking:
 		speed *= 0.4
 	var hv := Vector3.ZERO
@@ -1757,7 +1857,16 @@ func _animate(dt: float) -> void:
 			spin = minf(1.0, _spin_t / total) * TAU
 		_arms[0].rotation = Vector3(0, 0, -1.4)
 		_arms[1].rotation = Vector3(0, 0, 1.2)
-		if not _spin_hit and _spin_t >= (WHIRL_HIT if whirl_anim else 0.2):
+		if whirl_anim and _hand_bone >= 0 and _ha and _ha._names.get("whirl", "") == WHIRL_CLIP[0]:
+			# Вихрь: удар каждому врагу в момент, когда клинок проходит его сторону
+			if _spin_t >= WHIRL_SWEEP[0] and _spin_t <= WHIRL_SWEEP[1]:
+				if not _spin_hit:
+					_spin_hit = true
+					_sweep_begin()
+					if ATTACK_RINGS:
+						Fx.ring(global_position + Vector3(0, 0.6, 0), Color("#bfefff"), 7.0, 0.4)
+				_sweep(3.3, _whirl_one)
+		elif not _spin_hit and _spin_t >= (WHIRL_HIT if whirl_anim else 0.2):
 			_spin_hit = true
 			_whirl_hit()
 		if _spin_t >= total:
