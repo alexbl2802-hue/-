@@ -215,7 +215,7 @@ func _attach_character() -> void:
 		_anim.get_animation(BACKSTEP_CLIP).loop_mode = Animation.LOOP_LINEAR
 	if _anim.has_animation(RUN_FIGHT):
 		_anim.get_animation(RUN_FIGHT).loop_mode = Animation.LOOP_LINEAR
-	for n in [WALK_CLIP, RUN_CLIP]:
+	for n in [WALK_CLIP, RUN_CLIP, "MS_strafe_left", "MS_strafe_right"]:
 		if _anim.has_animation(n):
 			_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	_has_idle = _anim.has_animation(A_IDLE)
@@ -500,6 +500,8 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		walk_anim = WALK_CLIP   # бег в бою — тот же Kirito_Sword_Run: Sword_Run шагает на месте (проверка ANIMATE)
 	if _backstep and _anim.has_animation(BACKSTEP_CLIP):
 		walk_anim = BACKSTEP_CLIP
+	elif _sidestep != 0:
+		walk_anim = "MS_strafe_left" if _sidestep > 0 else "MS_strafe_right"
 	for i in [1, 2]:
 		_set_loco(i, walk_anim)
 	for i in [3, 4]:
@@ -897,7 +899,9 @@ const WALK_STRIDE_M := 0.6     # шаг назад в блоке (Walk_Backward_
 const WALK_PLAIN := "Walking"                       # обычный шаг
 const SPRINT_CLIP := "RunFast"                      # быстрый бег: длинный шаг, долгая фаза полёта
 const STRIDE_M := {"Walking": 1.61, "Walk_Fight_Forward": 1.14, "Kirito_Sword_Run": 5.37, "RunFast": 12.49,
-	"Sword_Run": 3.0, "Walk_Backward_with_Sword": 0.6}
+	"Sword_Run": 3.0, "Walk_Backward_with_Sword": 0.6, "MS_strafe_left": 0.33, "MS_strafe_right": 0.33}
+const SIDESTEP_SPEED := 1.0    # м/с: приставной шаг в блоке (клип Moveset — шаг 0,33 м за секунду клипа)
+var _sidestep := 0             # в блоке идёт вбок: 1 — влево, −1 — вправо
 const LOCO_WALK_TOP := 2.2     # м/с: до этой скорости — шаг
 const FOOT_IK_MAX_SPEED := 2.6 # IK ног — стоя и на шаге; на бегу выключен
 const LOCO_RUN_TOP := 7.5      # бег до этой скорости, дальше переходит в спринт
@@ -1754,9 +1758,15 @@ func _physics_process(dt: float) -> void:
 		# В блоке герой не разворачивается — смотрит на врага и отступает спиной вперёд
 		if attack_t < 0.0 and _move == "" and not blocking:
 			facing += angle_difference(facing, atan2(dir.x, dir.z)) * minf(1.0, dt * 12.0)
+		# В блоке вбок — приставной шаг Moveset (MS_strafe_*): медленнее, в темп клипа
+		var side := dir.dot(Vector3(cos(facing), 0, -sin(facing)))
+		_sidestep = 0
+		if blocking and absf(side) > 0.7 and _anim and _anim.has_animation("MS_strafe_left"):
+			_sidestep = 1 if side > 0.0 else -1
+			speed = minf(speed, SIDESTEP_SPEED)
 		hv = dir * speed
 		_speed_now = lerpf(_speed_now, speed, minf(1.0, dt * 10.0))
-		_backstep = blocking and dir.dot(Vector3(sin(facing), 0, cos(facing))) < -0.3
+		_backstep = blocking and _sidestep == 0 and dir.dot(Vector3(sin(facing), 0, cos(facing))) < -0.3
 	else:
 		# Отпустил джойстик на спринте — резкая остановка (клип Meshy)
 		if _speed_now > STOP_FROM and is_on_floor() and _move == "" and attack_t < 0.0 and _art_t < 0.0 \
