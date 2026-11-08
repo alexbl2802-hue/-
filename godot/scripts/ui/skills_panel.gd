@@ -216,6 +216,12 @@ func _render_stats() -> void:
 		var row := Button.new()
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.text = "%s  %s      %d" % [st["icon"], st["name"], Game.stats[id]]
+		var sip := "res://assets/icons/stats/%s.png" % id   # картинка характеристики вместо значка
+		if ResourceLoader.exists(sip):
+			row.icon = load(sip)
+			row.expand_icon = false
+			row.add_theme_constant_override("icon_max_width", 30)
+			row.text = "%s      %d" % [st["name"], Game.stats[id]]
 		row.add_theme_font_size_override("font_size", 14)
 		row.custom_minimum_size = Vector2(0, 40)
 		for state in ["normal", "hover", "pressed", "focus"]:
