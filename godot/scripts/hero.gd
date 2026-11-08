@@ -50,6 +50,12 @@ const DASH_TIME := 0.3
 const DASH_SPEED := 28.0 * 0.26 / DASH_TIME   # базовая скорость рывка, м/с
 const DASH_JUMP := 0.15                       # низкий быстрый прыжок: высота дуги (плюс небольшой подъём в анимации), м
 const DASH_POSE := 0.2                        # кадр быстрого бега с самым широким шагом
+# Рывок как у Кирито (присланное видео): тёмный размытый след по пути, в конце — низкий присед
+# и подъём в стойку с мечом вперёд (отрезок клипа Sword_Judgment)
+const DASH_LAND_CLIP := ["Sword_Judgment", 1.35, 2.1]   # [клип, начало приседа, стойка]
+const DASH_LAND := 0.45                                  # сколько длится присед → стойка, с
+var _dash_from := Vector3.ZERO
+var _dash_streak: MeshInstance3D
 var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
 var _anim: AnimationPlayer
@@ -286,6 +292,8 @@ func _attach_character() -> void:
 			acts["whirl"] = WHIRL_CLIP[0]
 		if _anim.has_animation(JUMP_CLIP[0]):
 			acts["air"] = JUMP_CLIP[0]
+		if _anim.has_animation(DASH_LAND_CLIP[0]):
+			acts["dash_land"] = DASH_LAND_CLIP[0]
 		# Ходьба по скорости: стойка → боевой шаг → спринт (клипы Meshy)
 		# Шаг → бег → спринт (клипы Meshy), у каждого свой темп по длине шага
 		var walk := WALK_PLAIN if _anim.has_animation(WALK_PLAIN) else WALK_CLIP
@@ -555,6 +563,10 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 			_ha.follow("whirl", _key_t(WHIRL_KEYS, _spin_t), dt)
 		else:
 			_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
+	elif _dash_t >= DASH_TIME and _ha._names.has("dash_land"):
+		# Появление: низкий присед → стойка с мечом вперёд
+		var u := clampf((_dash_t - DASH_TIME) / DASH_LAND, 0.0, 1.0)
+		_ha.follow("dash_land", lerpf(DASH_LAND_CLIP[1], DASH_LAND_CLIP[2], u), dt)
 	elif _dash_t >= 0.0:
 		_ha.act("dash", 0.0 if _ha.current() != "dash" else -1.0, _anim.get_animation(A_DASH).length / DASH_TIME)
 	elif attack_t >= 0.0:
@@ -1489,11 +1501,106 @@ func use_skill(id: String) -> void:
 		facing = atan2(dir.x, dir.z)
 		_dash_t = 0.0
 		_dash_hit = []
+		_dash_from = global_position
+		_streak_start()
 		_dash_speed = SkillDefs.dash_stats(Game.skills)["speed"]
 		cd["dash"] = SkillDefs.dash_stats(Game.skills)["cd"]
 		# Аниме-рывок: герой исчезает со вспышкой там, где стоял (с места или на бегу)
 		if ATTACK_RINGS:
 			Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.0, 0.4, true)
+
+## След рывка (как у Кирито на видео): размытая полоса от места старта до героя — тёмно-синяя,
+## со штрихами скорости цвета рывка, к хвосту прозрачнее. Полоса всегда повёрнута к камере
+## (видна и сбоку, и из-за спины), после появления героя гаснет за 0,35 с.
+const STREAK_SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled, skip_vertex_transform;
+uniform vec3 a;
+uniform vec3 b;
+uniform float width = 1.4;
+uniform float fade = 1.0;
+uniform sampler2D tex : filter_linear, repeat_disable;
+void vertex() {
+	vec3 axis = b - a;
+	vec3 mid = (a + b) * 0.5;
+	vec3 cam = INV_VIEW_MATRIX[3].xyz;
+	vec3 dir = length(axis) > 0.001 ? normalize(axis) : vec3(1.0, 0.0, 0.0);
+	vec3 side = cross(dir, normalize(cam - mid));
+	side = length(side) > 0.001 ? normalize(side) : vec3(0.0, 1.0, 0.0);
+	vec3 p = mid + axis * VERTEX.x + side * VERTEX.y * width;
+	VERTEX = (VIEW_MATRIX * vec4(p, 1.0)).xyz;
+}
+void fragment() {
+	vec4 c = texture(tex, UV);
+	ALBEDO = c.rgb;
+	ALPHA = c.a * fade;
+}
+"""
+static var _streak_sh: Shader
+
+func _streak_tex(col: Color) -> ImageTexture:
+	var w := 128
+	var h := 32
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var rows := PackedFloat32Array()
+	var r := RandomNumberGenerator.new()
+	for y in h:
+		rows.append(r.randf())
+	var navy := Color(0.05, 0.07, 0.18)
+	for y in h:
+		var v := (y + 0.5) / h * 2.0 - 1.0
+		var prof := pow(maxf(0.0, 1.0 - v * v), 1.5)
+		# штрихи скорости: соседние строки сглажены, яркие — цвета рывка
+		var st := (rows[y] + rows[(y + 1) % h] + rows[(y + h - 1) % h]) / 3.0
+		for x in w:
+			var u := (x + 0.5) / w           # 0 — у героя, 1 — хвост
+			var tail := pow(1.0 - u, 0.9) * smoothstep(0.0, 0.05, u)
+			var line := smoothstep(0.6, 0.9, st) * (1.0 - u * 0.5)
+			var c := navy.lerp(col, line * 0.5)
+			c.a = clampf(pow(prof, 0.7) * tail * (0.7 + 0.3 * st) * 1.1, 0.0, 0.95)
+			img.set_pixel(x, h - 1 - y, c)
+	return ImageTexture.create_from_image(img)
+
+func _streak_start() -> void:
+	_streak_end()
+	if _streak_sh == null:
+		_streak_sh = Shader.new()
+		_streak_sh.code = STREAK_SHADER
+	var m := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(1, 1)
+	q.flip_faces = false
+	m.mesh = q
+	var mat := ShaderMaterial.new()
+	mat.shader = _streak_sh
+	mat.set_shader_parameter("tex", _streak_tex(_dash_color()))
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	m.extra_cull_margin = 16384.0
+	get_parent().add_child(m)
+	_dash_streak = m
+	_streak_update()
+
+func _streak_update() -> void:
+	if _dash_streak == null or not is_instance_valid(_dash_streak):
+		return
+	var up := Vector3(0, 0.85, 0)
+	var mat: ShaderMaterial = _dash_streak.material_override
+	# a — у героя (u = 0), b — место старта (хвост)
+	mat.set_shader_parameter("a", global_position + up)
+	mat.set_shader_parameter("b", _dash_from + up)
+
+func _streak_end() -> void:
+	if _dash_streak == null or not is_instance_valid(_dash_streak):
+		_dash_streak = null
+		return
+	_streak_update()
+	var m := _dash_streak
+	_dash_streak = null
+	var mat: ShaderMaterial = m.material_override
+	var tw := m.create_tween()
+	tw.tween_method(func(f: float): mat.set_shader_parameter("fade", f), 1.0, 0.0, 0.35)
+	tw.tween_callback(m.queue_free)
 
 ## Цвет вспышек рывка: обычный — голубой, скользящий шаг — белый, прорыв — фиолетовый
 func _dash_color() -> Color:
@@ -1603,6 +1710,8 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 		attack_t = -1.0
 		_spin_t = -1.0
 		_dash_t = -1.0
+		_model.visible = true
+		_streak_end()
 		died.emit()
 
 # ---------- След клинка: светится в ударе, вихре, приёмах и «Горизонтали»
@@ -1806,17 +1915,25 @@ func _physics_process(dt: float) -> void:
 		_speed_now = lerpf(_speed_now, 0.0, minf(1.0, dt * 10.0))
 	# Рывок: быстрое движение вперёд сквозь врагов, герой неуязвим
 	if _dash_t >= 0.0:
+		var was := _dash_t
 		_dash_t += dt
-		hv = _dash_dir * DASH_SPEED * _dash_speed
 		_invuln = maxf(_invuln, 0.1)
-		# Аниме-рывок (tools/godot_anime_dash): герой исчезает на время рывка и появляется в конце
-		# пути со вспышкой; сквозь стены не проходит — движение физическое (move_and_slide)
-		_model.visible = _dash_t <= 0.03
-		if _dash_t >= DASH_TIME:
-			_dash_t = -1.0
+		var land := DASH_LAND if _ha and _ha._names.has("dash_land") else 0.0
+		if _dash_t < DASH_TIME:
+			# Аниме-рывок: герой исчезает, по пути — тёмный размытый след (как у Кирито на видео);
+			# сквозь стены не проходит — движение физическое (move_and_slide)
+			hv = _dash_dir * DASH_SPEED * _dash_speed
+			_model.visible = _dash_t <= 0.03
+			_streak_update()
+		else:
+			hv = Vector3.ZERO   # появился — стоит в приседе и поднимается в стойку
 			_model.visible = true
-			if ATTACK_RINGS:
-				Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
+			if was < DASH_TIME:
+				_streak_end()
+				if ATTACK_RINGS:
+					Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
+			if _dash_t >= DASH_TIME + land:
+				_dash_t = -1.0
 	if _art_t >= 0.0 or _move != "" or _dash_t >= 0.0:
 		# Скорость рывка и приёмов не переносится в обычный бег: после рывка (исчез — появился)
 		# герой сразу бежит со своей обычной скоростью от джойстика; после остановки — разгон с места
@@ -1848,7 +1965,7 @@ func _physics_process(dt: float) -> void:
 		_land_t += dt
 		if _land_t * JUMP_LAND_RATE >= JUMP_RECOVER - JUMP_TOUCH or _speed_now > 1.5 or not is_on_floor() or attack_t >= 0.0:
 			_land_t = -1.0
-	if _dash_t >= 0.0:
+	if _dash_t >= 0.0 and _dash_t < DASH_TIME:
 		_dash_hits()
 	if not in_world2:   # во втором мире свои стены по краям плато
 		var lim := WorldGen.HALF - 4.0
@@ -1954,7 +2071,7 @@ func _animate(dt: float) -> void:
 	# Прыжок: подъём, заложенный в клипе, вычитается — высоту прыжка задаёт физика
 	if _ha and not on_floor and _ha.current() == "air" and _ha._names.get("air", "") == JUMP_CLIP[0]:
 		_model.position.y -= _jump_lift(_jump_t)
-	if _dash_t >= 0.0:
+	if _dash_t >= 0.0 and _dash_t < DASH_TIME:
 		# Длинный прыжок: тело летит по дуге над землёй
 		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)
 		_model.position.y += 4.0 * DASH_JUMP * u * (1.0 - u)

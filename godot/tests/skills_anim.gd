@@ -37,7 +37,7 @@ func _ready() -> void:
 		h.cd[skill] = 0.0
 		h.use_skill(skill)
 		var n := 8
-		var total: float = h.WHIRL_TIME if skill == "whirl" else h.DASH_TIME
+		var total: float = h.WHIRL_TIME if skill == "whirl" else h.DASH_TIME + h.DASH_LAND
 		for k in n:
 			var target_t := total * (k + 0.5) / n
 			while (h._spin_t if skill == "whirl" else h._dash_t) >= 0.0 and (h._spin_t if skill == "whirl" else h._dash_t) < target_t:
