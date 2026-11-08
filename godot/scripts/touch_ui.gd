@@ -29,6 +29,15 @@ var cd_left := {"whirl": 0.0, "dash": 0.0, "art": 0.0, "dodge": 0.0, "horizontal
 var cd_total := {"whirl": 1.0, "dash": 1.0, "art": 1.0, "dodge": 1.0, "horizontal": 1.0}
 var art_icon := ""      # приём меча надетого оружия ("" — не изучен)
 var dash_icon := "💨"   # меняется с эволюцией: 🌬️ Скользящий шаг, ✨ Мерцание
+var art_skill := ""     # id приёма надетого оружия (art_sword …) — для картинки на кнопке
+var dash_form := "dash" # форма рывка: dash / slide / blink — для картинки на кнопке
+var _imgs := {}         # картинки навыков (assets/icons/skills) для кнопок
+
+func _img(id: String) -> Texture2D:
+	if not _imgs.has(id):
+		var p := SkillDefs.icon_path(id)
+		_imgs[id] = load(p) if id != "" and ResourceLoader.exists(p) else null
+	return _imgs[id]
 
 var _pts := {}          # индекс касания → позиция
 var _btn_touch := {}    # индекс касания → кнопка
@@ -65,13 +74,13 @@ func _buttons() -> Array:
 	]
 	# Ближний круг — навыки
 	if art_icon != "":
-		list.append({"id": "art", "c": at.call(RING_IN, 180.0), "r": 24.0, "label": art_icon, "fs": 20, "border": Color(1, 0.85, 0.4, 0.8)})
+		list.append({"id": "art", "img": art_skill, "c": at.call(RING_IN, 180.0), "r": 24.0, "label": art_icon, "fs": 20, "border": Color(1, 0.85, 0.4, 0.8)})
 	if skill_ranks["horizontal"] > 0:
-		list.append({"id": "horizontal", "c": at.call(RING_IN, 210.0), "r": 24.0, "label": "↔", "fs": 20, "border": Color(0.5, 0.85, 1, 0.8)})
+		list.append({"id": "horizontal", "img": "horizontal", "c": at.call(RING_IN, 210.0), "r": 24.0, "label": "↔", "fs": 20, "border": Color(0.5, 0.85, 1, 0.8)})
 	if skill_ranks["whirl"] > 0:
-		list.append({"id": "whirl", "c": at.call(RING_IN, 240.0), "r": 24.0, "label": "🌀", "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "whirl", "img": "whirl", "c": at.call(RING_IN, 240.0), "r": 24.0, "label": "🌀", "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
-		list.append({"id": "dash", "c": at.call(RING_IN, 270.0), "r": 24.0, "label": dash_icon, "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
+		list.append({"id": "dash", "img": dash_form, "c": at.call(RING_IN, 270.0), "r": 24.0, "label": dash_icon, "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
 	# Дальний круг — уклонение, блок, прыжок, бег
 	# Уклонение: назад, вбок или кувырок — по наклону джойстика
 	list.append({"id": "dodge", "c": at.call(RING_OUT, 180.0), "r": 23.0, "label": "↶", "fs": 21, "border": Color(0.6, 0.95, 0.8, 0.75)})
@@ -233,7 +242,13 @@ func _draw() -> void:
 		var tc := text_c
 		if b.get("dim", false):
 			tc.a = 0.45
-		draw_string(font, center + Vector2(-half, fs * 0.36), b["label"], HORIZONTAL_ALIGNMENT_CENTER, half * 2, fs, tc)
+		var tex := _img(b.get("img", ""))
+		if tex:
+			# Картинка навыка — та же, что в окне навыков; вписана в круг кнопки
+			var side := half * 1.5
+			draw_texture_rect(tex, Rect2(center - Vector2(side, side) / 2.0, Vector2(side, side)), false, Color(1, 1, 1, 1.0 if not on else 0.8))
+		else:
+			draw_string(font, center + Vector2(-half, fs * 0.36), b["label"], HORIZONTAL_ALIGNMENT_CENTER, half * 2, fs, tc)
 		var badge: String = b.get("badge", "")
 		if badge != "":
 			draw_string_outline(font, center + Vector2(half - 20, half - 2), badge, HORIZONTAL_ALIGNMENT_RIGHT, 20, 12, 4, Color.BLACK)

@@ -418,6 +418,8 @@ func _process(_dt: float) -> void:
 	t.dash_icon = SkillDefs.DASH_FORMS[SkillDefs.dash_form(Game.skills)]["icon"]
 	var art: String = hero.art_id()
 	t.art_icon = SkillDefs.find(art)["icon"] if art != "" and Game.rank(art) > 0 else ""
+	t.art_skill = art
+	t.dash_form = SkillDefs.dash_form(Game.skills)
 	t.cd_left["art"] = hero.cd["art"]
 	t.cd_total["art"] = hero.cooldown_total("art")
 	for id in ["whirl", "dash", "horizontal"]:
