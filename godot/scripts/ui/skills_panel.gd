@@ -10,7 +10,7 @@ var _points: Label
 var _list: VBoxContainer
 var _reset: Button
 var _reset_armed := false
-var _sel := "strength"
+var _sel := "vitality"
 var _tab := "skills"          # skills — навыки, stats — характеристики
 var _sel_stat := "str"
 var _tabs := {}

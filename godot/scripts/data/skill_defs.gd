@@ -7,10 +7,9 @@ static func icon_path(id: String) -> String:
 
 const EVOLUTION_ENABLED := false  # эволюция остальных навыков на максимальном ранге — откроем позже
 
+# Сила и Ловкость — не навыки, а характеристики (окно «Характеристики», Game.stats)
 const LIST := [
-	{"id": "strength", "icon": "💪", "name": "Сила", "max": 7, "lvl": 1},
 	{"id": "vitality", "icon": "❤️", "name": "Стойкость", "max": 7, "lvl": 1},
-	{"id": "agility", "icon": "🪶", "name": "Ловкость", "max": 7, "lvl": 2},
 	{"id": "regen", "icon": "🌿", "name": "Регенерация", "max": 7, "lvl": 2},
 	{"id": "whirl", "icon": "🌀", "name": "Вихрь", "max": 7, "lvl": 3, "active": true},
 	{"id": "crit", "icon": "🎯", "name": "Крит. удар", "max": 7, "lvl": 4},
