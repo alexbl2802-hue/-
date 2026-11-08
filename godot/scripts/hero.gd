@@ -223,6 +223,7 @@ func _attach_character() -> void:
 		_anim.get_animation(A_IDLE).loop_mode = Animation.LOOP_LINEAR
 	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
 	_animate_31(sk)
+	_setup_combat_pack()
 	for m in _char.find_children("*", "MeshInstance3D", true, false):
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	var hand := -1
@@ -462,7 +463,17 @@ func _build_gear(sk: Skeleton3D) -> void:
 		# щита — больше толщины руки и кулака, поэтому щит не входит в руку
 		var center := elbow.lerp(wrist, 0.5) + Vector3(0, SHIELD_OFF, 0)
 		var basis := Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0))
-		sh.transform = g.affine_inverse() * Transform3D(basis, center)
+		# Крепление щита — узел ShieldMount боевого модуля (addons/combat_pack): смещение и поворот
+		# от кости предплечья, щит снаружи руки
+		var tf := g.affine_inverse() * Transform3D(basis, center)
+		var mount := AdventureShieldMount.new()
+		mount.name = "ShieldMount_" + kind
+		att.add_child(mount)
+		mount.offset_meters = tf.origin
+		mount.rotation_degrees_offset = tf.basis.orthonormalized().get_euler() * (180.0 / PI)
+		sh.get_parent().remove_child(sh)
+		mount.add_child(sh)
+		sh.transform = Transform3D.IDENTITY
 		sh.scale = Vector3.ONE / CHAR_SCALE * 1.0
 		_shields[kind] = sh
 
@@ -1447,6 +1458,8 @@ func use_skill(id: String) -> void:
 	_new_swing = true
 	if id == "whirl":
 		_spin_t = 0.0
+		if combat:
+			combat.attack_whirlwind()
 		_spin_hit = false
 		cd["whirl"] = SkillDefs.whirl_cd(r)
 	elif id == "dash":
@@ -1483,6 +1496,8 @@ func use_horizontal() -> void:
 		facing = atan2(v.x, v.z)
 	cd["horizontal"] = SkillDefs.horizontal_cd(r)
 	_start_move("horizontal", Vector3(sin(facing), 0, cos(facing)))
+	if combat:
+		combat.attack_horizontal()
 	_set_blade_glow(SkillDefs.ART_COLOR["sword"])
 
 func cooldown_total(id: String) -> float:
@@ -1547,6 +1562,8 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 	var blocked := blocking and v.length() > 0.01 and absf(angle_difference(facing, atan2(v.x, v.z))) < BLOCK_ARC
 	if blocked:
 		dmg = maxi(1, roundi(dmg * (1.0 - block_reduce())))
+		if combat:
+			combat.receive_block_hit()
 	Game.hp = maxf(0.0, Game.hp - dmg)
 	_invuln = 0.5
 	_hurt_ago = 0.0
@@ -1651,6 +1668,18 @@ func drink_potion() -> void:
 var animate_gen: AnimatePoseGenerator
 var animate_check: AnimateValidator
 
+## Боевой модуль (addons/combat_pack): состояние блока и приёмов героя и их сигналы.
+## Анимации героя остаются его клипами Meshy (дерево анимаций), модуль ведёт состояние.
+var combat: AdventureCombatController
+
+func _setup_combat_pack() -> void:
+	combat = AdventureCombatController.new()
+	combat.name = "CombatPack"
+	combat.animation_player = _anim
+	combat.play_hook = func(_n: String) -> void: pass
+	add_child(combat)
+	combat.attack_started.connect(func(n: String): Cardinal.issue_recovered.emit("COMBAT_" + n.to_upper()))
+
 func _animate_31(sk: Skeleton3D) -> void:
 	animate_gen = AnimatePoseGenerator.new()
 	animate_gen.name = "AnimatePoseGenerator"
@@ -1700,8 +1729,14 @@ func _physics_process(dt: float) -> void:
 	if blocking and not was_blocking:
 		_block_start = _time
 		_unblock_t = -1.0
+		if combat:
+			combat.start_block()
 	elif was_blocking and not blocking:
 		_unblock_t = 0.0
+		if combat:
+			combat.stop_block()
+	if combat and blocking and _time - _block_start > 0.2:
+		combat.hold_block()
 	if _unblock_t >= 0.0:
 		_unblock_t += dt
 		if _unblock_t >= BLOCK_LOWER:

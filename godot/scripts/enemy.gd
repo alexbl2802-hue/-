@@ -258,6 +258,7 @@ func _attach_char() -> void:
 	match C["weapon"]:
 		"club": _attach_club()
 		"sword", "great": _attach_blade(C["weapon"])
+	_setup_combat_pack()
 	# Кончик хвоста волка — оттуда вылетают шипы
 	if C.has("tail"):
 		var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
@@ -408,6 +409,61 @@ func _finger(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
 			return sk.get_bone_global_rest(parent).affine_inverse() * sk.get_bone_global_rest(i).origin
 	return Vector3.UP * 0.1
 
+# ---------- Боевой модуль (addons/combat_pack): блок оружием у мобов-гуманоидов
+## Мобы с оружием на скелете Mixamo (гоблин, кобольд, голем, скелет) иногда принимают удар героя
+## спереди на оружие: блок модуля — подъём, удержание, отдача от удара, опускание. Урон в блок −65%.
+const BLOCK_CHANCE := 0.25
+const BLOCK_REDUCE := 0.35     # доля урона, которая проходит сквозь блок
+const BLOCK_HOLD := 0.9
+var combat: AdventureCombatController
+var _block_t := -1.0
+static var _built := {}         # модель → клипы модуля уже собраны (библиотека клипов у модели общая)
+
+func _setup_combat_pack() -> void:
+	if not (C.get("glb", "") in [GOBLIN_MODEL, SKELETON_MODEL]) or C.get("weapon", "") == "":
+		return
+	var sk: Skeleton3D = _char.find_children("*", "Skeleton3D", true, false)[0]
+	if not _built.has(C["glb"]):
+		var b := AdventureAnimationBuilder.new()
+		b.skeleton = sk
+		b.animation_player = _ap
+		b.base_clip = "Combat_Stance"
+		# Настоящие клипы модели вместо самодельных взмахов
+		b.source_clips = {"horizontal": ["Left_Slash", 0.0, 9.0], "whirlwind": ["Axe_Spin_Attack", 0.0, 9.0]}
+		add_child(b)
+		b.build()
+		b.queue_free()
+		_built[C["glb"]] = true
+	combat = AdventureCombatController.new()
+	combat.name = "CombatPack"
+	combat.animation_player = _ap
+	add_child(combat)
+
+func _try_block(dmg: int, dir: Vector3) -> int:
+	if combat == null or T.get("boss", false) or not (st in ["chase", "idle", "return"]) or _dodge_t >= 0.0:
+		return dmg
+	if _block_t >= 0.0:
+		combat.receive_block_hit()
+		Fx.text("Блок", global_position + Vector3(0, T["bar"] - 1.6, 0), Color("#a8c8ff"))
+		return maxi(1, roundi(dmg * BLOCK_REDUCE))
+	var from := Vector3(-dir.x, 0, -dir.z)
+	if from.length() < 0.01 or Vector3(sin(facing), 0, cos(facing)).dot(from.normalized()) < 0.4 or randf() > BLOCK_CHANCE:
+		return dmg
+	_block_t = 0.0
+	combat.start_block()
+	combat.receive_block_hit()
+	Fx.text("Блок", global_position + Vector3(0, T["bar"] - 1.6, 0), Color("#a8c8ff"))
+	return maxi(1, roundi(dmg * BLOCK_REDUCE))
+
+func _block_update(dt: float) -> void:
+	_block_t += dt
+	if _block_t >= 0.2 and _block_t - dt < 0.2:
+		combat.hold_block()
+	if _block_t >= BLOCK_HOLD and combat.blocking:
+		combat.stop_block()
+	if _block_t >= BLOCK_HOLD + 0.2:
+		_block_t = -1.0
+
 ## Монстры вдали «спят» — вместе с ними замирает и анимация
 func set_active(on: bool) -> void:
 	set_physics_process(on)
@@ -418,6 +474,9 @@ func set_active(on: bool) -> void:
 ## Анимация моба на модели: стойка, шаг/бег по скорости, удар (момент удара клипа совпадает
 ## с концом замаха), отскок/кувырок, реакция на удар (оглушение), прыжок-удар кролика
 func _animate_char() -> void:
+	if _block_t >= 0.0 and combat:
+		_ap.speed_scale = 1.0
+		return   # блок ведёт боевой модуль (combat_pack): начало → удержание → удар в блок → конец
 	var want := _stance()
 	var speed := 1.0
 	if st != "windup" and st != "recover" and st != "leap":
@@ -899,6 +958,7 @@ func hit(dmg: int, dir: Vector3, crit := false) -> void:
 		_tilt += Vector2(ld.z, -ld.x)
 	if _vuln_t > 0.0:
 		dmg *= 2   # после отбитого удара — уязвим
+	dmg = _try_block(dmg, dir)
 	hp -= dmg
 	_flash = 1.0
 	_kb = dir * 9.0
@@ -1146,6 +1206,9 @@ func _physics_process(dt: float) -> void:
 			hv += -Vector3(sin(facing), 0, cos(facing)) * HOP_SPEED
 		elif _hop_t > 0.5:
 			_hop_t = -1.0
+	if _block_t >= 0.0:
+		_block_update(dt)
+		hv = Vector3.ZERO   # в блоке стоит на месте
 	hv += _kb
 	_kb *= exp(-dt * 6.0)
 	velocity.x = hv.x

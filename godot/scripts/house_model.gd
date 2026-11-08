@@ -81,6 +81,21 @@ static func npc(parent: Node3D, path: String, pos: Vector3, yaw: float) -> Node3
 		for si in mi.mesh.get_surface_count():
 			Mats.toon(mi.get_active_material(si))
 	var ap := n.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	# Боевой модуль (addons/combat_pack): у жителя есть блок и удары модуля поверх его стойки
+	var sk := n.find_child("Skeleton3D", true, false) as Skeleton3D
+	if ap and sk:
+		if not ap.has_animation("sword_block_loop"):
+			var b := AdventureAnimationBuilder.new()
+			b.skeleton = sk
+			b.animation_player = ap
+			b.base_clip = "Idle"
+			n.add_child(b)
+			b.build()
+			b.queue_free()
+		var combat := AdventureCombatController.new()
+		combat.name = "CombatPack"
+		combat.animation_player = ap
+		n.add_child(combat)
 	if ap:
 		var clip := "Idle" if ap.has_animation("Idle") else ""
 		if clip != "":

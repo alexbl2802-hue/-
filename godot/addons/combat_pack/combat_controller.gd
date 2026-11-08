@@ -78,8 +78,14 @@ func _attack(name: String) -> void:
     if is_inside_tree() and serial == _attack_serial:
         busy = false
 
+## Подгонка под героя «Земель приключений»: у героя анимациями управляет своё дерево анимаций,
+## поэтому вместо AnimationPlayer можно передать play_hook(имя) — модуль только ведёт состояние и сигналы
+var play_hook: Callable
+
 func _play(name: String) -> void:
-    if animation_player == null:
+    if play_hook.is_valid():
+        play_hook.call(name)
+    elif animation_player == null:
         push_warning("Missing AnimationPlayer")
     elif animation_player.has_animation(name):
         animation_player.play(name, 0.08)
