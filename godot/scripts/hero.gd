@@ -535,10 +535,11 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	elif _art_t >= 0.0 and _ha._names.has("art_" + _art):
 		# Приём — клип Meshy: удар клипа совпадает с моментом удара приёма
 		var ac: Array = ART_CLIPS[_art]
-		var start: float = maxf(0.0, ac[1] - (ART_CHARGE + 0.08) * ac[2])
-		_ha.act("art_" + _art, start if _new_swing or _ha.current() != "art_" + _art else -1.0, ac[2])
+		var sp: float = LUNGE_CLIP_SPEED if _art == "sword" else ac[2]
+		var start: float = maxf(0.0, ac[1] - (_art_charge() + 0.08) * sp)
+		_ha.act("art_" + _art, start if _new_swing or _ha.current() != "art_" + _art else -1.0, sp)
 	elif _art_t >= 0.0:
-		if _art_t < ART_CHARGE:   # стойка: меч отведён для удара
+		if _art_t < _art_charge():   # стойка: меч отведён для удара
 			_ha.act("slash", 0.4, 0.0)
 		else:
 			var sp := 3.2 if _art == "rapier" else 2.2
@@ -602,7 +603,7 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		return
 	if _art_t >= 0.0:
 		want = A_SLASH
-		if _art_t < ART_CHARGE:   # стойка: меч отведён для удара
+		if _art_t < _art_charge():   # стойка: меч отведён для удара
 			speed = 1.0
 			if _anim.current_animation != A_SLASH:
 				_anim.play(A_SLASH, 0.08)
@@ -1209,6 +1210,17 @@ func block_reduce() -> float:
 ## Приёмы меча: стойка со свечением клинка → приём → заминка (герой беззащитен)
 const ART_CHARGE := 0.3
 const ART_RECOVER := 0.5
+# «Резкий выпад» быстрее: стойка короче, рывок и клип удара быстрее, заминка меньше
+const LUNGE_CHARGE := 0.16
+const LUNGE_RECOVER := 0.3
+const LUNGE_DASH := 0.17       # рывок вперёд (было 0,25 с) — та же длина, быстрее
+const LUNGE_CLIP_SPEED := 1.6  # клип Thrust_Slash быстрее (было 1,0)
+
+func _art_charge() -> float:
+	return LUNGE_CHARGE if _art == "sword" else ART_CHARGE
+
+func _art_recover() -> float:
+	return LUNGE_RECOVER if _art == "sword" else ART_RECOVER
 var _art_t := -1.0
 var _art := ""            # тип оружия приёма: sword / great / rapier / dagger
 var _art_hits := 0
@@ -1238,7 +1250,7 @@ func use_art() -> void:
 	_set_blade_glow(SkillDefs.ART_COLOR[_art])
 
 func _art_action_end() -> float:
-	return ART_CHARGE + {"sword": 0.25, "great": 0.3, "rapier": 0.6, "dagger": 0.15}[_art]
+	return _art_charge() + {"sword": LUNGE_DASH, "great": 0.3, "rapier": 0.6, "dagger": 0.15}[_art]
 
 func _nearest_enemy(r: float) -> Node3D:
 	var best: Node3D = null
@@ -1254,12 +1266,12 @@ func _art_update(dt: float) -> Vector3:
 	var hv := Vector3.ZERO
 	_art_t += dt
 	var r := Game.rank("art_" + _art)
-	var t := _art_t - ART_CHARGE
+	var t := _art_t - _art_charge()
 	if t >= 0.0:
 		match _art:
 			"sword":   # рывок вперёд, урон всем на пути
-				if t < 0.25:
-					hv = _art_dir * 20.0
+				if t < LUNGE_DASH:
+					hv = _art_dir * 20.0 * 0.25 / LUNGE_DASH
 					_invuln = maxf(_invuln, 0.05)
 					for e in enemies.alive_near(global_position, 2.4):
 						if not _art_hit.has(e):
@@ -1294,7 +1306,7 @@ func _art_update(dt: float) -> Vector3:
 								Fx.ring(global_position + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["dagger"], 1.5, 0.3)
 						var dmg := roundi((Game.dmg + randf() * 8.0) * SkillDefs.art_mult(3.0, r))
 						e.hit(dmg, back, true)
-	if _art_t >= _art_action_end() + ART_RECOVER:
+	if _art_t >= _art_action_end() + _art_recover():
 		_art_t = -1.0
 		_set_blade_glow(Color(0, 0, 0, 0))
 		update_look()
@@ -1615,7 +1627,7 @@ func _update_trail(dt: float) -> void:
 		c.a = 0.9
 	elif _spin_t >= 0.0:
 		swing = true
-	elif _art_t >= ART_CHARGE and _art_t < _art_action_end():
+	elif _art_t >= _art_charge() and _art_t < _art_action_end():
 		swing = true
 		c = SkillDefs.ART_COLOR[_art]
 		c.a = 0.85
