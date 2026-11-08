@@ -32,6 +32,17 @@ var dash_icon := "💨"   # меняется с эволюцией: 🌬️ Ск
 var art_skill := ""     # id приёма надетого оружия (art_sword …) — для картинки на кнопке
 var dash_form := "dash" # форма рывка: dash / slide / blink — для картинки на кнопке
 var _imgs := {}         # картинки навыков (assets/icons/skills) для кнопок
+# Круглые кнопки в серебряной рамке (assets/icons/buttons): у удара, прыжка, бега, блока и уклонения —
+# своя картинка целиком; у навыков — их картинка внутри той же рамки (ring.png)
+const BTN_IMG := {"attack": "attack", "jump": "jump", "run": "run", "block": "block", "dodge": "dodge"}
+const RING_INNER := 0.86     # внутренний край рамки — доля радиуса
+var _btn := {}
+
+func _btn_tex(n: String) -> Texture2D:
+	if not _btn.has(n):
+		var p := "res://assets/icons/buttons/%s.png" % n
+		_btn[n] = load(p) if ResourceLoader.exists(p) else null
+	return _btn[n]
 
 func _img(id: String) -> Texture2D:
 	if not _imgs.has(id):
@@ -239,17 +250,34 @@ func _draw() -> void:
 		else:
 			center = b["c"]
 			half = b["r"]
-			draw_circle(center, half, fill)
-			draw_arc(center, half, 0, TAU, 48, border, 2.0)
+			var own := _btn_tex(BTN_IMG.get(id, ""))
+			var ring := _btn_tex("ring")
+			if own or (ring and _img(b.get("img", ""))):
+				# Фиолетовое свечение вокруг рамки, при нажатии ярче
+				for k in 3:
+					draw_circle(center, half * (1.12 - k * 0.04), Color(0.62, 0.3, 1.0, (0.10 if not on else 0.22)))
+			else:
+				draw_circle(center, half, fill)
+				draw_arc(center, half, 0, TAU, 48, border, 2.0)
 		var tc := text_c
 		if b.get("dim", false):
 			tc.a = 0.45
 		var tex := _img(b.get("img", ""))
-		if tex:
-			# Картинка навыка — та же, что в окне навыков; вписана в круг кнопки
-			var side := half * 2.0 - 3.0   # круглая картинка во весь круг, кольцо кнопки остаётся видно
-			draw_texture_rect(tex, Rect2(center - Vector2(side, side) / 2.0, Vector2(side, side)), false, Color(1, 1, 1, 1.0 if not on else 0.8))
-			draw_arc(center, half, 0, TAU, 48, b.get("border", Color(1, 0.86, 0.63, 0.45)), 2.0)   # кольцо кнопки поверх края картинки
+		var own_tex := _btn_tex(BTN_IMG.get(id, "")) if not b.has("rect") else null
+		var mod := Color(1, 1, 1, 1) if not on else Color(1.25, 1.15, 1.35, 1)
+		if b.get("dim", false):
+			mod.a = 0.45
+		if own_tex:
+			draw_texture_rect(own_tex, Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), false, mod)
+		elif tex:
+			# Картинка навыка — внутри серебряной рамки, как у остальных кнопок
+			var ring_tex := _btn_tex("ring")
+			var side := half * 2.0 * (RING_INNER + 0.02) if ring_tex else half * 2.0 - 3.0
+			draw_texture_rect(tex, Rect2(center - Vector2(side, side) / 2.0, Vector2(side, side)), false, mod)
+			if ring_tex:
+				draw_texture_rect(ring_tex, Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), false, mod)
+			else:
+				draw_arc(center, half, 0, TAU, 48, b.get("border", Color(1, 0.86, 0.63, 0.45)), 2.0)
 		else:
 			draw_string(font, center + Vector2(-half, fs * 0.36), b["label"], HORIZONTAL_ALIGNMENT_CENTER, half * 2, fs, tc)
 		var badge: String = b.get("badge", "")
