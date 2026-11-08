@@ -476,7 +476,7 @@ func _audit_skills(ap: AnimationPlayer, sk: Skeleton3D, x: Transform3D) -> void:
 			add("WARNING", "SKILL_SYNC", clip, "удар «Горизонтали» не в такт: клип %.2f с, игра %.2f с" % [best_t, hz[2][1]])
 	# Вихрь: оборот корпуса на 360° внутри отрезка
 	var wk: Array = cm.get("WHIRL_KEYS", [])
-	clip = "Sword_Spin_360"
+	clip = cm["WHIRL_CLIP"][0] if cm.has("WHIRL_CLIP") else "Sword_Spin_360"
 	if ap.has_animation(clip) and wk.size() >= 2:
 		var acc := 0.0
 		var t: float = wk[0][1]

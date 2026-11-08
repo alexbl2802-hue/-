@@ -172,10 +172,10 @@ const A_STANCE := "Combat_Stance"   # стойка на месте — из пр
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
-const A_WHIRL := "Sword_Spin_360"   # круговой удар мечом на 360° (присланный клип Meshy)
+const A_WHIRL := "MC_Whirl"   # круговой удар: снят с присланного видео (Open MoCap, tools/mocap)
 const A_DASH := "DashJump"      # прыжок через препятствие (Jump_Over_Obstacle)
 # Вихрь: длительность и момент удара — середина оборота в анимации
-const WHIRL_TIME := 0.75
+const WHIRL_TIME := 1.1
 const WHIRL_HIT := 0.5
 const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
@@ -964,7 +964,7 @@ func _stride_at(v: float) -> float:
 const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
 const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
-const WHIRL_CLIP := ["Sword_Spin_360", 0.0, 0.92 / WHIRL_TIME]   # [клип, с какой секунды, темп] — весь оборот за время вихря
+const WHIRL_CLIP := ["MC_Whirl", 0.2, 2.7 / WHIRL_TIME]   # [клип, с какой секунды, темп] — весь оборот за время вихря
 const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
 # Ключевые позы прыжка в Basic_Jump (секунды клипа, замер по стопам и тазу — tools/gait):
 # присед 1,38–1,60 · отрыв 1,72 · верхняя точка 2,02 · касание 2,38 · амортизация до 3,40
@@ -1135,8 +1135,10 @@ func _whirl_one(e: Node3D, v: Vector3, d: float) -> void:
 # 360° 0,75. Block10: подъём меча 0 → стойка 0,35.
 const HZ_KEYS := [[0.0, 2.80], [HZ_CHARGE, 3.05], [HZ_HIT, 3.28], [HZ_LEN, 3.70]]
 const HZ_SWEEP := [0.27, 0.50]           # время приёма, когда клинок режет
-const WHIRL_KEYS := [[0.0, 0.10], [0.6, 0.75], [WHIRL_TIME, 0.88]]
-const WHIRL_SWEEP := [0.03, 0.62]
+# MC_Whirl (снят с видео): начало разворота 0,2 · спиной 0,95 · полный оборот 1,35 · низкий выпад 1,8 ·
+# горизонтальный удар 2,1 → 2,5 · стойка 2,9. В игре всё за 1,1 с, порядок поз как на видео.
+const WHIRL_KEYS := [[0.0, 0.2], [0.45, 1.35], [0.6, 1.8], [0.72, 2.1], [0.85, 2.5], [WHIRL_TIME, 2.9]]
+const WHIRL_SWEEP := [0.05, 0.85]
 const BLOCK_FROM := 0.0
 const BLOCK_RAISE := 0.15                # меч в защиту — за столько секунд
 const BLOCK_LOWER := 0.12

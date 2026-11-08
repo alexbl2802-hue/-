@@ -98,6 +98,24 @@ def aim(bone, d):
     set_world(bone, N)
 
 
+def roll(bone, cur, want):
+    """Повернуть кость вокруг её оси так, чтобы вектор cur (по миру) смотрел как want."""
+    M = world(bone)
+    y = (M.to_3x3() @ Vector((0, 1, 0))).normalized()
+    a = cur - y * cur.dot(y)
+    b = want - y * want.dot(y)
+    if a.length < 1e-4 or b.length < 1e-4:
+        return
+    ang = a.normalized().angle(b.normalized())
+    if a.cross(b).dot(y) < 0:
+        ang = -ang
+    from mathutils import Quaternion
+    R = Quaternion(y, ang).to_matrix() @ M.to_3x3()
+    N = R.to_4x4()
+    N.translation = M.translation
+    set_world(bone, N)
+
+
 def orient(bone, F_now, F_rest):
     """Повернуть кость вместе с базисом корпуса (из покоя в текущий)."""
     R = F_now @ F_rest.inverted() @ rest_rot[bone.name]
@@ -129,6 +147,11 @@ for t, p in enumerate(L):
     orient(pb["Head"], frame_of(hx, hx.cross(back)), Matrix.Identity(3))
     for k, a, b in DIRS:
         aim(pb[k], P_(p, b) - P_(p, a))
+    # Поворот кисти вокруг своей оси: линия мизинец → указательный (как держит меч)
+    for side, pk, ix in (("Left", 17, 19), ("Right", 18, 20)):
+        h, pi, ii = pb.get(side + "Hand"), pb.get(side + "HandPinky1"), pb.get(side + "HandIndex1")
+        if h and pi and ii:
+            roll(h, (W @ ii.matrix).translation - (W @ pi.matrix).translation, p[ix] - p[pk])
     # Ноги на земле: самая низкая точка стопы — на высоте покоя
     low = min((W @ pb[k].matrix).translation.z for k in feet if k in pb)
     low0 = min(rest[k].translation.z for k in feet if k in rest)
