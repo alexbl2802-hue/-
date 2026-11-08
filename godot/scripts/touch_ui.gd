@@ -35,7 +35,9 @@ var _imgs := {}         # картинки навыков (assets/icons/skills) 
 
 func _img(id: String) -> Texture2D:
 	if not _imgs.has(id):
-		var p := SkillDefs.icon_path(id)
+		var p := "res://assets/icons/skills_round/%s.png" % id   # круглая версия — ровно под кнопку
+		if not ResourceLoader.exists(p):
+			p = SkillDefs.icon_path(id)
 		_imgs[id] = load(p) if id != "" and ResourceLoader.exists(p) else null
 	return _imgs[id]
 
@@ -245,8 +247,9 @@ func _draw() -> void:
 		var tex := _img(b.get("img", ""))
 		if tex:
 			# Картинка навыка — та же, что в окне навыков; вписана в круг кнопки
-			var side := half * 1.5
+			var side := half * 2.0 - 3.0   # круглая картинка во весь круг, кольцо кнопки остаётся видно
 			draw_texture_rect(tex, Rect2(center - Vector2(side, side) / 2.0, Vector2(side, side)), false, Color(1, 1, 1, 1.0 if not on else 0.8))
+			draw_arc(center, half, 0, TAU, 48, b.get("border", Color(1, 0.86, 0.63, 0.45)), 2.0)   # кольцо кнопки поверх края картинки
 		else:
 			draw_string(font, center + Vector2(-half, fs * 0.36), b["label"], HORIZONTAL_ALIGNMENT_CENTER, half * 2, fs, tc)
 		var badge: String = b.get("badge", "")
