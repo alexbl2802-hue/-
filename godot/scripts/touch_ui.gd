@@ -201,10 +201,11 @@ func _input(e: InputEvent) -> void:
 		if e.pressed:
 			var b := _hit(e.position)
 			if b in skill_list or (b == "" and _on_skill_arc(e.position)):
-				# Навык срабатывает при отпускании; если палец повёл по дуге — листаем страницу
+				# Навык срабатывает сразу при нажатии; если палец повёл по дуге — ещё и листаем страницу
 				_swipe[e.index] = {"id": b, "a": (e.position - _ring_center()).angle(), "p": e.position, "done": false}
 				if b != "":
 					_down[b] = true
+					skill_pressed.emit(b)
 			elif b != "":
 				_btn_touch[e.index] = b
 				_press(b, true)
@@ -225,8 +226,6 @@ func _input(e: InputEvent) -> void:
 				_swipe.erase(e.index)
 				if sw["id"] != "":
 					_down[sw["id"]] = false
-					if not sw["done"]:
-						skill_pressed.emit(sw["id"])
 			if _btn_touch.has(e.index):
 				_press(_btn_touch[e.index], false)
 				_btn_touch.erase(e.index)
