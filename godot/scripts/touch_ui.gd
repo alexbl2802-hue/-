@@ -51,6 +51,13 @@ func _btn_tex(n: String) -> Texture2D:
 		_btn[n] = load(p) if ResourceLoader.exists(p) else null
 	return _btn[n]
 
+var _top := {}
+func _top_tex(id: String) -> Texture2D:
+	if not _top.has(id):
+		var p := "res://assets/icons/topbar/%s.png" % id
+		_top[id] = load(p) if ResourceLoader.exists(p) else null
+	return _top[id]
+
 func _img(id: String) -> Texture2D:
 	if not _imgs.has(id):
 		var p := "res://assets/icons/skills_round/%s.png" % id   # круглая версия — ровно под кнопку
@@ -102,11 +109,11 @@ func _buttons() -> Array:
 	var at := func(r: float, deg: float) -> Vector2: return ac + Vector2(cos(deg_to_rad(deg)), sin(deg_to_rad(deg))) * r
 	var list := [
 		{"id": "attack", "c": ac, "r": 38.0, "label": "⚔", "fs": 32, "border": Color(1, 0.55, 0.43, 0.75)},
-		{"id": "inventory", "rect": Rect2(10, 10, 32, 32), "label": "🎒", "fs": 16},
-		{"id": "potion", "rect": Rect2(48, 10, 32, 32), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
-		{"id": "skills", "rect": Rect2(86, 10, 32, 32), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
-		{"id": "menu", "rect": Rect2(124, 10, 32, 32), "label": "☰", "fs": 16},
-		{"id": "cardinal", "rect": Rect2(162, 10, 32, 32), "label": "◈", "fs": 16},
+		{"id": "inventory", "rect": Rect2(10, 12, 32, 32), "label": "🎒", "fs": 16},
+		{"id": "potion", "rect": Rect2(54, 12, 32, 32), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
+		{"id": "skills", "rect": Rect2(98, 12, 32, 32), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
+		{"id": "menu", "rect": Rect2(142, 12, 32, 32), "label": "☰", "fs": 16},
+		{"id": "cardinal", "rect": Rect2(186, 12, 32, 32), "label": "◈", "fs": 16},
 	]
 	# Ближний круг — навыки текущей страницы (при листании въезжают по дуге)
 	for k in PAGE:
@@ -292,7 +299,22 @@ func _draw() -> void:
 		var fs: int = b["fs"]
 		var center: Vector2
 		var half: float
-		if b.has("rect"):
+		var top_tex := _top_tex(id) if b.has("rect") else null
+		if top_tex:
+			# Верхние кнопки — картинки в рамке (assets/icons/topbar); у «Навыков» при свободных очках — золотое мерцание
+			var r: Rect2 = b["rect"]
+			center = r.get_center()
+			half = r.size.x / 2.0
+			var tw := r.size.x * 1.25
+			var th := tw * top_tex.get_height() / float(top_tex.get_width())
+			if b.get("glow", false):
+				for k in 3:
+					draw_circle(center, half * (1.3 - k * 0.1), Color(1, 0.8, 0.3, (0.08 + 0.06 * sin(_time * 4.5))))
+			var tm := Color(1, 1, 1, 0.45 if b.get("dim", false) else 1.0)
+			if on:
+				tm = Color(1.25, 1.2, 1.3, 1)
+			draw_texture_rect(top_tex, Rect2(center - Vector2(tw, th) / 2.0, Vector2(tw, th)), false, tm)
+		elif b.has("rect"):
 			var r: Rect2 = b["rect"]
 			center = r.get_center()
 			half = r.size.x / 2.0
@@ -338,7 +360,7 @@ func _draw() -> void:
 				draw_texture_rect(ring_tex, Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), false, mod)
 			else:
 				draw_arc(center, half, 0, TAU, 48, b.get("border", Color(1, 0.86, 0.63, 0.45)), 2.0)
-		else:
+		elif not top_tex:
 			draw_string(font, center + Vector2(-half, fs * 0.36), b["label"], HORIZONTAL_ALIGNMENT_CENTER, half * 2, fs, tc)
 		var badge: String = b.get("badge", "")
 		if badge != "":
