@@ -122,7 +122,7 @@ func _labels() -> void:
 
 func open() -> void:
 	_refresh_list()
-	_status.text = "Понимает: бег, шаг, удар/меч, рывок, присед, прыжок, взмах, стойка; «быстро», «плавно»."
+	_status.text = "ANIMATE 4.0 (всё тело, с проверкой): выпад, горизонтальный удар, вихрь, блок мечом, блок щитом, рывок (вперёд/назад/влево/вправо, с бега); «молниеносно», «плавно». Прочее (бег, шаг, прыжок) — простой генератор."
 	visible = true
 
 func close() -> void:
@@ -185,11 +185,31 @@ func _generate() -> void:
 		return
 	var sk: Skeleton3D = r[0]
 	var ap: AnimationPlayer = r[1]
+	var prefix := String(ap.get_node(ap.root_node).get_path_to(sk))
+	# ANIMATE 4.0: шаблонный конвейер всего тела (выпад, горизонтальный удар, вихрь, блоки, рывки)
+	var spec4 := AnimateSpec.parse(_prompt.text)
+	if spec4["ok"]:
+		var sw = hero.get("_sword")
+		var blade: Vector3 = (sw as Node3D).transform.basis.y.normalized() if sw is Node3D else Vector3.ZERO
+		var ref: Animation = ap.get_animation("Combat_Stance") if ap.has_animation("Combat_Stance") else null
+		var r4 := AnimatePipeline.generate(_prompt.text, sk, prefix, {"blade": blade, "ref": ref, "ref_t": 0.0})
+		if r4.has("animation"):
+			_anim = r4["animation"]
+			_motion = r4["template"]["name"]
+			var lines: Array = ["ANIMATE 4.0 (шаблон, не ИИ): %s, %.2f с; слова: %s%s" % [_motion, _anim.length, ", ".join(r4["spec"]["matched"]),
+				("; не понял: " + ", ".join(r4["spec"]["unknown"])) if not r4["spec"]["unknown"].is_empty() else ""]]
+			for c in r4["report"]["checks"]:
+				lines.append("%s %s — %s" % ["✔" if c["ok"] else "✖", c["name"], c["detail"]])
+			_status.text = "\n".join(lines)
+			_show(_anim, _motion)
+			return
+		_status.text = "ANIMATE 4.0: " + str(r4["error"])
+		return
+	# Прочие движения (бег, шаг, прыжок, присед) — прежний генератор ANIMATE 3
 	var spec: Dictionary = AnimateGenerator.parse_prompt(_prompt.text)
 	_motion = spec["motion"]
-	var prefix := String(ap.get_node(ap.root_node).get_path_to(sk))
 	_anim = AnimateGenerator.generate(sk, _motion, _dur.value, _amp.value * float(spec["intensity"]), 30, prefix)
-	_status.text = "Создано: %s, дорожек %d" % [_motion, _anim.get_track_count()]
+	_status.text = "Создано генератором ANIMATE 3 (простые движения): %s, дорожек %d" % [_motion, _anim.get_track_count()]
 	_show(_anim, _motion)
 
 func _save() -> void:

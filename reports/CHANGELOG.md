@@ -23,3 +23,9 @@
 - `godot/scripts/house_model.gd`: жители в группе `npc`.
 - `godot/scripts/settings.gd`, `touch_ui.gd`, `ui/main_menu.gd`: скрытый режим администратора (7 нажатий на номер версии); кнопка CARDINAL только в нём.
 - Тесты: `godot/tests/cardinal_timeout.*`, `godot/tests/cardinal_limits.*`.
+
+## Этап 3 — ANIMATE 4.0
+- Новое: `godot/animate_4/animate_spec.gd` (разбор описания, словарь), `animate_templates.gd` (позы всего тела, фазы, контакты; стойка с одним мечом), `animate_ik.gd` (прямая кинематика по трекам, двухзвенный IK ног, удержание стоп), `animate_validator4.gd` (скелет и анимация, безопасный сокет), `animate_pipeline.gd` (конвейер, тайминг, опора на землю, пределы суставов, экспорт/сохранение), `README_4_0.md`.
+- `godot/scripts/ui/animate_panel.gd`: генерация через ANIMATE 4.0 с выводом проверок; прочие движения — прежний генератор.
+- Тесты и предпросмотр: `godot/tests/animate4_demo.*`, `godot/tests/animate4_window.*`; `tests/load_all.gd` проверяет и `animate_4`, `addons/animate`.
+- Кадры предпросмотра: `reports/previews/animate4/`.

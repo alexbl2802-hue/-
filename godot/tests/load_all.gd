@@ -5,7 +5,7 @@ extends Node
 func _ready() -> void:
 	var bad := 0
 	var n := 0
-	for dir in ["res://scripts", "res://tests", "res://addons/cardinal", "res://addons/combat_pack", "res://animate_3_1", "res://hybrid_movement"]:
+	for dir in ["res://scripts", "res://tests", "res://addons/cardinal", "res://addons/combat_pack", "res://animate_3_1", "res://animate_4", "res://addons/animate", "res://hybrid_movement"]:
 		for p in _walk(dir):
 			n += 1
 			var s: Script = load(p)
