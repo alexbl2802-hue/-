@@ -109,14 +109,14 @@ func _buttons() -> Array:
 	var at := func(r: float, deg: float) -> Vector2: return ac + Vector2(cos(deg_to_rad(deg)), sin(deg_to_rad(deg))) * r
 	var list := [
 		{"id": "attack", "c": ac, "r": 38.0, "label": "⚔", "fs": 32, "border": Color(1, 0.55, 0.43, 0.75)},
-		{"id": "inventory", "rect": Rect2(10, 12, 32, 32), "label": "🎒", "fs": 16},
-		{"id": "potion", "rect": Rect2(54, 12, 32, 32), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
-		{"id": "skills", "rect": Rect2(98, 12, 32, 32), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
-		{"id": "menu", "rect": Rect2(142, 12, 32, 32), "label": "☰", "fs": 16},
+		{"id": "inventory", "rect": _top_rect(0), "label": "🎒", "fs": 16},
+		{"id": "potion", "rect": _top_rect(1), "label": "🧪", "fs": 16, "badge": str(potions), "dim": potions == 0},
+		{"id": "skills", "rect": _top_rect(2), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
+		{"id": "menu", "rect": _top_rect(3), "label": "☰", "fs": 16},
 	]
 	# CARDINAL (и через него ANIMATE) — скрытый интерфейс администратора
 	if Settings.admin:
-		list.append({"id": "cardinal", "rect": Rect2(186, 12, 32, 32), "label": "◈", "fs": 16})
+		list.append({"id": "cardinal", "rect": _top_rect(4), "label": "◈", "fs": 16})
 	# Ближний круг — навыки текущей страницы (при листании въезжают по дуге)
 	for k in PAGE:
 		var i := _page * PAGE + k
@@ -138,6 +138,12 @@ func _buttons() -> Array:
 
 const RING_IN := 96.0     # радиус дуги навыков вокруг удара
 const RING_OUT := 146.0     # дальний круг (до миникарты не достаёт)
+
+## Верхние кнопки: на телефоне 32 ед.; на экранах выше (планшет) — крупнее, до +25 %, чтобы касание
+## оставалось не меньше ~40 пикселей
+func _top_rect(i: int) -> Rect2:
+	var k := clampf(size.y / 390.0, 1.0, 1.25)
+	return Rect2(10 + i * 44 * k, 12, 32 * k, 32 * k)
 
 func _act_rect() -> Rect2:
 	if act_text == "":

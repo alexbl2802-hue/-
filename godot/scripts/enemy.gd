@@ -1183,6 +1183,9 @@ func _physics_process(dt: float) -> void:
 				hp = minf(T["hp"], hp + 10.0 * dt)
 				if can_see and dist < T["aggro"] * 0.9:
 					st = "chase"
+	# Обход препятствий (стены, дома, деревья, скалы) в погоне и по дороге домой
+	if sp > 0.0 and st in ["chase", "return"]:
+		mv = _steer(mv, dt)
 	if sp > 0.0:
 		facing += angle_difference(facing, atan2(mv.x, mv.z)) * minf(1.0, dt * 8.0)
 	_moving = sp > 0.1
@@ -1195,6 +1198,13 @@ func _physics_process(dt: float) -> void:
 	var ahead := global_position + hv.normalized() * 1.0 if sp > 0.0 else global_position
 	if sp > 0.0 and not in_dungeon and not world2 and WorldGen.ground_at(ahead.x, ahead.z) < 0.4:
 		hv = Vector3.ZERO
+		# Долго упирается в воду в погоне — бросает погоню (иначе стоит у берега бесконечно)
+		_water_t += dt
+		if st == "chase" and _water_t > 3.0:
+			st = "return"
+			_water_t = 0.0
+	else:
+		_water_t = 0.0
 	# Отскок назад после удара
 	if _hop_t >= 0.0:
 		_hop_t += dt
@@ -1220,6 +1230,42 @@ func _physics_process(dt: float) -> void:
 	# Вспышка при попадании
 	if _flash > 0.0:
 		_set_flash(maxf(0.0, _flash - dt * 5.0))
+
+# ---------- Обход препятствий: луч вперёд на высоте груди; если путь закрыт — ближайшее свободное
+# направление под углом (сторона запоминается, чтобы не метаться). Другие монстры и герой не мешают.
+const STEER_ANGLES := [35.0, 70.0, 105.0, 140.0]
+var _steer_t := 0.0
+var _steer_dir := Vector3.ZERO
+var _steer_side := 1.0
+var _water_t := 0.0
+
+func _steer(dir: Vector3, dt: float) -> Vector3:
+	_steer_t -= dt
+	if _steer_t > 0.0:
+		return _steer_dir if _steer_dir != Vector3.ZERO else dir
+	_steer_t = 0.12
+	var reach := float(T["r"]) + 1.2
+	# в обходе: к прямому курсу — только когда он свободен надолго вперёд
+	if _path_free(dir, reach if _steer_dir == Vector3.ZERO else reach + 1.5):
+		_steer_dir = Vector3.ZERO
+		return dir
+	for a in STEER_ANGLES:
+		for sgn in [_steer_side, -_steer_side]:
+			var d := dir.rotated(Vector3.UP, deg_to_rad(a) * sgn)
+			if _path_free(d, reach + 1.0):
+				_steer_dir = d
+				_steer_side = sgn
+				_steer_t = 0.5      # держать выбранный обход полсекунды — без метаний
+				return d
+	return dir
+
+func _path_free(d: Vector3, length: float) -> bool:
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3(0, 0.6, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from + d * length)
+	q.exclude = [get_rid()]
+	var r := space.intersect_ray(q)
+	return r.is_empty() or r["collider"] is CharacterBody3D
 
 func _set_flash(f: float) -> void:
 	_flash = f
