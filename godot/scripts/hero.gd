@@ -19,7 +19,8 @@ var attack_t := -1.0
 var dead := false
 var busy := false
 var underground := false   # в подземелье: никакой воды и плавания
-var cd := {"whirl": 0.0, "dash": 0.0, "art": 0.0, "dodge": 0.0, "horizontal": 0.0}
+var cd := {"whirl": 0.0, "dash": 0.0, "art": 0.0, "dodge": 0.0, "horizontal": 0.0,
+	"art_sword": 0.0, "art_great": 0.0, "art_rapier": 0.0, "art_dagger": 0.0}   # у каждого приёма своя перезарядка
 
 var _model: Node3D
 var _legs: Array[Node3D] = []
@@ -1244,17 +1245,19 @@ var _art_dir := Vector3.FORWARD
 func art_id() -> String:
 	return "art_" + Items.ALL[Game.equip["weapon"]["id"]].get("wt", "sword") if Game.equip["weapon"] != null else ""
 
-func use_art() -> void:
+## Приём меча: id — какой (art_sword …; у каждого своя кнопка), пусто — приём надетого оружия
+func use_art(id := "") -> void:
 	_cancel_soft_move()
-	var id := art_id()
-	if id == "" or Game.rank(id) == 0 or cd.get("art", 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0 or _spin_t >= 0.0:
+	if id == "":
+		id = art_id()
+	if id == "" or Game.rank(id) == 0 or cd.get(id, 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0 or _spin_t >= 0.0:
 		return
 	attack_t = -1.0
 	_art = id.substr(4)
 	_art_t = 0.0
 	_art_hits = 0
 	_art_hit = []
-	cd["art"] = SkillDefs.art_cd(Game.rank(id))
+	cd[id] = SkillDefs.art_cd(Game.rank(id))
 	var best := _nearest_enemy(6.0)
 	if best:
 		var v := _flat(best.global_position - global_position)
@@ -1475,6 +1478,9 @@ func use_skill(id: String) -> void:
 	if id == "art":
 		use_art()
 		return
+	if id.begins_with("art_"):
+		use_art(id)
+		return
 	if id == "dodge":
 		dodge()
 		return
@@ -1628,6 +1634,8 @@ func use_horizontal() -> void:
 func cooldown_total(id: String) -> float:
 	if id == "art":
 		return SkillDefs.art_cd(Game.rank(art_id()))
+	if id.begins_with("art_"):
+		return SkillDefs.art_cd(maxi(1, Game.rank(id)))
 	if id == "dodge":
 		return DODGE_CD
 	if id == "horizontal":

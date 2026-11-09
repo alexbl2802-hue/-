@@ -24,13 +24,20 @@ var rig: Node3D
 # Состояние для отрисовки (обновляет main.gd)
 var potions := 0
 var free_points := 0
-var skill_ranks := {"whirl": 0, "dash": 0, "horizontal": 0}
-var cd_left := {"whirl": 0.0, "dash": 0.0, "art": 0.0, "dodge": 0.0, "horizontal": 0.0}
-var cd_total := {"whirl": 1.0, "dash": 1.0, "art": 1.0, "dodge": 1.0, "horizontal": 1.0}
-var art_icon := ""      # приём меча надетого оружия ("" — не изучен)
+var cd_left := {"dodge": 0.0}
+var cd_total := {"dodge": 1.0}
 var dash_icon := "💨"   # меняется с эволюцией: 🌬️ Скользящий шаг, ✨ Мерцание
-var art_skill := ""     # id приёма надетого оружия (art_sword …) — для картинки на кнопке
 var dash_form := "dash" # форма рывка: dash / slide / blink — для картинки на кнопке
+# Кнопки навыков: все изученные активные навыки, по 4 на страницу дуги вокруг удара;
+# страницы листаются пальцем по дуге (как страницы), точки под дугой — какая страница
+var skill_list: Array = []   # id навыков по порядку (dash, horizontal, art_sword …)
+var skill_icons := {}        # id → значок, если нет картинки
+const PAGE := 4
+const PAGE_SLOTS := [180.0, 210.0, 240.0, 270.0]
+const PAGE_TURN := 90.0      # на сколько градусов уезжает страница при листании
+var _page := 0
+var _page_anim := 0.0        # -1/1 → 0: новая страница въезжает по дуге
+var _swipe := {}             # индекс касания → {"id": кнопка или "", "a": угол старта, "p": точка, "done": bool}
 var _imgs := {}         # картинки навыков (assets/icons/skills) для кнопок
 # Круглые кнопки в серебряной рамке (assets/icons/buttons): у удара, прыжка, бега, блока и уклонения —
 # своя картинка целиком; у навыков — их картинка внутри той же рамки (ring.png)
@@ -69,7 +76,23 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	_time += dt
+	_page_anim = move_toward(_page_anim, 0.0, dt * 4.5)
+	_page = clampi(_page, 0, maxi(0, _pages() - 1))
 	queue_redraw()
+
+func _pages() -> int:
+	return ceili(skill_list.size() / float(PAGE))
+
+func _ring_center() -> Vector2:
+	return Vector2(size.x - 16 - 38, size.y - 14 - 38)
+
+## Перелистнуть страницу навыков: dir 1 — следующая, -1 — предыдущая (по кругу)
+func _flip(dir: int) -> void:
+	var n := _pages()
+	if n <= 1:
+		return
+	_page = posmod(_page + dir, n)
+	_page_anim = -float(dir)
 
 func _buttons() -> Array:
 	var s := size
@@ -85,13 +108,17 @@ func _buttons() -> Array:
 		{"id": "menu", "rect": Rect2(124, 10, 32, 32), "label": "☰", "fs": 16},
 		{"id": "cardinal", "rect": Rect2(162, 10, 32, 32), "label": "◈", "fs": 16},
 	]
-	# Ближний круг — навыки
-	if art_icon != "":
-		list.append({"id": "art", "img": art_skill, "c": at.call(RING_IN, 180.0), "r": 24.0, "label": art_icon, "fs": 20, "border": Color(1, 0.85, 0.4, 0.8)})
-	if skill_ranks["horizontal"] > 0:
-		list.append({"id": "horizontal", "img": "horizontal", "c": at.call(RING_IN, 210.0), "r": 24.0, "label": "↔", "fs": 20, "border": Color(0.5, 0.85, 1, 0.8)})
-	if skill_ranks["dash"] > 0:
-		list.append({"id": "dash", "img": dash_form, "c": at.call(RING_IN, 270.0), "r": 24.0, "label": dash_icon, "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
+	# Ближний круг — навыки текущей страницы (при листании въезжают по дуге)
+	for k in PAGE:
+		var i := _page * PAGE + k
+		if i >= skill_list.size():
+			break
+		var id: String = skill_list[i]
+		var img := dash_form if id == "dash" else id
+		var art := id.begins_with("art_")
+		list.append({"id": id, "skill": true, "img": img, "c": at.call(RING_IN, PAGE_SLOTS[k] + _page_anim * PAGE_TURN), "r": 24.0,
+			"label": skill_icons.get(id, "✦"), "fs": 20, "alpha": 1.0 - absf(_page_anim),
+			"border": Color(1, 0.85, 0.4, 0.8) if art else Color(0.5, 0.85, 1, 0.8)})
 	# Дальний круг — уклонение, блок, прыжок, бег
 	# Уклонение: назад, вбок или кувырок — по наклону джойстика
 	list.append({"id": "dodge", "c": at.call(RING_OUT, 180.0), "r": 23.0, "label": "↶", "fs": 21, "border": Color(0.6, 0.95, 0.8, 0.75)})
@@ -117,8 +144,18 @@ func _hit(p: Vector2) -> String:
 			if (b["rect"] as Rect2).grow(4).has_point(p):
 				return b["id"]
 		elif p.distance_to(b["c"]) <= b["r"] + 6.0:
+			if b.get("skill", false) and absf(_page_anim) > 0.3:
+				continue   # страница ещё едет
 			return b["id"]
 	return ""
+
+## Касание на дуге навыков (между кнопками) — только для листания
+func _on_skill_arc(p: Vector2) -> bool:
+	if _pages() <= 1:
+		return false
+	var v := p - _ring_center()
+	var a := fposmod(rad_to_deg(v.angle()), 360.0)
+	return absf(v.length() - RING_IN) < 30.0 and a > 165.0 and a < 285.0
 
 func _press(id: String, down: bool) -> void:
 	_down[id] = down
@@ -136,7 +173,7 @@ func _press(id: String, down: bool) -> void:
 		"act": act_pressed.emit()
 		"potion": potion_pressed.emit()
 		"skills": skills_pressed.emit()
-		"whirl", "dash", "art", "dodge", "horizontal": skill_pressed.emit(id)
+		"dodge": skill_pressed.emit(id)
 		"inventory": inventory_pressed.emit()
 		"menu": menu_pressed.emit()
 		"cardinal": cardinal_pressed.emit()
@@ -146,6 +183,7 @@ func release_all() -> void:
 	_pts.clear()
 	_btn_touch.clear()
 	_down.clear()
+	_swipe.clear()
 	_joy_id = -1
 	_cam_id = -1
 	_pinch_id = -1
@@ -162,7 +200,12 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventScreenTouch:
 		if e.pressed:
 			var b := _hit(e.position)
-			if b != "":
+			if b in skill_list or (b == "" and _on_skill_arc(e.position)):
+				# Навык срабатывает при отпускании; если палец повёл по дуге — листаем страницу
+				_swipe[e.index] = {"id": b, "a": (e.position - _ring_center()).angle(), "p": e.position, "done": false}
+				if b != "":
+					_down[b] = true
+			elif b != "":
 				_btn_touch[e.index] = b
 				_press(b, true)
 			else:
@@ -177,6 +220,13 @@ func _input(e: InputEvent) -> void:
 					_pinch_id = e.index
 					_pinch_d = _pinch_dist()
 		else:
+			if _swipe.has(e.index):
+				var sw: Dictionary = _swipe[e.index]
+				_swipe.erase(e.index)
+				if sw["id"] != "":
+					_down[sw["id"]] = false
+					if not sw["done"]:
+						skill_pressed.emit(sw["id"])
 			if _btn_touch.has(e.index):
 				_press(_btn_touch[e.index], false)
 				_btn_touch.erase(e.index)
@@ -192,6 +242,17 @@ func _input(e: InputEvent) -> void:
 				_pinch_id = -1
 		get_viewport().set_input_as_handled()
 	elif e is InputEventScreenDrag:
+		if _swipe.has(e.index):
+			var sw: Dictionary = _swipe[e.index]
+			if not sw["done"] and (e.position - (sw["p"] as Vector2)).length() > 20.0:
+				var da := rad_to_deg(angle_difference(sw["a"], (e.position - _ring_center()).angle()))
+				if absf(da) > 10.0 and _pages() > 1:
+					sw["done"] = true
+					if sw["id"] != "":
+						_down[sw["id"]] = false
+					_flip(1 if da > 0.0 else -1)
+			get_viewport().set_input_as_handled()
+			return
 		if not _pts.has(e.index):
 			return
 		var prev: Vector2 = _pts[e.index]
@@ -253,7 +314,7 @@ func _draw() -> void:
 			if own or (ring and _img(b.get("img", ""))):
 				# Фиолетовое свечение вокруг рамки, при нажатии ярче
 				for k in 3:
-					draw_circle(center, half * (1.12 - k * 0.04), Color(0.62, 0.3, 1.0, (0.10 if not on else 0.22)))
+					draw_circle(center, half * (1.12 - k * 0.04), Color(0.62, 0.3, 1.0, (0.10 if not on else 0.22) * b.get("alpha", 1.0)))
 			else:
 				draw_circle(center, half, fill)
 				draw_arc(center, half, 0, TAU, 48, border, 2.0)
@@ -265,6 +326,8 @@ func _draw() -> void:
 		var mod := Color(1, 1, 1, 1) if not on else Color(1.25, 1.15, 1.35, 1)
 		if b.get("dim", false):
 			mod.a = 0.45
+		mod.a *= b.get("alpha", 1.0)
+		tc.a *= b.get("alpha", 1.0)
 		if own_tex:
 			draw_texture_rect(own_tex, Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), false, mod)
 		elif tex:
@@ -295,6 +358,13 @@ func _draw() -> void:
 			var secs := str(ceili(cd_left[id]))
 			draw_string_outline(font, center + Vector2(-half, 6), secs, HORIZONTAL_ALIGNMENT_CENTER, half * 2, 17, 4, Color.BLACK)
 			draw_string(font, center + Vector2(-half, 6), secs, HORIZONTAL_ALIGNMENT_CENTER, half * 2, 17, Color.WHITE)
+	# Точки страниц навыков — между ударом и дугой навыков
+	var np := _pages()
+	if np > 1:
+		for k in np:
+			var a := deg_to_rad(225.0 + (k - (np - 1) / 2.0) * 9.0)
+			var c := _ring_center() + Vector2(cos(a), sin(a)) * 57.0
+			draw_circle(c, 3.2 if k == _page else 2.4, Color(1, 0.92, 0.7, 0.95 if k == _page else 0.4))
 	if act_text != "":
 		var r := _act_rect()
 		var sb := StyleBoxFlat.new()

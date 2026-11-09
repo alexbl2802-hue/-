@@ -416,16 +416,16 @@ func _process(_dt: float) -> void:
 	t.potions = Game.potions()
 	t.free_points = Game.points_free() + Game.stat_points_free()
 	t.dash_icon = SkillDefs.DASH_FORMS[SkillDefs.dash_form(Game.skills)]["icon"]
-	var art: String = hero.art_id()
-	t.art_icon = SkillDefs.find(art)["icon"] if art != "" and Game.rank(art) > 0 else ""
-	t.art_skill = art
 	t.dash_form = SkillDefs.dash_form(Game.skills)
-	t.cd_left["art"] = hero.cd["art"]
-	t.cd_total["art"] = hero.cooldown_total("art")
-	for id in ["dash", "horizontal"]:
-		t.skill_ranks[id] = Game.rank(id)
-		t.cd_left[id] = hero.cd[id]
-		t.cd_total[id] = hero.cooldown_total(id)
+	# Все изученные активные навыки — каждый своей кнопкой (страницы листаются пальцем)
+	var ids: Array = []
+	for s in SkillDefs.LIST:
+		if s.get("active", false) and Game.rank(s["id"]) > 0:
+			ids.append(s["id"])
+			t.skill_icons[s["id"]] = t.dash_icon if s["id"] == "dash" else s["icon"]
+			t.cd_left[s["id"]] = hero.cd.get(s["id"], 0.0)
+			t.cd_total[s["id"]] = hero.cooldown_total(s["id"])
+	t.skill_list = ids
 	t.cd_left["dodge"] = hero.cd["dodge"]
 	t.cd_total["dodge"] = hero.cooldown_total("dodge")
 	# Что можно сделать рядом

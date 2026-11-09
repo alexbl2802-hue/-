@@ -906,11 +906,9 @@ func _physics_process(dt: float) -> void:
 		elif _skill_t <= 0.0:
 			_skill_t = _rng.randf_range(3.0, 6.0)
 			var ids: Array = []
-			for k in ["dash", "horizontal"]:
-				if int(touch.skill_ranks.get(k, 0)) > 0 and hero.cd.get(k, 1.0) <= 0.0:
+			for k in touch.skill_list:
+				if hero.cd.get(k, 1.0) <= 0.0:
 					ids.append(k)
-			if touch.art_icon != "" and hero.cd.get("art", 1.0) <= 0.0:
-				ids.append("art")
 			if not ids.is_empty():
 				hero.use_skill(ids[_rng.randi() % ids.size()])
 		elif _atk_t <= 0.0:
