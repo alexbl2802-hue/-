@@ -48,3 +48,8 @@
 - `godot/scripts/world.gd`: `set_tree_full(d)`; списки ступеней деревьев.
 - `godot/scripts/ui/settings_panel.gd`: выбор «Качество графики».
 - Тест-замер: `godot/tests/perf_probe.*`.
+
+## Этап 7
+- `godot/scripts/cardinal_autotest.gd` `_restore`: обнуляются остатки толчков и разгона героя.
+- `godot/tests/monsters_ai.gd`: монстр после проверки возвращается на своё место (не мешает следующему).
+- `reports/FINAL_REPORT.md` — итог.

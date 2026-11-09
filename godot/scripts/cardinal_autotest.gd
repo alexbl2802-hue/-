@@ -284,6 +284,10 @@ func _restore() -> void:
 		Game.refresh()
 	hero.global_position = _start_pos
 	hero.velocity = Vector3.ZERO
+	# остатки толчков и разгона, иначе герой после возврата ещё немного едет
+	for f in ["_push", "_hm_vel", "_kb"]:
+		if f in hero:
+			hero.set(f, Vector3.ZERO)
 	if hero.has_method("update_look"):
 		hero.update_look()
 	for pn in ["inventory", "forge", "alchemist"]:

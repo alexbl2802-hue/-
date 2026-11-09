@@ -62,6 +62,8 @@ func _ready() -> void:
 		var dmg0: int = e.T["dmg"]
 		e.T["dmg"] = 1
 		var was_dungeon: bool = e.in_dungeon
+		var home0: Vector3 = e.home
+		var pos0: Vector3 = e.global_position
 		e.in_dungeon = false   # паук и скелет живут в подземельях — проверяем на той же площадке
 		# все остальные монстры спят, чтобы не мешали
 		for x in main.enemies.list:
@@ -123,7 +125,9 @@ func _ready() -> void:
 		wall.queue_free()
 		e.T["dmg"] = dmg0
 		e.in_dungeon = was_dungeon
-		e.global_position = e.home
+		# вернуть монстра на его место, чтобы он не мешал следующей проверке на той же площадке
+		e.home = home0
+		e.global_position = pos0
 		e.st = "idle"
 		main.enemies.set_process(true)
 		h.global_position = _ground(spot.x + 150.0, spot.y, 1.0)

@@ -47,5 +47,15 @@ godot --headless --path godot --export-debug "Android" ../dist/ZemliPriklyucheni
 ```
 Либо GitHub Actions `godot-android.yml` (workflow_dispatch) на ветке `audit-4.0` — после того как владелец разрешит отправить ветку. Release APK с ключами — только с разрешёнными ключами (секреты репозитория), сюда не включались.
 
-## Финальная регрессия
-(заполняется по итогам прогона — `reports/logs/regression_final.log`)
+## Финальная регрессия (`reports/logs/regression_final.log`)
+| Проверка | Итог |
+|---|---|
+| импорт | rc 0 |
+| `load_all` | 150 скриптов, 0 ошибок |
+| `save_safety`, `boot_packs`, `cardinal_limits` | ALL OK |
+| `cardinal_autoplay` (полный автотест) | PASSED 21/0/1, 101 с |
+| `animate4_demo`, `animate4_window`, `hero_states_test`, `items_dungeons` | ALL OK |
+| `arts` (с отрисовкой) | ALL OK |
+| `skill_pages` (с отрисовкой) | 6 навыков, 2 страницы; свайп → стр. 2; нажатие — приём сработал (перезарядка 7,8 с) |
+| `cardinal_timeout` | в прогоне — **FAIL**: герой после возврата сместился на 0,67 м (допуск 0,5). Причина: оставался импульс толчка. Исправлено (`_restore` обнуляет `_push/_hm_vel/_kb`), повтор ×2 — ALL OK (0,35 м и 0,00 м) |
+| `monsters_ai` | в прогоне — **FAIL** гоблина «обход стены»: помеха теста — предыдущий монстр оставался на той же площадке у стены. Тест исправлен (монстр возвращается на своё место), повтор ×2 полного теста — ALL OK; отдельно гоблин 3/3 |
