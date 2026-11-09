@@ -58,11 +58,15 @@ def main():
         dst = outdir / name
         subprocess.run([godot, "--headless", "--path", str(G), "--export-pack", "Data", str(dst)], check=True,
                        stdout=subprocess.DEVNULL)
-        packs.append({"name": name, "size": dst.stat().st_size})
+        packs.append({"name": name, "size": dst.stat().st_size,
+                      "sha256": hashlib.sha256(dst.read_bytes()).hexdigest()})
         print("%-50s %7.1f МБ  (%d файлов)" % (name, dst.stat().st_size / 1e6, len(paths)))
     (G / "export_presets.cfg").write_text(presets)
     (G / "data").mkdir(exist_ok=True)
-    (G / "data" / "packs.json").write_text(json.dumps(packs, indent=1))
+    # Формат данных 1 (scripts/boot.gd DATA_FORMAT): версия приложения и контрольные суммы частей
+    ver = re.search(r'^config/version="([^"]*)"', (G / "project.godot").read_text(), re.M)
+    (G / "data" / "packs.json").write_text(json.dumps({"format": 1, "app": ver.group(1) if ver else "",
+                                                       "packs": packs}, indent=1))
     print("всего %.1f МБ в %d частях" % (sum(p["size"] for p in packs) / 1e6, len(packs)))
 
 

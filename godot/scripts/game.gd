@@ -7,6 +7,9 @@ signal leveled_up(level: int)
 signal message(text: String, color: Color, pos: Vector3)  # всплывающая надпись над точкой
 
 const SAVE_PATH := "user://save.json"
+const SAVE_VERSION := 2         # версия формата сохранения (поле "v")
+var _save_newer := false        # сохранение от более новой версии игры — перед перезаписью копия
+var _save_v := 0               # версия прочитанного сохранения
 ## Опыт за монстра: случайно в пределах [от, до]
 const ENEMY_XP := {"goblin": [27, 30], "rabbit": [37, 40], "skeleton": [30, 30], "spider": [28, 28], "kobold": [48, 52], "wolf": [68, 74], "skeleton_king": [260, 290], "spider_queen": [240, 270],
 	"alpha_wolf": [180, 200], "goblin_chief": [190, 210], "sand_scorpion": [200, 220], "frost_king": [210, 230], "kobold_warlord": [230, 250],
@@ -73,9 +76,13 @@ func new_game() -> void:
 	refresh()
 	hp = max_hp
 
-## «Новая игра» из меню: стереть сохранение
+## «Новая игра» из меню: прежний прогресс больше не загружается, но не теряется —
+## файлы откладываются как save.json.wiped.bak и save.json.wiped.prev.bak (заменяют прошлые отложенные)
 func wipe() -> void:
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	for pair in [[SAVE_PATH, SAVE_PATH + ".wiped.bak"], [SAVE_PATH + ".bak", SAVE_PATH + ".wiped.prev.bak"]]:
+		if FileAccess.file_exists(pair[0]):
+			DirAccess.remove_absolute(pair[1])
+			DirAccess.rename_absolute(pair[0], pair[1])
 	has_save = false
 	new_game()
 
@@ -446,17 +453,51 @@ func reset_skills() -> void:
 	save_game()
 
 # ---------- Сохранение
+## Запись без риска потерять прогресс: сначала во временный файл, проверка, затем замена;
+## прежнее сохранение остаётся копией save.json.bak (из неё загрузка, если основной файл испорчен).
 func save_game() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"v": 2, "name": player_name, "chests": chests, "bosses": bosses, "stats": stats, "time": time_of_day, "level": level, "xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills}))
+	var data := JSON.stringify({"v": SAVE_VERSION, "app": str(ProjectSettings.get_setting("application/config/version", "")),
+		"name": player_name, "chests": chests, "bosses": bosses, "stats": stats, "time": time_of_day, "level": level,
+		"xp": xp, "gold": gold, "kills": kills, "inv": inv, "equip": equip, "skills": skills})
+	var tmp := SAVE_PATH + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		push_warning("Сохранение: нельзя открыть %s (%d)" % [tmp, FileAccess.get_open_error()])
+		return
+	f.store_string(data)
+	f.close()
+	if FileAccess.get_file_as_string(tmp) != data:
+		push_warning("Сохранение: запись не совпала — прежнее сохранение оставлено")
+		return
+	if FileAccess.file_exists(SAVE_PATH):
+		var keep := SAVE_PATH + (".v%d.bak" % _save_v if _save_newer else ".bak")
+		DirAccess.remove_absolute(keep)
+		DirAccess.rename_absolute(SAVE_PATH, keep)
+		_save_newer = false
+	DirAccess.rename_absolute(tmp, SAVE_PATH)
+
+
+## Прочитать сохранение (основное, иначе копию). Пусто — нет или испорчено.
+func _read_save() -> Dictionary:
+	for path in [SAVE_PATH, SAVE_PATH + ".bak"]:
+		if FileAccess.file_exists(path):
+			var d = JSON.parse_string(FileAccess.get_file_as_string(path))
+			if typeof(d) == TYPE_DICTIONARY:
+				if path != SAVE_PATH:
+					push_warning("Сохранение: основной файл испорчен — загружена копия")
+				return d
+			push_warning("Сохранение: файл %s испорчен" % path)
+	return {}
 
 func load_game() -> bool:
-	if not FileAccess.file_exists(SAVE_PATH):
+	var d := _read_save()
+	if d.is_empty():
 		return false
-	var d = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
-	if typeof(d) != TYPE_DICTIONARY:
-		return false
+	_save_v = int(d.get("v", 1))
+	# Сохранение от более новой версии: читаем, что понимаем; перед первой перезаписью — копия save.json.v<N>.bak
+	_save_newer = _save_v > SAVE_VERSION
+	if _save_newer:
+		push_warning("Сохранение от более новой версии (v%d > v%d) — копия будет сохранена" % [_save_v, SAVE_VERSION])
 	player_name = str(d.get("name", ""))
 	chests = []
 	for c in d.get("chests", []):

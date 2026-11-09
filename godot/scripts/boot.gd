@@ -12,6 +12,12 @@ const REPO := "https://github.com/alexbl2802-hue/-/releases/download/"
 const MAIN := "res://scenes/main.tscn"
 const DIR := "user://packs/"
 const LIST := "res://data/packs.json"
+# Версии (единая схема, см. reports/BASELINE.md): версия приложения — application/config/version
+# (сборка ставит 2.0.N, из неё же versionName/versionCode); версия формата данных — DATA_FORMAT
+# (packs.json: {"format", "app", "packs": [{name, size, sha256}]}); версия сохранений — Game.SAVE_VERSION.
+const DATA_FORMAT := 1
+const VERIFIED := "user://packs_verified.json"   # части, чья контрольная сумма уже сверена
+var _verified := {}           # имя части → sha256, сверено после скачивания
 
 var _ls: LoadingScreen
 var _packs: Array = []        # [{name, size}]
@@ -52,12 +58,22 @@ func _ready() -> void:
 	add_child(_ls)
 	_ls.retry.pressed.connect(_resume)
 	await get_tree().process_frame
+	var ver := str(ProjectSettings.get_setting("application/config/version", ""))
+	var list := OS.get_environment("ZEMLI_PACKS_LIST")   # для проверки: свой список частей
+	if list == "":
+		list = LIST
 	# В редакторе и в сборке, где данные уже внутри, качать нечего
-	if ResourceLoader.exists("res://models/hero.glb") or not FileAccess.file_exists(LIST):
+	var force := OS.get_environment("ZEMLI_FORCE_PACKS") == "1"   # для проверки загрузчика в редакторе
+	if (ResourceLoader.exists("res://models/hero.glb") and not force) or not FileAccess.file_exists(list):
+		_diag("данные внутри сборки — пакеты не нужны (версия %s)" % ver)
 		_load_world()
 		return
-	_packs = JSON.parse_string(FileAccess.get_file_as_string(LIST))
-	var ver := str(ProjectSettings.get_setting("application/config/version", ""))
+	var err := _read_list(list)
+	if err != "":
+		_diag("список пакетов: " + err)
+		_fail(err)
+		return
+	_diag("версия %s, формат данных %d, частей %d" % [ver, DATA_FORMAT, _packs.size()])
 	var env := OS.get_environment("ZEMLI_DATA_URL")   # для проверки: свой адрес вместо релиза
 	_base = env if env != "" else REPO + "v%s/" % ver
 	DirAccess.make_dir_recursive_absolute(DIR)
@@ -88,6 +104,45 @@ func _pack_path(name: String) -> String:
 func _size(path: String) -> int:
 	var f := FileAccess.open(path, FileAccess.READ)
 	return f.get_length() if f else -1
+
+## Список частей. Новый вид — {"format", "app", "packs": [...]}; старый (просто массив) тоже читается.
+## Возвращает текст ошибки или "".
+func _read_list(path: String) -> String:
+	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if d is Dictionary:
+		if int(d.get("format", 0)) > DATA_FORMAT:
+			return "Данные новее этой версии игры — обнови игру."
+		d = d.get("packs", null)
+	if not d is Array or (d as Array).is_empty():
+		return "Список данных игры повреждён — переустанови игру."
+	_packs = []
+	for p in d:
+		if not p is Dictionary or str(p.get("name", "")) == "" or int(p.get("size", 0)) <= 0:
+			return "Список данных игры повреждён — переустанови игру."
+		_packs.append(p)
+	if FileAccess.file_exists(VERIFIED):
+		var v = JSON.parse_string(FileAccess.get_file_as_string(VERIFIED))
+		if v is Dictionary:
+			_verified = v
+	return ""
+
+func _diag(msg: String) -> void:
+	print("[boot] ", msg)
+
+## Сверить контрольную сумму части (один раз после скачивания; у старого списка суммы нет — только размер)
+func _check_pack(p: Dictionary, path: String) -> bool:
+	var want := str(p.get("sha256", ""))
+	if want == "" or _verified.get(p["name"], "") == want:
+		return true
+	var got := FileAccess.get_sha256(path)
+	if got != want:
+		_diag("часть %s повреждена: sha256 %s, ожидалось %s" % [p["name"], got.left(12), want.left(12)])
+		return false
+	_verified[p["name"]] = want
+	var f := FileAccess.open(VERIFIED, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(_verified))
+	return true
 
 ## Удалить части, которых нет в списке, и файл данных прежнего вида (data-*.pck)
 func _cleanup() -> void:
@@ -492,6 +547,8 @@ func _soft_fail(msg: String) -> void:
 	_phase = "wait"
 
 func _resume() -> void:
+	if _packs.is_empty():
+		return   # список частей не прочитан — повтор не поможет, нужна переустановка/обновление
 	_tries = 0
 	_ls.retry.visible = false
 	_ls.text = ""
@@ -500,13 +557,33 @@ func _resume() -> void:
 
 func _mount_and_load() -> void:
 	_cli = null
+	var bad: Array = []
+	for p in _packs:
+		var path := _pack_path(p["name"])
+		if not FileAccess.file_exists(path):
+			_diag("нет части %s" % p["name"])
+			bad.append(p)
+		elif _size(path) != int(p["size"]) or not _check_pack(p, path):
+			_diag("часть %s повреждена — удаляю" % p["name"])
+			DirAccess.remove_absolute(path)
+			bad.append(p)
+	if not bad.is_empty():
+		_queue = bad
+		_total = 0
+		for p in bad:
+			_total += int(p["size"])
+		_fail("Часть данных отсутствует или повреждена (%d) — нажми «Повторить», скачаю заново." % bad.size())
+		return
 	for p in _packs:
 		var path := _pack_path(p["name"])
 		if not ProjectSettings.load_resource_pack(path, false):
+			_diag("часть %s не монтируется — удаляю" % p["name"])
 			DirAccess.remove_absolute(path)
+			_verified.erase(p["name"])
 			_fail("Часть данных повреждена — нажми «Повторить», скачаю её заново.")
 			_queue = [p]
 			return
+	_diag("все части на месте и проверены — загружаю мир")
 	_load_world()
 
 func _load_world() -> void:
@@ -522,6 +599,7 @@ func _fail(msg: String) -> void:
 		_file = null
 	if _cli:
 		_cli.close()
+	_diag("ошибка: " + msg)
 	_ls.note.text = msg
 	_ls.text = "Ошибка"
 	_ls.retry.visible = true
