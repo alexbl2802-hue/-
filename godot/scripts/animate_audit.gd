@@ -20,6 +20,65 @@ var hero: Node
 var issues := {}            # ключ → {sev, code, subject, msg, count}
 var running := false
 
+## Быстрая проверка после загрузки мира: клипы и кости героя и монстров (по одному монстру каждого вида).
+## Ничего не меняет — только отчёт (user://cardinal_animation_report.json). host — куда временно
+## добавить проверяющий узел. Итог: {actors, counts, skeletons, bad, reports}.
+static func check_actors(parent: Node, host: Node) -> Dictionary:
+	if not is_instance_valid(parent) or not is_instance_valid(host):
+		return {}
+	var ag := CardinalAnimationGuardian.new()
+	ag.name = "AnimateQuickCheck"
+	host.add_child(ag)
+	var seen := {}
+	var actors: Array = []
+	var hero = parent.get("hero")
+	if hero:
+		actors.append(["hero", hero])
+	var en = parent.get("enemies")
+	if en and en.get("list") is Array:
+		for e in en.list:
+			if not is_instance_valid(e):
+				continue
+			var key: String = e.model if e.model != "" else str(e.T.get("name", "?"))
+			if not seen.has(key):
+				seen[key] = true
+				actors.append([key, e])
+	var skel := {}
+	for a in actors:
+		var node: Node = a[1]
+		var players := node.find_children("*", "AnimationPlayer", true, false)
+		if players.is_empty():
+			continue   # монстр ещё «спит» далеко — модель не загружена
+		ag.scan_player(players[0])
+		var sks := node.find_children("*", "Skeleton3D", true, false)
+		if not sks.is_empty() and a[0] in ["hero", "skeleton", "skeleton_king", "goblin", "kobold"]:
+			skel[a[0]] = CardinalAutoSkeletonRepair.audit(sks[0], _humanoid_profile(sks[0]))
+	var counts := {}
+	for r in ag.reports:
+		counts[r["severity"]] = counts.get(r["severity"], 0) + 1
+	ag.reports.append({"severity": "INFO", "subject": "skeletons", "message": JSON.stringify(skel), "advice": ""})
+	ag.export_report_json()
+	var bad: Array = []
+	for k in skel:
+		if not skel[k]["ok"]:
+			bad.append("%s (нет: %s)" % [k, ", ".join(skel[k]["missing"])])
+	ag.queue_free()
+	return {"actors": actors.size(), "counts": counts, "skeletons": skel, "bad": bad, "reports": ag.reports}
+
+## Имена костей с той же приставкой, что у этого скелета (mixamorig_Hips → mixamorig_…)
+static func _humanoid_profile(sk: Skeleton3D) -> Array[String]:
+	var pre := ""
+	for i in sk.get_bone_count():
+		var n := sk.get_bone_name(i)
+		if n.ends_with("Hips"):
+			pre = n.substr(0, n.length() - 4)
+			break
+	var out: Array[String] = []
+	for b in HUMANOID:
+		out.append(pre + b)
+	return out
+
+## Баланс — компонент CardinalBalance (CARDINAL 4.0); здесь прежние точки вызова
 func add(sev: String, code: String, subject: String, msg: String) -> void:
 	var key := code + "|" + subject + "|" + msg
 	if issues.has(key):

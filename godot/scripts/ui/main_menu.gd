@@ -10,6 +10,8 @@ var _name: LineEdit
 var _btns := {}          # имя → [кнопка, прямоугольник на картинке]
 var _info: Label
 var _ver: Label
+var _ver_taps := 0
+var _ver_t := 0
 var _dlg: Control        # окно «Новая игра»
 var _warn: Label
 var _dlg_box: PanelContainer
@@ -51,6 +53,9 @@ func _ready() -> void:
 	# Номер версии в углу — чтобы видеть, какая сборка установлена (его прописывает сборка APK)
 	_ver = UiKit.label("Версия " + str(ProjectSettings.get_setting("application/config/version", "dev")), 12, Color(1, 1, 1, 0.55))
 	add_child(_ver)
+	# Скрытый режим администратора: 7 нажатий на номер версии за 3 с — включить/выключить
+	_ver.mouse_filter = Control.MOUSE_FILTER_STOP
+	_ver.gui_input.connect(_on_ver_input)
 	_build_dialog()
 	settings = preload("res://scripts/ui/settings_panel.gd").new()
 	settings.visible = false
@@ -171,3 +176,17 @@ func _start_new() -> void:
 	Game.set_meta("autostart", true)
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+func _on_ver_input(e: InputEvent) -> void:
+	var tap: bool = (e is InputEventScreenTouch and e.pressed) or (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT)
+	if not tap:
+		return
+	var now := Time.get_ticks_msec()
+	_ver_taps = _ver_taps + 1 if now - _ver_t < 3000 else 1
+	_ver_t = now
+	if _ver_taps >= 7:
+		_ver_taps = 0
+		Settings.load_settings()
+		Settings.admin = not Settings.admin
+		Settings.save_settings()
+		_ver.text = "Режим администратора: %s" % ("включён" if Settings.admin else "выключен")

@@ -21,10 +21,14 @@ func _tree() -> SceneTree:
 
 func _frames(n: int) -> void:
 	for i in n:
+		if not at.playing:
+			return   # прогон остановлен (предел времени или кнопка) — сценарий доходит до конца без ожиданий
 		await _tree().physics_frame
 
 ## Подождать столько секунд реального времени (затемнение при переходах идёт по игровому)
 func _wait(sec: float) -> void:
+	if not at.playing:
+		return
 	await _tree().create_timer(sec, true, false, true).timeout
 
 func _act_method() -> String:
@@ -55,16 +59,10 @@ func _why() -> String:
 	return "занят=%s, мёртв=%s, режим=%s, действие=«%s»" % [hero.busy, hero.dead, main.mode, _act_method()]
 
 func run() -> void:
-	await _inventory()
-	await _equipment()
-	await _weapon_drop()
-	await _skills()
-	await _forge()
-	await _alchemist()
-	await _dungeons()
-	await _boss()
-	await _save_load()
-	_absent()
+	for step in [_inventory, _equipment, _weapon_drop, _skills, _forge, _alchemist, _npc, _dungeons, _boss, _save_load]:
+		if not at.playing:
+			return   # предел 900 с — оставшиеся проверки получат NOT_TESTED с причиной
+		await step.call()
 
 # ---------- Инвентарь: окно открывается и закрывается
 func _inventory() -> void:
@@ -334,9 +332,43 @@ func _save_load() -> void:
 		at._fail("save_load", "После чтения сохранения данные не совпали (загружено=%s)" % loaded)
 
 # ---------- Чего в игре нет
-func _absent() -> void:
-	at._skip("npc", "В игре нет NPC (жителей с диалогами) — проверять нечего")
-	at._skip("quests", "В игре нет системы заданий — проверять нечего")
+## NPC: герой подходит к каждому жителю — житель на месте, его анимация идёт, сквозь него не пройти
+func _npc() -> void:
+	at.set_step("NPC")
+	var npcs: Array = _tree().get_nodes_in_group("npc")
+	if npcs.is_empty():
+		return   # реестр уже отметил SKIPPED
+	var bad: Array = []
+	var seen: Array = []
+	for n in npcs:
+		var npc := n as Node3D
+		var ap := npc.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		var name := npc.scene_file_path.get_file().get_basename()
+		var fwd := npc.global_transform.basis.z.normalized()
+		_teleport(npc.global_position + fwd * 2.2)
+		await _frames(10)
+		# идти прямо на жителя 1 с
+		var t: Node = hero.get("touch")
+		var start: Vector3 = hero.global_position
+		hero.facing = atan2(-fwd.x, -fwd.z)
+		if t:
+			var yaw: float = main.rig.yaw
+			var d := -fwd
+			t.move = Vector2(d.x * cos(yaw) - d.z * sin(yaw), -(d.x * sin(yaw) + d.z * cos(yaw))).normalized()
+		await _wait(1.0)
+		if t:
+			t.move = Vector2.ZERO
+		var dist := Vector2(hero.global_position.x - npc.global_position.x, hero.global_position.z - npc.global_position.z).length()
+		var anim_ok := ap != null and ap.is_playing()
+		if not anim_ok:
+			bad.append("%s: анимация не идёт" % name)
+		if dist < 0.45:
+			bad.append("%s: герой прошёл сквозь жителя (%.2f м)" % [name, dist])
+		seen.append("%s (анимация %s, герой остановился в %.2f м, прошёл %.1f м)" % [name, ap.current_animation if ap else "—", dist, start.distance_to(hero.global_position)])
+	if bad.is_empty():
+		at._pass("npc", "; ".join(seen))
+	else:
+		at._fail("npc", "; ".join(bad))
 
 func _to_surface() -> void:
 	main.exit_dungeon()

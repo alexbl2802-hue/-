@@ -20,3 +20,13 @@
 | `res://tests/load_all.tscn` | 122 скрипта, 0 ошибок | — |
 
 Ограничение: системный загрузчик Android (DownloadManager) в этом окружении не проверяется — проверен путь HTTPClient.
+
+## Этап 2
+| Команда | Результат | Время | Лог |
+|---|---|---|---|
+| `$G --headless --path godot res://tests/cardinal_autoplay.tscn -- <папка> 100000` (прогон 1, до правки итога) | 21 PASS, 0 FAIL, 1 SKIPPED (задания — нет системы); итог INCOMPLETE из-за I-15 | 100 с | `reports/logs/cardinal_autotest_run1.log` |
+| то же (прогон 2) | **PASSED**: 21 PASS, 0 FAIL, 1 SKIPPED, 0 NOT_TESTED; 2 предупреждения «герой застрял» (короткие) | 103 с | `reports/logs/cardinal_autotest_run2.log` |
+| `$G --headless --path godot res://tests/cardinal_timeout.tscn` | 6/6 PASS: предел 15 с при ×4 сработал на 15,1 с реального времени; 11 проверок NOT_TESTED «Не успели: общий предел»; скорость и место героя возвращены | ~40 с | `reports/logs/cardinal_timeout.log` |
+| `$G --headless --path godot res://tests/cardinal_limits.tscn` | 6/6 PASS: единый лимит 35/2000, нижняя граница 10; в самом людном месте (16 монстров в радиусе) при лимите 10 бодрствуют 10; кнопка CARDINAL скрыта без режима администратора | ~40 с | `reports/logs/cardinal_limits.log` |
+
+Ограничения: прогоны без отрисовки (`--headless`), FPS в отчёте автотеста — этого компьютера, не телефона. Автотест на Android не запускался.

@@ -9,3 +9,17 @@
 - `tools/data_pack.py`: `packs.json` с `format`, `app` (версия из `project.godot`) и `sha256` каждой части.
 - `godot/scripts/game.gd`: `SAVE_VERSION = 2`; сохранение через `.tmp` + проверка + замена, прежнее → `save.json.bak`; загрузка из копии, если основной файл испорчен; сохранение новее — копия `save.json.v<N>.bak`; в сохранение пишется версия приложения `app`; «Новая игра» откладывает файлы `*.wiped*.bak` вместо удаления.
 - Тесты: `godot/tests/save_safety.*`, `godot/tests/boot_packs.*`.
+
+## Этап 2 — CARDINAL 4.0
+- Новое: `addons/cardinal/v4/cardinal_config.gd` (все лимиты и пороги), `cardinal_balance.gd` (сложность, урон монстров, множитель добычи), `cardinal_registry.gd` (реестр систем), `cardinal_deadline.gd` (сторож предела 900 с), `README_4_0.md` (компоненты и обязанности).
+- `addons/cardinal/scripts/cardinal.gd`: `max_active_mobs` — лимит бодрствующих (35), `max_registered_mobs` — созданных (2000); пороги из `CardinalConfig`.
+- `addons/cardinal/v2/cardinal_core.gd`: `max_monsters` и `loot_multiplier` — ссылки на единые значения (API 2.1 сохранён).
+- `addons/cardinal/v2/performance_manager.gd`: снижает и возвращает настоящий лимит бодрствующих монстров.
+- `godot/scripts/enemies.gd`: бодрствуют ближайшие N (N = `Cardinal.max_active_mobs`); боссы в радиусе — без лимита.
+- `godot/scripts/cardinal_director.gd`: баланс — через `CardinalBalance`; проверка анимаций — вызов ANIMATE (`AnimateAudit.check_actors`).
+- `godot/scripts/animate_audit.gd`: `check_actors()` (перенесено из CARDINAL).
+- `godot/scripts/cardinal_autotest.gd`: реестр систем; SKIPPED с причиной для отсутствующих; предел 900 с реального времени (сторож, работает на паузе); после остановки результаты не перезаписываются; сохранение возвращается через временный файл; удалена неиспользуемая копия проверки моделей; итог не считает «нет системы» неполнотой; `limit_seconds` для проверки предела.
+- `godot/scripts/cardinal_scenarios.gd`: сценарии прерываются при остановке; новый сценарий NPC.
+- `godot/scripts/house_model.gd`: жители в группе `npc`.
+- `godot/scripts/settings.gd`, `touch_ui.gd`, `ui/main_menu.gd`: скрытый режим администратора (7 нажатий на номер версии); кнопка CARDINAL только в нём.
+- Тесты: `godot/tests/cardinal_timeout.*`, `godot/tests/cardinal_limits.*`.

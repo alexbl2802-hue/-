@@ -74,6 +74,7 @@ static func npc(parent: Node3D, path: String, pos: Vector3, yaw: float) -> Node3
 	var n: Node3D = ps.instantiate()
 	n.position = pos
 	n.rotation.y = yaw
+	n.add_to_group("npc")   # реестр CARDINAL: в игре есть NPC
 	parent.add_child(n)
 	for m in n.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D

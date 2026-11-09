@@ -15,6 +15,9 @@ static var cam_sens := 1.0
 static var shadows := true
 static var view := 1
 static var show_fps := false
+## Скрытый режим администратора (окна CARDINAL и ANIMATE). Обычный игрок кнопку не видит;
+## включается 7 нажатиями на номер версии в главном меню.
+static var admin := false
 static var _loaded := false
 
 static func load_settings() -> void:
@@ -28,6 +31,7 @@ static func load_settings() -> void:
 	shadows = bool(cf.get_value("game", "shadows", true))
 	view = clampi(int(cf.get_value("game", "view", 1)), 0, VIEW.size() - 1)
 	show_fps = bool(cf.get_value("game", "show_fps", false))
+	admin = bool(cf.get_value("game", "admin", false))
 
 static func save_settings() -> void:
 	var cf := ConfigFile.new()
@@ -35,4 +39,5 @@ static func save_settings() -> void:
 	cf.set_value("game", "shadows", shadows)
 	cf.set_value("game", "view", view)
 	cf.set_value("game", "show_fps", show_fps)
+	cf.set_value("game", "admin", admin)
 	cf.save(PATH)

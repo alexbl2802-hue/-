@@ -1,7 +1,7 @@
 ## Все монстры долины. Монстры далеко от героя «спят», чтобы телефон не тратил силы.
 extends Node3D
 
-const ACTIVE_RANGE := 110.0
+const ACTIVE_RANGE := CardinalConfig.ACTIVE_RANGE
 
 var hero: Node3D
 var loot: Node3D
@@ -97,14 +97,26 @@ func _process(dt: float) -> void:
 		_check_t = 0.5
 		_update_active()
 
+## Бодрствуют монстры в радиусе ACTIVE_RANGE, но не больше лимита CARDINAL (Cardinal.max_active_mobs) —
+## ближайшие к герою; боссы в радиусе — без лимита; мёртвые (ждут возвращения) — всегда
 func _update_active() -> void:
 	if not hero:
 		return
+	var near: Array = []
 	for e in list:
-		var on: bool = e.global_position.distance_to(hero.global_position) < ACTIVE_RANGE or (e.dead and e.visible)
-		if e.dead and not e.visible:
-			on = true  # мёртвые ждут своего часа, чтобы вернуться
-		e.set_active(on)
+		var d: float = e.global_position.distance_to(hero.global_position)
+		if e.dead:
+			e.set_active(true)   # мёртвые ждут своего часа, чтобы вернуться
+		elif e.T.get("boss", false):
+			e.set_active(d < ACTIVE_RANGE)
+		elif d < ACTIVE_RANGE:
+			near.append([d, e])
+		else:
+			e.set_active(false)
+	near.sort_custom(func(a, b): return a[0] < b[0])
+	var cap: int = Cardinal.max_active_mobs
+	for i in near.size():
+		near[i][1].set_active(i < cap)
 
 
 func on_enemy_killed(e: Node3D) -> void:

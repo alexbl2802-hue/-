@@ -1,13 +1,14 @@
-## CARDINAL: автотест. Запускается из окна CARDINAL кнопкой «Кардинал играет».
-## 1) Проверка моделей: у героя и у каждой модели монстров — есть ли все клипы, которые просит игра;
-##    дорожки на кости, которых нет в скелете; кости ног без анимации в ходьбе и беге;
-##    «встаёт вертикально / заваливается» (корень поворачивается сильнее 55°); ноги не шагают;
-##    ноги машут вбок вместо шага; кости растягиваются; рывок на стыке цикла; пустые и битые клипы;
-##    нет нужных костей в человекоподобном скелете.
+## CARDINAL 4.0: автотест. Запускается из окна CARDINAL кнопкой «Кардинал играет».
+## Проверка моделей, анимаций и скелетов — зона ANIMATE (scripts/animate_audit.gd), здесь её нет.
+## 1) Реестр: какие системы реально есть в игре (CardinalRegistry); отсутствующие — SKIPPED с причиной.
 ## 2) Игра сама: Кардинал водит героя — бродит по миру, находит монстров, бьёт, ставит блок,
 ##    уклоняется, применяет приёмы, пьёт зелья. Во время игры следит: ошибки и предупреждения движка
 ##    и скриптов; герой застрял или провалился; анимация героя замерла; монстр скользит без анимации,
 ##    у монстра остановилась анимация, монстр застрял или провалился; кадров в секунду мало.
+## 3) Сценарии систем (CardinalScenarios): каждый действует в игре и проверяет результат.
+## Итог по каждой проверке: PASS / FAIL / SKIPPED / NOT_TESTED с причиной. Общий предел — 900 с
+## реального времени (CardinalConfig.TEST_LIMIT_SECONDS), включая ожидания; по окончании состояние игры
+## (сохранение, место героя, режим, окна, скорость) возвращается. Число убийств завершение не определяет.
 ## Найденное — в журнале окна CARDINAL и в файле user://cardinal_autotest.json.
 class_name CardinalAutotest
 extends Node
@@ -15,11 +16,6 @@ extends Node
 signal changed
 
 const REPORT := "user://cardinal_autotest.json"
-const TILT_MAX := 55.0
-const NO_TILT := ["death", "die", "dead", "roll", "dodge", "fall", "knock", "lie", "sleep", "crawl", "jump", "flip", "dash", "spin", "stun", "down", "get_up", "getup"]
-const GAIT := ["walk", "run", "sprint", "chase"]
-const NOT_STRAIGHT := ["left", "right", "turn", "strafe", "side", "diagonal", "back", "circle"]
-const NOT_LOOP := ["turn", "stop", "start", "to_", "sudden", "jump", "land"]
 
 var main: Node
 var hero: Node
@@ -62,8 +58,13 @@ const CHECK_TITLES := {"hero_movement": "Движение героя", "hero_hea
 	"forge": "Кузница", "alchemist": "Лавка алхимика", "trade": "Торговля", "dungeon": "Подземелья и этажи башни",
 	"boss": "Босс и лестница", "texture_clip": "Сквозь текстуры (стены, пол, камера)", "script_errors": "Ошибки скриптов и движка",
 	"performance": "Просадки кадров и лаги", "save_load": "Сохранение", "navigation_stall": "Застревания", "npc": "NPC", "quests": "Задания"}
-const FIELD_SECONDS := 60.0   # столько секунд игрового времени Кардинал сначала играет с монстрами
-const TEST_LIMIT_SECONDS := 900.0
+const FIELD_SECONDS := CardinalConfig.TEST_FIELD_SECONDS   # игровые секунды боя с монстрами перед сценариями
+const TEST_LIMIT_SECONDS := CardinalConfig.TEST_LIMIT_SECONDS   # общий предел, реальное время
+var _run_id := 0                 # номер прогона: таймер предела от прошлого прогона не сработает
+var limit_seconds := TEST_LIMIT_SECONDS   # предел этого прогона (для проверки самого предела — меньше)
+var _deadline_ms := 0
+var _watch: Node
+const _WATCH := preload("res://addons/cardinal/v4/cardinal_deadline.gd")
 var registry: Dictionary = {}
 var scenario_log: Array = []
 var _scenario_index := 0
@@ -95,6 +96,8 @@ func set_step(t: String) -> void:
 	changed.emit()
 
 func _skip(id: String, detail: String) -> void:
+	if not playing:
+		return
 	if checks.has(id) and checks[id]["status"] == "NOT_TESTED":
 		checks[id] = {"status": "SKIPPED", "detail": detail}
 		changed.emit()
@@ -192,7 +195,7 @@ func _scenario_tick(dt: float) -> void:
 	if _scripted:
 		return
 	_field_t += dt
-	if _field_t < FIELD_SECONDS and _test_elapsed < TEST_LIMIT_SECONDS:
+	if _field_t < FIELD_SECONDS:
 		return
 	_scripted = true
 	_run_scenarios()
@@ -269,10 +272,14 @@ func _restore() -> void:
 	if int(main.get("mode")) != -1 and main.has_method("_set_mode"):
 		main._set_mode(-1)
 	if _save_snapshot != "":
-		var f := FileAccess.open(Game.SAVE_PATH, FileAccess.WRITE)
+		# сохранение до теста — через временный файл и замену (обрыв не испортит сохранение)
+		var tmp: String = Game.SAVE_PATH + ".tmp"
+		var f := FileAccess.open(tmp, FileAccess.WRITE)
 		if f:
 			f.store_string(_save_snapshot)
 			f.close()
+			DirAccess.remove_absolute(Game.SAVE_PATH)
+			DirAccess.rename_absolute(tmp, Game.SAVE_PATH)
 		Game.load_game()
 		Game.refresh()
 	hero.global_position = _start_pos
@@ -290,13 +297,13 @@ func _init_checks() -> void:
 		checks[id] = {"status": "NOT_TESTED", "detail": "Сценарий ещё не подтверждён"}
 
 func _pass(id: String, detail: String) -> void:
-	if not checks.has(id) or checks[id]["status"] == "PASS":
+	if not playing or not checks.has(id) or checks[id]["status"] == "PASS":
 		return
 	checks[id] = {"status": "PASS", "detail": detail}
 	changed.emit()
 
 func _fail(id: String, detail: String) -> void:
-	if not checks.has(id):
+	if not playing or not checks.has(id):
 		return
 	checks[id] = {"status": "FAIL", "detail": detail}
 	add("ERROR", "CHECK_FAILED", id, detail)
@@ -392,7 +399,12 @@ func _result_status() -> String:
 	var c := coverage()
 	if int(c["FAIL"]) > 0 or int(counts()["ERROR"]) > 0:
 		return "FAILED"
-	if int(c["NOT_TESTED"]) > 0 or int(c["SKIPPED"]) > 0:
+	# SKIPPED из-за того, что системы нет в игре (реестр), прогон не делает неполным
+	var skipped_real := 0
+	for id in checks:
+		if checks[id]["status"] == "SKIPPED" and not checks[id].get("absent", false):
+			skipped_real += 1
+	if int(c["NOT_TESTED"]) > 0 or skipped_real > 0:
 		return "INCOMPLETE"
 	return "PASSED"
 
@@ -414,7 +426,12 @@ func start(m: Node) -> void:
 		return
 	issues.clear()
 	_init_checks()
-	registry.clear()
+	registry = CardinalRegistry.detect(m)
+	for sys in registry:
+		if not registry[sys]["available"]:
+			for id in CardinalRegistry.CHECKS.get(sys, []):
+				if checks.has(id):
+					checks[id] = {"status": "SKIPPED", "absent": true, "detail": "Системы нет в игре (реестр CARDINAL: %s)" % registry[sys]["evidence"]}
 	step = "бой с монстрами"
 	_scripted = false
 	_field_t = 0.0
@@ -444,6 +461,19 @@ func start(m: Node) -> void:
 	_mobs.clear()
 	started_at = Time.get_ticks_msec() / 1000.0
 	playing = true
+	# Общий предел прогона — реальные секунды, идут и на паузе, и при ускорении, и во время ожиданий сценариев
+	_run_id += 1
+	var rid := _run_id
+	_deadline_ms = Time.get_ticks_msec() + int(limit_seconds * 1000.0)
+	if _watch == null:
+		# сторож: проверяет реальные миллисекунды каждый кадр, работает и на паузе (окна игры)
+		_watch = Node.new()
+		_watch.name = "CardinalDeadline"
+		_watch.process_mode = Node.PROCESS_MODE_ALWAYS
+		_watch.set_script(_WATCH)
+		add_child(_watch)
+	_watch.set_meta("cb", func(): _on_deadline(rid))
+	_watch.set_meta("at", _deadline_ms)
 	audit_done = false
 	_logger = CardinalErrorLogger.new()
 	OS.add_logger(_logger)
@@ -455,6 +485,17 @@ func start(m: Node) -> void:
 	# Проверка моделей и анимаций принадлежит отдельной системе ANIMATE.
 	audit_done = true
 	changed.emit()
+
+## Предел 900 с: что не успели — NOT_TESTED с причиной, итоги поля подводятся, состояние возвращается
+func _on_deadline(rid: int) -> void:
+	if rid != _run_id or not playing:
+		return
+	add("WARNING", "TIMEOUT", "Автотест", "общий предел %d с исчерпан — прогон остановлен" % int(limit_seconds))
+	_finish_checks()
+	for id in checks:
+		if checks[id]["status"] == "NOT_TESTED":
+			checks[id] = {"status": "NOT_TESTED", "detail": "Не успели: общий предел %d с" % int(limit_seconds)}
+	stop()
 
 func stop() -> void:
 	if not playing:
@@ -537,301 +578,7 @@ func _make_overlay() -> void:
 	box.add_child(b)
 
 
-# ---------------------------------------------------------------- 1) проверка моделей
-
-## Клипы, которые игра просит у модели: {путь glb: {имя: [клипы]}}
-func _wanted() -> Dictionary:
-	var out := {}
-	var es: Script = load("res://scripts/enemy.gd")
-	var chars: Dictionary = es.get_script_constant_map().get("CHARS", {})
-	for k in chars:
-		var c: Dictionary = chars[k]
-		var clips: Array = []
-		for key in ["walk", "run"]:
-			if c.get(key) is Array:
-				clips.append(c[key][0])
-		for key in ["stance", "hit", "aim"]:
-			if c.get(key, "") is String and c.get(key, "") != "":
-				clips.append(c[key])
-		for a in c.get("atk", {}).values():
-			clips.append(a[0])
-		var glb: String = c["glb"]
-		if not out.has(glb):
-			out[glb] = {"names": [], "clips": [], "humanoid": false}
-		out[glb]["names"].append(k)
-		for n in clips:
-			if not out[glb]["clips"].has(n):
-				out[glb]["clips"].append(n)
-		if k in ["goblin", "kobold", "skeleton", "skeleton_king", "golem", "rabbit"]:
-			out[glb]["humanoid"] = true
-	return out
-
-func _hero_clips() -> Array:
-	var out: Array = []
-	var m: Dictionary = hero.get_script().get_script_constant_map()
-	for k in m:
-		var v = m[k]
-		if v is String and (k.begins_with("A_") or k.ends_with("_CLIP") or k == "RUN_FIGHT"):
-			out.append(v)
-		elif v is Array and k.ends_with("CLIPS"):
-			for a in v:
-				if a is Array and a.size() > 0 and a[0] is String:
-					out.append(a[0])
-	return out
-
-func audit_models() -> void:
-	# Герой — по живому проигрывателю (там и клипы, добавленные при запуске)
-	var hap: AnimationPlayer = hero.get("_anim")
-	var hsk: Skeleton3D = hero.get("_sk")
-	if hsk == null:
-		var l: Array = hero.find_children("*", "Skeleton3D", true, false)
-		hsk = l[0] if not l.is_empty() else null
-	if hap and hsk:
-		await _audit("Герой", hap, hsk, _hero_clips(), true, hero.get("_char"))
-	else:
-		add("ERROR", "NO_MODEL", "Герой", "нет модели или скелета")
-	var w := _wanted()
-	for glb in w:
-		var who: String = ", ".join(w[glb]["names"])
-		if not ResourceLoader.exists(glb):
-			add("ERROR", "NO_MODEL", who, "файл модели не найден: " + glb.get_file())
-			continue
-		var inst: Node = (load(glb) as PackedScene).instantiate()
-		var aps := inst.find_children("*", "AnimationPlayer", true, false)
-		var sks := inst.find_children("*", "Skeleton3D", true, false)
-		if aps.is_empty() or sks.is_empty():
-			add("ERROR", "NO_MODEL", who, "в модели нет анимаций или скелета")
-		else:
-			await _audit(who, aps[0], sks[0], w[glb]["clips"], w[glb]["humanoid"], inst)
-		inst.free()
-		if not playing:
-			return
-	var c := counts()
-	CardinalDirector.core.log_event("Модели проверены: ошибок %d, предупреждений %d" % [c["ERROR"], c["WARNING"]])
-
-func _audit(who: String, ap: AnimationPlayer, sk: Skeleton3D, wanted: Array, humanoid: bool, model_root: Node) -> void:
-	for n in wanted:
-		if not ap.has_animation(n):
-			add("ERROR", "NO_CLIP", who, "нет анимации «%s», а игра её запускает" % n)
-	if humanoid:
-		var a := CardinalAutoSkeletonRepair.audit(sk, CardinalDirector._profile(sk))
-		if not a["ok"]:
-			add("ERROR", "NO_BONES", who, "в скелете не хватает костей: " + ", ".join(a["missing"]))
-	var to_model := _to_model(sk, model_root)
-	var rest := _rest_globals(sk, to_model)
-	var lo := INF
-	var hi := -INF
-	for p in rest:
-		lo = minf(lo, p.origin.y)
-		hi = maxf(hi, p.origin.y)
-	var height := maxf(0.05, hi - lo)
-	var feet := _feet(sk, rest, lo, height)
-	var root := _root_bone(sk)
-	var checked := 0
-	for name in ap.get_animation_list():
-		var anim := ap.get_animation(name)
-		if anim == null:
-			continue
-		_audit_clip(who, String(name), anim, sk, to_model, rest, height, feet, root)
-		checked += 1
-		if checked % 4 == 0:
-			await get_tree().process_frame   # не подвешивать игру
-		if not playing:
-			return
-
-func _audit_clip(who: String, name: String, anim: Animation, sk: Skeleton3D, to_model: Transform3D, rest: Array, height: float, feet: Array, root: int) -> void:
-	var low := name.to_lower()
-	if anim.length <= 0.001:
-		add("ERROR", "EMPTY_CLIP", who, "«%s»: нулевая длительность" % name)
-		return
-	if anim.get_track_count() == 0:
-		add("WARNING", "EMPTY_CLIP", who, "«%s»: в клипе нет дорожек" % name)
-		return
-	# Дорожки: кость → индексы дорожек; дорожки на несуществующие кости; битые значения
-	var tracks := {}
-	var lost: Array = []
-	for i in anim.get_track_count():
-		var tt := anim.track_get_type(i)
-		if tt != Animation.TYPE_POSITION_3D and tt != Animation.TYPE_ROTATION_3D and tt != Animation.TYPE_SCALE_3D:
-			continue
-		var path := anim.track_get_path(i)
-		var bone := String(path.get_concatenated_subnames()) if path.get_subname_count() > 0 else ""
-		var b := sk.find_bone(bone)
-		if b < 0:
-			if bone != "" and not lost.has(bone):
-				lost.append(bone)
-			continue
-		if not tracks.has(b):
-			tracks[b] = {}
-		tracks[b][tt] = i
-		if anim.track_get_key_count(i) > 0:
-			var v = anim.track_get_key_value(i, 0)
-			if (v is Vector3 and not v.is_finite()) or (v is Quaternion and not v.is_finite()):
-				add("ERROR", "BAD_KEYS", who, "«%s»: неверные значения ключей (NaN) у кости %s" % [name, sk.get_bone_name(b)])
-	if not lost.is_empty():
-		add("WARNING", "NO_BONE", who, "«%s»: анимирует кости, которых нет в скелете: %s" % [name, ", ".join(lost.slice(0, 6))])
-	var gait := GAIT.any(func(g): return low.contains(g))
-	# Ноги без анимации в ходьбе и беге
-	if gait:
-		var still: Array = []
-		for f in feet:
-			var b: int = f
-			var chain := 0
-			var animated := false
-			while b >= 0 and chain < 3:
-				if tracks.has(b) and tracks[b].has(Animation.TYPE_ROTATION_3D):
-					animated = true
-				b = sk.get_bone_parent(b)
-				chain += 1
-			if not animated:
-				still.append(sk.get_bone_name(f))
-		if not still.is_empty():
-			add("WARNING", "NO_TRACK", who, "«%s»: кости ног без анимации: %s" % [name, ", ".join(still)])
-	# Позы по кадрам
-	var steps := 12
-	var tilt_max := 0.0
-	var stretch := ""
-	var fx := {}   # нога → [min x, max x, min z, max z] относительно корня
-	var first: Array = []
-	var last: Array = []
-	var root_rest: Transform3D = rest[root] if root >= 0 else Transform3D()
-	for s in steps + 1:
-		var t := anim.length * float(s) / steps
-		var pose := _pose(sk, anim, tracks, t, to_model)
-		if s == 0:
-			first = pose
-		if s == steps:
-			last = pose
-		if root >= 0:
-			var up_rest: Vector3 = root_rest.basis.y.normalized()
-			var up: Vector3 = pose[root].basis.y.normalized()
-			tilt_max = maxf(tilt_max, rad_to_deg(up_rest.angle_to(up)))
-		for b in sk.get_bone_count():
-			var p := sk.get_bone_parent(b)
-			if p < 0:
-				continue
-			var r0: float = (rest[b].origin - rest[p].origin).length()
-			if r0 < height * 0.01:
-				continue
-			var r1: float = (pose[b].origin - pose[p].origin).length()
-			if (r1 / r0 > 1.35 or r1 / r0 < 0.65) and stretch == "":
-				stretch = "%s (×%.2f)" % [sk.get_bone_name(b), r1 / r0]
-		for f in feet:
-			var rel: Vector3 = pose[f].origin - (pose[root].origin if root >= 0 else Vector3.ZERO)
-			if not fx.has(f):
-				fx[f] = [rel.x, rel.x, rel.z, rel.z]
-			else:
-				fx[f] = [minf(fx[f][0], rel.x), maxf(fx[f][1], rel.x), minf(fx[f][2], rel.z), maxf(fx[f][3], rel.z)]
-	var upright := gait or low.contains("idle") or low.contains("stance")
-	if upright and not NO_TILT.any(func(x): return low.contains(x)) and tilt_max > TILT_MAX:
-		add("ERROR", "TILT", who, "«%s»: тело поворачивается на %d° — модель встаёт вертикально или заваливается" % [name, roundi(tilt_max)])
-	if stretch != "":
-		add("WARNING", "STRETCH", who, "«%s»: кость растягивается или сжимается: %s" % [name, stretch])
-	if gait and not feet.is_empty():
-		var fwd := 0.0
-		var side := 0.0
-		for f in fx:
-			side = maxf(side, fx[f][1] - fx[f][0])
-			fwd = maxf(fwd, fx[f][3] - fx[f][2])
-		if fwd < height * 0.01:
-			add("ERROR", "FEET_STILL", who, "«%s»: ноги не шагают (размах %d см)" % [name, roundi(fwd * 100)])
-		elif fwd < height * 0.04:
-			add("INFO", "FEET_SMALL", who, "«%s»: шаг едва заметный (размах %d см)" % [name, roundi(fwd * 100)])
-		elif side > fwd * 0.8 and side > height * 0.06 and not NOT_STRAIGHT.any(func(x): return low.contains(x)):
-			add("ERROR", "LEG_SWING", who, "«%s»: ноги машут вбок (вбок %d см, вперёд-назад %d см)" % [name, roundi(side * 100), roundi(fwd * 100)])
-	# Стык цикла: первый и последний кадр должны совпадать
-	if upright and not NOT_LOOP.any(func(x): return low.contains(x)):
-		var jump := 0.0
-		var rp0: Vector3 = first[root].origin if root >= 0 else Vector3.ZERO
-		var rp1: Vector3 = last[root].origin if root >= 0 else Vector3.ZERO
-		for b in sk.get_bone_count():
-			jump = maxf(jump, ((first[b].origin - rp0) - (last[b].origin - rp1)).length())
-		if jump > height * 0.08:
-			add("WARNING", "LOOP_JUMP", who, "«%s»: рывок на стыке цикла (%d см)" % [name, roundi(jump * 100)])
-
-## Скелет → система координат модели (Y вверх, как модель стоит в игре)
-func _to_model(sk: Skeleton3D, model_root: Node) -> Transform3D:
-	var t := Transform3D()
-	var n: Node = sk
-	while n and n != model_root:
-		if n is Node3D:
-			t = (n as Node3D).transform * t
-		n = n.get_parent()
-	return t
-
-func _rest_globals(sk: Skeleton3D, to_model: Transform3D) -> Array:
-	var g: Array = []
-	g.resize(sk.get_bone_count())
-	for b in _order(sk):
-		var p := sk.get_bone_parent(b)
-		g[b] = (to_model * sk.get_bone_rest(b)) if p < 0 else (g[p] * sk.get_bone_rest(b))
-	return g
-
-func _order(sk: Skeleton3D) -> Array:
-	var out: Array = []
-	var seen := {}
-	for b in sk.get_bone_count():
-		_visit(sk, b, seen, out)
-	return out
-
-func _visit(sk: Skeleton3D, b: int, seen: Dictionary, out: Array) -> void:
-	if seen.has(b):
-		return
-	var p := sk.get_bone_parent(b)
-	if p >= 0:
-		_visit(sk, p, seen, out)
-	seen[b] = true
-	out.append(b)
-
-func _pose(sk: Skeleton3D, anim: Animation, tracks: Dictionary, t: float, to_model: Transform3D) -> Array:
-	var g: Array = []
-	g.resize(sk.get_bone_count())
-	for b in _order(sk):
-		var r := sk.get_bone_rest(b)
-		var pos := r.origin
-		var rot := r.basis.get_rotation_quaternion()
-		var scl := r.basis.get_scale()
-		if tracks.has(b):
-			var tr: Dictionary = tracks[b]
-			if tr.has(Animation.TYPE_POSITION_3D) and anim.track_get_key_count(tr[Animation.TYPE_POSITION_3D]) > 0:
-				pos = anim.position_track_interpolate(tr[Animation.TYPE_POSITION_3D], t)
-			if tr.has(Animation.TYPE_ROTATION_3D) and anim.track_get_key_count(tr[Animation.TYPE_ROTATION_3D]) > 0:
-				rot = anim.rotation_track_interpolate(tr[Animation.TYPE_ROTATION_3D], t)
-			if tr.has(Animation.TYPE_SCALE_3D) and anim.track_get_key_count(tr[Animation.TYPE_SCALE_3D]) > 0:
-				scl = anim.scale_track_interpolate(tr[Animation.TYPE_SCALE_3D], t)
-		var local := Transform3D(Basis(rot.normalized()).scaled(scl), pos)
-		var p := sk.get_bone_parent(b)
-		g[b] = (to_model * local) if p < 0 else (g[p] * local)
-	return g
-
-## Корень тела: первая кость без родителя, у которой есть дети (у Mixamo — Hips)
-func _root_bone(sk: Skeleton3D) -> int:
-	for b in sk.get_bone_count():
-		if sk.get_bone_name(b).ends_with("Hips"):
-			return b
-	for b in sk.get_bone_count():
-		if sk.get_bone_parent(b) < 0 and sk.get_bone_children(b).size() > 0:
-			# если у корня один ребёнок (Armature → тело), берём его
-			var c := sk.get_bone_children(b)
-			return c[0] if c.size() == 1 and sk.get_bone_children(c[0]).size() > 1 else b
-	return -1
-
-## Ступни: у человека — Left/RightFoot; у зверей — нижние концы цепочек (у земли)
-func _feet(sk: Skeleton3D, rest: Array, lo: float, height: float) -> Array:
-	var out: Array = []
-	for b in sk.get_bone_count():
-		var n := sk.get_bone_name(b)
-		if n.ends_with("LeftFoot") or n.ends_with("RightFoot"):
-			out.append(b)
-	if not out.is_empty():
-		return out
-	for b in sk.get_bone_count():
-		if sk.get_bone_children(b).is_empty() and sk.get_bone_parent(b) >= 0 and rest[b].origin.y < lo + height * 0.25:
-			out.append(b)   # концы лап у земли
-	return out
-
-
-# ---------------------------------------------------------------- 2) Кардинал играет
+# ---------------------------------------------------------------- игра Кардинала
 
 func _physics_process(dt: float) -> void:
 	if not playing or not is_instance_valid(hero):
