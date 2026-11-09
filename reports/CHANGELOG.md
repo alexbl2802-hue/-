@@ -36,3 +36,8 @@
 - `godot/scripts/hero_anim.gd`: `set_act_anim(kind, clip)` — замена клипа действия.
 - `godot/animate_4/`: шаблон «стойка» (петля с дыханием), поддержка петель; клинок стойки — вправо-вниз.
 - Тесты: `godot/tests/hero_states_test.*`, `godot/tests/animate4_bake.*` (запекание клипов героя).
+
+## Этап 5 — монстры, предметы, данжи, UI
+- `godot/scripts/enemy.gd`: обход препятствий в погоне и по дороге домой (`_steer`, `_path_free`); 3 с упора в воду — отказ от погони.
+- `godot/scripts/touch_ui.gd`: верхние кнопки через `_top_rect()` — на экранах выше телефонных до +25 %.
+- Тесты: `godot/tests/monsters_ai.*`, `items_dungeons.*`, `ui_layout.*`.
