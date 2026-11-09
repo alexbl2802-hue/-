@@ -422,7 +422,7 @@ func _process(_dt: float) -> void:
 	t.dash_form = SkillDefs.dash_form(Game.skills)
 	t.cd_left["art"] = hero.cd["art"]
 	t.cd_total["art"] = hero.cooldown_total("art")
-	for id in ["whirl", "dash", "horizontal"]:
+	for id in ["dash", "horizontal"]:
 		t.skill_ranks[id] = Game.rank(id)
 		t.cd_left[id] = hero.cd[id]
 		t.cd_total[id] = hero.cooldown_total(id)

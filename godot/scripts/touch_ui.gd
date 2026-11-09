@@ -90,8 +90,6 @@ func _buttons() -> Array:
 		list.append({"id": "art", "img": art_skill, "c": at.call(RING_IN, 180.0), "r": 24.0, "label": art_icon, "fs": 20, "border": Color(1, 0.85, 0.4, 0.8)})
 	if skill_ranks["horizontal"] > 0:
 		list.append({"id": "horizontal", "img": "horizontal", "c": at.call(RING_IN, 210.0), "r": 24.0, "label": "↔", "fs": 20, "border": Color(0.5, 0.85, 1, 0.8)})
-	if skill_ranks["whirl"] > 0:
-		list.append({"id": "whirl", "img": "whirl", "c": at.call(RING_IN, 240.0), "r": 24.0, "label": "🌀", "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
 	if skill_ranks["dash"] > 0:
 		list.append({"id": "dash", "img": dash_form, "c": at.call(RING_IN, 270.0), "r": 24.0, "label": dash_icon, "fs": 20, "border": Color(0.5, 0.85, 1, 0.75)})
 	# Дальний круг — уклонение, блок, прыжок, бег

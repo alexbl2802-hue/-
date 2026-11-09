@@ -168,21 +168,21 @@ func _weapon_drop() -> void:
 # ---------- Навыки: приём срабатывает
 func _skills() -> void:
 	at.set_step("навыки")
-	if int(Game.skills.get("whirl", 0)) <= 0:
-		Game.skills["whirl"] = 1
+	if int(Game.skills.get("dash", 0)) <= 0:
+		Game.skills["dash"] = 1
 		Game.refresh()
-	hero.cd["whirl"] = 0.0
-	hero.use_skill("whirl")
+	hero.cd["dash"] = 0.0
+	hero.use_skill("dash")
 	var ok := false
 	for i in 10:
 		await _frames(1)
-		if float(hero.get("_spin_t")) >= 0.0:
+		if float(hero.get("_dash_t")) >= 0.0:
 			ok = true
 			break
 	if ok:
-		at._pass("skills", "Приём «Вихрь» срабатывает")
+		at._pass("skills", "Приём «Рывок» срабатывает")
 	else:
-		at._fail("skills", "Приём «Вихрь» не сработал")
+		at._fail("skills", "Приём «Рывок» не сработал")
 	await _wait(1.2)
 
 # ---------- Кузница: у двери появляется «Кузница», окно открывается; улучшение, починка, ковка работают
