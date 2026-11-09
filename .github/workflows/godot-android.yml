@@ -3,6 +3,11 @@ name: Godot APK
 # Сборка только по команде (вкладка Actions → Run workflow)
 on:
   workflow_dispatch:
+    inputs:
+      bundle_tag:
+        description: "Только упаковать готовый релиз (например v2.0.65) в один архив, без сборки"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -11,7 +16,39 @@ env:
   GODOT_VERSION: "4.7"
 
 jobs:
+  # Один архив со всем: APK, части данных, исходный код (без исходных моделей — они внутри частей) и отчёты
+  bundle:
+    if: ${{ inputs.bundle_tag != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out/Zemli-${{ inputs.bundle_tag }}/data
+          cd out/Zemli-${{ inputs.bundle_tag }}
+          for i in 1 2 3 4 5; do gh release download "${{ inputs.bundle_tag }}" -R "${{ github.repository }}" -p "*.apk" --clobber && break; sleep 15; done
+          for i in 1 2 3 4 5; do gh release download "${{ inputs.bundle_tag }}" -R "${{ github.repository }}" -p "pack-*.pck" -D data --clobber && break; sleep 15; done
+          ls -la . data | head -40
+      - name: Source and reports
+        run: |
+          D=out/Zemli-${{ inputs.bundle_tag }}
+          mkdir -p "$D/source"
+          git archive --format=tar HEAD godot tools reports .github | tar -x -C "$D/source"
+          rm -rf "$D/source/godot/models" "$D/source/godot/textures"
+          cp -r reports "$D/reports"
+          printf '%s\n' "Земли Приключений ${{ inputs.bundle_tag }}" "" "*.apk  — установить на телефон" "data/  — части данных игры (игра качает их сама; тут — для хранения)" "source/ — исходный проект Godot 4.7 (модели и текстуры — внутри data/*.pck)" "reports/ — отчёты аудита" > "$D/README.txt"
+          cd out && zip -qr -1 "Zemli-${{ inputs.bundle_tag }}-all.zip" "Zemli-${{ inputs.bundle_tag }}"
+          ls -la
+      - name: Upload to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.bundle_tag }}
+          files: out/Zemli-${{ inputs.bundle_tag }}-all.zip
+
   build:
+    if: ${{ inputs.bundle_tag == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
