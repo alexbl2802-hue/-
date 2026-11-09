@@ -5,7 +5,7 @@ class_name AnimateSpec
 extends RefCounted
 
 ## Движения, для которых есть шаблоны ключевых поз (AnimateTemplates)
-const MOTIONS := ["thrust_dash", "horizontal", "whirl", "block_sword", "block_shield", "dash"]
+const MOTIONS := ["thrust_dash", "horizontal", "whirl", "block_sword", "block_shield", "dash", "stance"]
 
 ## Ключевые слова → движение. Порядок важен: первое совпадение побеждает
 const MOTION_WORDS := [
@@ -15,6 +15,7 @@ const MOTION_WORDS := [
 	["block_shield", ["щит", "shield"]],
 	["block_sword", ["блок", "защит", "парир", "block", "guard", "parry"]],
 	["dash", ["рывок", "рывк", "dash", "сдвиг", "уклон"]],
+	["stance", ["стойк", "stance", "idle"]],
 ]
 const DIR_WORDS := {
 	"forward": ["вперёд", "вперед", "forward"], "back": ["назад", "back", "backward"],

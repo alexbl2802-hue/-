@@ -113,6 +113,8 @@ static func check_animation(sk: Skeleton3D, anim: Animation, tpl: Dictionary, co
 				best = maxf(best, rad_to_deg(q0.angle_to(anim.rotation_track_interpolate(tm[b]["rot"], f[0]))))
 		if best < BODY_MOTION_MIN:
 			still.append("%s (%.0f°)" % [gname, best])
+	if tpl.get("name", "") == "stance":
+		still = []   # стойка — почти неподвижна по замыслу
 	checks.append({"name": "full_body", "ok": still.is_empty(), "detail": "участвуют таз/позвоночник, обе руки и обе ноги" if still.is_empty() else "почти не движутся: " + ", ".join(still)})
 	# 5. Клинок по ключам
 	var hand := PoseLib.bone(sk, "RightHand")
@@ -142,6 +144,8 @@ static func check_animation(sk: Skeleton3D, anim: Animation, tpl: Dictionary, co
 	# 7. Фазы: атака — подготовка → активная → восстановление
 	var phases: Array = tpl["keys"].map(func(k): return k["phase"])
 	var need := ["active", "recovery"] if tpl.get("name", "").begins_with("block") else ["anticipation", "active", "recovery"]
+	if tpl.get("name", "") == "stance":
+		need = ["ready"]
 	if tpl.get("name", "").begins_with("dash_run"):
 		need = ["active", "recovery"]
 	var order_ok := true

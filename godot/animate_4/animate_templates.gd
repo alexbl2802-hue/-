@@ -17,7 +17,7 @@ const STANCE := {
 	"LeftArm": Vector3(28, 0, -4), "LeftForeArm": Vector3(-18, 0, 0),
 }
 const STANCE_HIPS := Vector3(0, -0.035, 0)
-const STANCE_SWORD := Vector3(-0.45, -0.7, 0.55)
+const STANCE_SWORD := Vector3(-0.62, -0.72, 0.3)
 
 ## Шаблон движения по параметрам: {length, keys: [{u, phase, p, hips, sword?, plant}], name}
 static func build(spec: Dictionary) -> Dictionary:
@@ -28,6 +28,7 @@ static func build(spec: Dictionary) -> Dictionary:
 		"block_sword": return _block_sword()
 		"block_shield": return _block_shield()
 		"dash": return _dash(spec["dir"], spec["from_run"])
+		"stance": return _stance_loop()
 	return {}
 
 static func _k(u: float, phase: String, p: Dictionary, hips: Vector3, plant: Array, sword := Vector3.ZERO) -> Dictionary:
@@ -38,6 +39,16 @@ static func _k(u: float, phase: String, p: Dictionary, hips: Vector3, plant: Arr
 
 static func _stance(u: float, phase: String, plant := ["LeftFoot", "RightFoot"]) -> Dictionary:
 	return _k(u, phase, {}, STANCE_HIPS, plant, STANCE_SWORD)
+
+## Стойка с одним мечом (петля): лёгкое дыхание — таз чуть опускается, корпус чуть наклоняется
+static func _stance_loop() -> Dictionary:
+	var both := ["LeftFoot", "RightFoot"]
+	var breath := {"Spine": Vector3(8, 0, 0), "Spine1": Vector3(3, 0, 0), "RightArm": Vector3(-9, 0, 9), "LeftArm": Vector3(30, 0, -5)}
+	return {"name": "stance", "length": 2.4, "loop": true, "keys": [
+		_stance(0.0, "ready", both),
+		_k(0.5, "ready", breath, STANCE_HIPS + Vector3(0, -0.012, 0), both, STANCE_SWORD),
+		_stance(1.0, "ready", both),
+	]}
 
 # ---------------------------------------------------------------- атаки
 

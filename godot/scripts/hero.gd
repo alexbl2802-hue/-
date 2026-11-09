@@ -4,6 +4,7 @@ extends CharacterBody3D
 
 signal hurt(dmg: int)
 signal died
+signal state_changed(from: String, to: String)   # машина состояний героя (HeroStates)
 
 const WALK := 5.5
 const RUN := 11.0
@@ -54,7 +55,7 @@ const DASH_POSE := 0.2                        # кадр быстрого бег
 const DASH_LAND_CLIP := ["Sword_Judgment", 1.35, 2.1]   # [клип, начало приседа, стойка]
 const DASH_LAND := 0.45                                  # сколько длится присед → стойка, с
 var _dash_from := Vector3.ZERO
-var _dash_streak: MeshInstance3D
+var _dash_streak: DashStreak
 var _dead_t := 0.0
 var _char: Node3D           # модель персонажа из models/hero.glb
 var _anim: AnimationPlayer
@@ -293,6 +294,7 @@ func _attach_character() -> void:
 		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], [walk, LOCO_WALK_FROM],
 			[walk, LOCO_WALK_TOP], [RUN_CLIP, LOCO_FAST_FULL], [RUN_CLIP, LOCO_RUN_TOP], [sprint, LOCO_SPRINT]], RUN)
 		_loco_clips = ["", walk, walk, RUN_CLIP, RUN_CLIP, sprint]
+		_load_animate4()
 	_sk = sk
 	for i in sk.get_bone_count():
 		if sk.get_bone_name(i).ends_with("RightHand"):
@@ -711,6 +713,7 @@ func update_look() -> void:
 	# У следопыта своя броня и капюшон — накладки брони и шлема на нём не показываем
 	if _body_mi != null and SHOW_GEAR:
 		_show_armor(a, h)
+	_stance_and_block()
 
 ## Доспехи в духе SAO: кожаная куртка — лёгкий кожаный нагрудник с поясом; кольчуга — кольчужный
 ## нагрудник с пластинами на бёдрах и наплечниками; латы — белые латы с золотой кромкой
@@ -812,6 +815,32 @@ func _show_cloak() -> void:
 		_mantle = mi
 	if _mantle:
 		_mantle.visible = on
+
+## Клипы ANIMATE 4.0, запечённые для героя (godot/tests/animate4_bake.tscn → res://data/anim/):
+## стойка с одним мечом и блок щитом. Выбор по снаряжению — _stance_and_block()
+const A4_STANCE := "ANIMATE4/hero_stance_sword"
+const A4_BLOCK_SHIELD := "ANIMATE4/hero_block_shield"
+var _a4 := false
+
+func _load_animate4() -> void:
+	var ok := true
+	for n in ["hero_stance_sword", "hero_block_shield"]:
+		var path := "res://data/anim/%s.res" % n
+		if not ResourceLoader.exists(path):
+			ok = false
+			continue
+		AnimatePipeline.export_to(_anim, n, load(path))
+	_a4 = ok
+
+## Стойка с одним мечом (одноручное оружие без щита) — ANIMATE 4.0; блок: со щитом — щитом, без щита — мечом
+func _stance_and_block() -> void:
+	if _ha == null or not _a4:
+		return
+	var w = Game.equip.get("weapon")
+	var one_hand: bool = w != null and Items.ALL[w["id"]].get("wt", "sword") in ["sword", "rapier", "dagger"]
+	var shield: bool = Game.equip.get("shield") != null
+	_ha.set_loco_anim(0, A4_STANCE if one_hand and not shield else (A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE))
+	_ha.set_act_anim("block", A4_BLOCK_SHIELD if shield else BLOCK_CLIP[0])
 
 func _show_shield() -> void:
 	var e = Game.equip.get("shield")
@@ -987,9 +1016,7 @@ func _start_move(name: String, dir: Vector3) -> void:
 ## без наклона — отскок назад. Короткая неуязвимость.
 func dodge() -> void:
 	_cancel_soft_move()
-	if dead or busy or _dash_t >= 0.0 or _art_t >= 0.0 or cd["dodge"] > 0.0:
-		return
-	if _move != "" and not _move.begins_with("dodge") and _move != "roll":
+	if cd["dodge"] > 0.0 or not HeroStates.can(self, "dodge"):
 		return
 	var fwd := Vector3(sin(facing), 0, cos(facing))
 	var left := Vector3(cos(facing), 0, -sin(facing))
@@ -1133,7 +1160,7 @@ func _finisher_fx() -> void:
 
 func attack() -> void:
 	_cancel_soft_move()
-	if _dash_t >= 0.0 or dead or busy or blocking or _art_t >= 0.0 or _move != "":
+	if not HeroStates.can(self, "attack"):
 		return
 	# Комбо: нажатие во время удара — следующий удар сразу после этого
 	if attack_t >= 0.0:
@@ -1181,7 +1208,7 @@ var _art_dir := Vector3.FORWARD
 ## Приём меча: id — какой (art_sword …; у каждого своя кнопка)
 func use_art(id: String) -> void:
 	_cancel_soft_move()
-	if id == "" or Game.rank(id) == 0 or cd.get(id, 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0:
+	if id == "" or Game.rank(id) == 0 or cd.get(id, 0.0) > 0.0 or not HeroStates.can(self, "skill"):
 		return
 	attack_t = -1.0
 	_art = id.substr(4)
@@ -1395,7 +1422,7 @@ func use_skill(id: String) -> void:
 		use_horizontal()
 		return
 	var r := Game.rank(id)
-	if r == 0 or cd[id] > 0.0 or dead or busy or _dash_t >= 0.0:
+	if r == 0 or cd[id] > 0.0 or not HeroStates.can(self, "dash" if id == "dash" else "skill"):
 		return
 	attack_t = -1.0
 	_new_swing = true
@@ -1416,98 +1443,23 @@ func use_skill(id: String) -> void:
 		cd["dash"] = SkillDefs.dash_stats(Game.skills)["cd"]
 		# Аниме-рывок: герой исчезает со вспышкой там, где стоял (с места или на бегу)
 
-## След рывка (как у Кирито на видео): размытая полоса от места старта до героя — тёмно-синяя,
-## со штрихами скорости цвета рывка, к хвосту прозрачнее. Полоса всегда повёрнута к камере
-## (видна и сбоку, и из-за спины), после появления героя гаснет за 0,35 с.
-const STREAK_SHADER := """
-shader_type spatial;
-render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled, skip_vertex_transform;
-uniform vec3 a;
-uniform vec3 b;
-uniform float width = 1.4;
-uniform float fade = 1.0;
-uniform sampler2D tex : filter_linear, repeat_disable;
-void vertex() {
-	vec3 axis = b - a;
-	vec3 mid = (a + b) * 0.5;
-	vec3 cam = INV_VIEW_MATRIX[3].xyz;
-	vec3 dir = length(axis) > 0.001 ? normalize(axis) : vec3(1.0, 0.0, 0.0);
-	vec3 side = cross(dir, normalize(cam - mid));
-	side = length(side) > 0.001 ? normalize(side) : vec3(0.0, 1.0, 0.0);
-	vec3 p = mid + axis * VERTEX.x + side * VERTEX.y * width;
-	VERTEX = (VIEW_MATRIX * vec4(p, 1.0)).xyz;
-}
-void fragment() {
-	vec4 c = texture(tex, UV);
-	ALBEDO = c.rgb;
-	ALPHA = c.a * fade;
-}
-"""
-static var _streak_sh: Shader
-
-func _streak_tex(col: Color) -> ImageTexture:
-	var w := 128
-	var h := 32
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var rows := PackedFloat32Array()
-	var r := RandomNumberGenerator.new()
-	for y in h:
-		rows.append(r.randf())
-	var navy := Color(0.05, 0.07, 0.18)
-	for y in h:
-		var v := (y + 0.5) / h * 2.0 - 1.0
-		var prof := pow(maxf(0.0, 1.0 - v * v), 1.5)
-		# штрихи скорости: соседние строки сглажены, яркие — цвета рывка
-		var st := (rows[y] + rows[(y + 1) % h] + rows[(y + h - 1) % h]) / 3.0
-		for x in w:
-			var u := (x + 0.5) / w           # 0 — у героя, 1 — хвост
-			var tail := pow(1.0 - u, 0.9) * smoothstep(0.0, 0.05, u)
-			var line := smoothstep(0.6, 0.9, st) * (1.0 - u * 0.5)
-			var c := navy.lerp(col, line * 0.5)
-			c.a = clampf(pow(prof, 0.7) * tail * (0.7 + 0.3 * st) * 1.1, 0.0, 0.95)
-			img.set_pixel(x, h - 1 - y, c)
-	return ImageTexture.create_from_image(img)
-
+## След рывка — компонент DashStreak (scripts/fx/dash_streak.gd)
 func _streak_start() -> void:
 	_streak_end()
-	if _streak_sh == null:
-		_streak_sh = Shader.new()
-		_streak_sh.code = STREAK_SHADER
-	var m := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(1, 1)
-	q.flip_faces = false
-	m.mesh = q
-	var mat := ShaderMaterial.new()
-	mat.shader = _streak_sh
-	mat.set_shader_parameter("tex", _streak_tex(_dash_color()))
-	m.material_override = mat
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	m.extra_cull_margin = 16384.0
-	get_parent().add_child(m)
-	_dash_streak = m
+	_dash_streak = DashStreak.start(get_parent(), _dash_color())
 	_streak_update()
 
 func _streak_update() -> void:
-	if _dash_streak == null or not is_instance_valid(_dash_streak):
-		return
-	var up := Vector3(0, 0.85, 0)
-	var mat: ShaderMaterial = _dash_streak.material_override
-	# a — у героя (u = 0), b — место старта (хвост)
-	mat.set_shader_parameter("a", global_position + up)
-	mat.set_shader_parameter("b", _dash_from + up)
+	if _dash_streak != null and is_instance_valid(_dash_streak):
+		_dash_streak.update(global_position, _dash_from)
 
 func _streak_end() -> void:
 	if _dash_streak == null or not is_instance_valid(_dash_streak):
 		_dash_streak = null
 		return
 	_streak_update()
-	var m := _dash_streak
+	_dash_streak.finish()
 	_dash_streak = null
-	var mat: ShaderMaterial = m.material_override
-	var tw := m.create_tween()
-	tw.tween_method(func(f: float): mat.set_shader_parameter("fade", f), 1.0, 0.0, 0.35)
-	tw.tween_callback(m.queue_free)
 
 ## Цвет вспышек рывка: обычный — голубой, скользящий шаг — белый, прорыв — фиолетовый
 func _dash_color() -> Color:
@@ -1518,7 +1470,7 @@ func _dash_color() -> Color:
 
 func use_horizontal() -> void:
 	var r := Game.rank("horizontal")
-	if r == 0 or cd["horizontal"] > 0.0 or dead or busy or _move != "" or _dash_t >= 0.0 or _art_t >= 0.0:
+	if r == 0 or cd["horizontal"] > 0.0 or not HeroStates.can(self, "skill"):
 		return
 	var best := _nearest_enemy(6.0)
 	if best:
@@ -1688,7 +1640,12 @@ const HM_AIR := 0.3
 const REVERSE_FROM := 6.0      # м/с: быстрее — разворот через резкую остановку
 var _hm_vel := Vector3.ZERO
 
+var states := HeroStates.new()
+
 func _physics_process(dt: float) -> void:
+	var ch := states.update(self, dt)
+	if not ch.is_empty():
+		state_changed.emit(ch[0], ch[1])
 	_time += dt
 	_since_swing += dt
 	for k in cd:

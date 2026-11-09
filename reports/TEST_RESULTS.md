@@ -40,3 +40,14 @@
 | `res://tests/load_all.tscn` | 142 скрипта (с `animate_4`, `addons/animate`), 0 ошибок | — |
 
 Ограничения: проверка «пределы суставов» опирается на пределы `PoseLib.LIMITS` (замер по клипам героя); качество поз оценено глазами по кадрам, не специалистом-аниматором. Сгенерированные клипы в бою героя не подставлены (этап 4 — сохранять существующие механики).
+
+## Этап 4
+| Команда | Результат | Лог |
+|---|---|---|
+| `$G --headless --path godot res://tests/hero_states_test.tscn` | **26/26 PASS**: состояния idle/walk/run/sprint/jump/land/block/stagger/dash/skill/attack/dodge; прерывания (в оглушении отклонены удар/рывок/приём/Горизонталь/уклонение; в рывке — приём и удар; в приёме — рывок; уклонение прерывает удар); перезарядка рывка; root motion — клипы ударов (6) не сдвигают таз (0,000 м), двойного движения нет; урон удара при t=0,067 в окне [0,06; 0,46], Горизонтали при t=0,383 в [0,27; 0,50], рывка — только во время рывка; стойка ANIMATE 4.0 с одним мечом; со щитом — блок щитом, без — мечом; щит на левом предплечье (0,089 м от середины) | `reports/logs/hero_states.log` |
+| `$G --headless --path godot res://tests/animate4_bake.tscn` | 2/2 PASS, клипы `data/anim/hero_stance_sword.res`, `hero_block_shield.res` | — |
+| `xvfb-run $G --path godot res://tests/arts.tscn -- <папка>` (регрессия) | ALL OK (12 проверок) | `reports/logs/arts_stage4.log` |
+| `$G --headless --path godot res://tests/cardinal_autoplay.tscn -- <папка> 100000` (регрессия) | PASSED 21/0/1, 102 с | `reports/logs/cardinal_autotest_stage4.log` |
+| `xvfb-run $G --path godot res://tests/skills_anim.tscn -- <папка>` | след рывка после выноса в компонент — как прежде (кадры просмотрены) | — |
+
+Выносливости в дизайне игры нет — тестов расхода выносливости нет (не применимо).

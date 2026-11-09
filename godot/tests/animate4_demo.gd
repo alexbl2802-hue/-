@@ -13,6 +13,7 @@ const DEMOS := [
 	["dash_left", "Рывок с места влево"], ["dash_right", "Рывок с места вправо"],
 	["dash_run_forward", "Рывок с бега вперёд"], ["dash_run_back", "Рывок с бега назад"],
 	["dash_run_left", "Рывок с бега влево"], ["dash_run_right", "Рывок с бега вправо"],
+	["stance", "Стойка с мечом"],
 ]
 
 func _ready() -> void:

@@ -29,3 +29,10 @@
 - `godot/scripts/ui/animate_panel.gd`: генерация через ANIMATE 4.0 с выводом проверок; прочие движения — прежний генератор.
 - Тесты и предпросмотр: `godot/tests/animate4_demo.*`, `godot/tests/animate4_window.*`; `tests/load_all.gd` проверяет и `animate_4`, `addons/animate`.
 - Кадры предпросмотра: `reports/previews/animate4/`.
+
+## Этап 4 — герой, передвижение, бой
+- Новое: `godot/scripts/hero_states.gd` (`HeroStates`: 15 состояний, таблица `CAN`), `godot/scripts/fx/dash_streak.gd` (`DashStreak` — след рывка вынесен из `hero.gd`), `godot/data/anim/hero_stance_sword.res`, `hero_block_shield.res` (запечённые ANIMATE 4.0, входят в APK через `include_filter=data/*`).
+- `godot/scripts/hero.gd`: сигнал `state_changed(from, to)`; `states.update()` каждый кадр физики; `attack/dodge/use_skill/use_horizontal/use_art` проверяют `HeroStates.can()`; `_load_animate4()` и `_stance_and_block()` — стойка с одним мечом и блок по снаряжению; след рывка через `DashStreak`. Прежние сигналы (`hurt`, `died`) и публичные методы сохранены.
+- `godot/scripts/hero_anim.gd`: `set_act_anim(kind, clip)` — замена клипа действия.
+- `godot/animate_4/`: шаблон «стойка» (петля с дыханием), поддержка петель; клинок стойки — вправо-вниз.
+- Тесты: `godot/tests/hero_states_test.*`, `godot/tests/animate4_bake.*` (запекание клипов героя).

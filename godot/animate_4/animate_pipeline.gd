@@ -33,7 +33,7 @@ static func generate(text: String, sk: Skeleton3D, track_prefix: String, opts :=
 	#    активная фаза — быстрее при «молниеносно»), позы между ключами — кубические кривые
 	tpl = _timing(tpl, float(spec.get("speed", 1.0)))
 	out["template"] = tpl
-	var anim := PoseLib.build(sk, tpl["keys"], {}, tpl["length"], false, opts.get("ref", null), float(opts.get("ref_t", 0.0)),
+	var anim := PoseLib.build(sk, tpl["keys"], {}, tpl["length"], bool(tpl.get("loop", false)), opts.get("ref", null), float(opts.get("ref_t", 0.0)),
 		track_prefix, opts.get("blade", Vector3.ZERO))
 	# Опора: в стойке (первый ключ) носки стоят на земле — как в клипе-образце (или в позе покоя)
 	out["ground_shift"] = ground(sk, anim, opts.get("ref", null), float(opts.get("ref_t", 0.0)))

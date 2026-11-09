@@ -101,6 +101,15 @@ func set_loco_anim(point: int, anim_name: String) -> void:
 	if node and node.animation != StringName(anim_name):
 		node.animation = anim_name
 
+## Заменить анимацию действия (например, блок: мечом ↔ щитом — по снаряжению)
+func set_act_anim(kind: String, anim_name: String) -> void:
+	if not _names.has(kind):
+		return
+	var node := (tree.tree_root as AnimationNodeBlendTree).get_node("a_" + kind) as AnimationNodeAnimation
+	if node and node.animation != StringName(anim_name):
+		node.animation = anim_name
+		_names[kind] = anim_name
+
 func locomotion(speed: float, stride_scale: float) -> void:
 	_loco_target = speed
 	tree.set("parameters/loco_ts/scale", stride_scale)
