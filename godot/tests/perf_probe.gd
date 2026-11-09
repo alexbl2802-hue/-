@@ -73,5 +73,32 @@ func _ready() -> void:
 			for i in g[name].size():
 				g[name][i].visible = was[i]
 			print("PERF   %-28s %9d треуг. (%4.1f%%)  %4d вызовов" % [name, base.x - m.x, 100.0 * (base.x - m.x) / maxf(1.0, base.x), base.y - m.y])
+		# Рычаги качества: порог LOD моделей (пикс.) и тени
+		var vp := get_viewport()
+		for lod in [1.0, 2.0, 4.0, 8.0]:
+			vp.mesh_lod_threshold = lod
+			var m := await _measure()
+			print("PERF   LOD-порог %.0f пикс.: %9d треуг., %4d вызовов" % [lod, m.x, m.y])
+		vp.mesh_lod_threshold = 1.0
+		var sun: DirectionalLight3D = main.get("_sun")
+		if sun:
+			sun.shadow_enabled = false
+			var m2 := await _measure()
+			print("PERF   без теней:          %9d треуг., %4d вызовов" % [m2.x, m2.y])
+			sun.shadow_enabled = true
+		for qi in Settings.QUALITY.size():
+			Settings.quality = qi
+			Settings.shadows = Settings.QUALITY[qi]["shadows"]
+			Settings.view = Settings.QUALITY[qi]["view"]
+			main.apply_settings()
+			var mq := await _measure()
+			print("PERF   профиль «%s»: %9d треуг., %4d вызовов" % [Settings.QUALITY[qi]["name"], mq.x, mq.y])
+			if not OS.get_cmdline_user_args().is_empty():
+				main.hud.visible = false
+				get_viewport().get_texture().get_image().save_png(OS.get_cmdline_user_args()[0] + "/q_%s_%d.png" % [s.replace(" ", "_"), qi])
+		Settings.quality = 2
+		Settings.shadows = true
+		Settings.view = 1
+		main.apply_settings()
 		main.hero.set_physics_process(true)
 	get_tree().quit()

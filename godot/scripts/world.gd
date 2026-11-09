@@ -15,6 +15,16 @@ var _fire_light: OmniLight3D
 var _fire_flame: MeshInstance3D
 var _time := 0.0
 var _rock_nodes: Array = []
+var _tree_full_nodes: Array = []   # деревья полной модели (ступень 0)
+var _tree_near_nodes: Array = []   # подробная копия (ступень 1)
+
+## До какого расстояния деревья полной модели (профиль качества); 0 — полная модель не показывается
+func set_tree_full(d: float) -> void:
+	for n in _tree_full_nodes:
+		(n as GeometryInstance3D).visible = d > 0.0
+		(n as GeometryInstance3D).visibility_range_end = maxf(d, 0.1)
+	for n in _tree_near_nodes:
+		(n as GeometryInstance3D).visibility_range_begin = maxf(d, 0.0)
 
 ## Дальность видимости камней (настройка «Дальность прорисовки»)
 func set_rock_view(d: float) -> void:
@@ -146,9 +156,11 @@ func _tree_multimesh(meshes: Dictionary, nm: String, list: Array, lod: int) -> v
 	match lod:
 		0:
 			mmi.visibility_range_end = TREE_FULL
+			_tree_full_nodes.append(mmi)
 		1:
 			mmi.visibility_range_begin = TREE_FULL
 			mmi.visibility_range_end = TREE_NEAR
+			_tree_near_nodes.append(mmi)
 		2:
 			mmi.visibility_range_begin = TREE_NEAR
 			mmi.visibility_range_end = TREE_MID

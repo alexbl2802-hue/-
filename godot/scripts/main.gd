@@ -244,6 +244,9 @@ func apply_settings() -> void:
 	if mode < 0:
 		_env.fog_depth_end = v["fog"]
 	_sun.shadow_enabled = Settings.shadows
+	var q: Dictionary = Settings.QUALITY[Settings.quality]
+	get_viewport().mesh_lod_threshold = q["lod"]
+	world.set_tree_full(q["tree_full"])
 	if day_night:
 		day_night.apply()
 	hud.show_fps(Settings.show_fps)

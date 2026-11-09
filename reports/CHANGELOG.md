@@ -41,3 +41,10 @@
 - `godot/scripts/enemy.gd`: обход препятствий в погоне и по дороге домой (`_steer`, `_path_free`); 3 с упора в воду — отказ от погони.
 - `godot/scripts/touch_ui.gd`: верхние кнопки через `_top_rect()` — на экранах выше телефонных до +25 %.
 - Тесты: `godot/tests/monsters_ai.*`, `items_dungeons.*`, `ui_layout.*`.
+
+## Этап 6 — оптимизация
+- `godot/scripts/settings.gd`: профили качества `QUALITY` (Низкое/Среднее/Высокое: порог LOD, полные модели деревьев, тени, дальность), сохраняются; по умолчанию «Высокое» (прежний вид).
+- `godot/scripts/main.gd` `apply_settings`: порог LOD вида, дальность полных моделей деревьев.
+- `godot/scripts/world.gd`: `set_tree_full(d)`; списки ступеней деревьев.
+- `godot/scripts/ui/settings_panel.gd`: выбор «Качество графики».
+- Тест-замер: `godot/tests/perf_probe.*`.

@@ -11,6 +11,16 @@ const VIEW := [
 	{"name": "Дальше", "far": 1500.0, "fog": 620.0, "rocks": 300.0},
 ]
 
+## Профили качества для слабых / средних / мощных устройств (замеры — reports/BASELINE.md, этап 6):
+## lod — порог упрощения моделей (пикселей экрана; больше — проще модели вдали), tree_full — до какого
+## расстояния деревья полной модели (дальше — упрощённая копия), shadows/view — тени и дальность.
+## «Высокое» — прежний вид игры (по умолчанию).
+const QUALITY := [
+	{"name": "Низкое", "lod": 8.0, "tree_full": 0.0, "shadows": false, "view": 0},
+	{"name": "Среднее", "lod": 4.0, "tree_full": 10.0, "shadows": true, "view": 1},
+	{"name": "Высокое", "lod": 1.0, "tree_full": 25.0, "shadows": true, "view": 1},
+]
+static var quality := 2
 static var cam_sens := 1.0
 static var shadows := true
 static var view := 1
@@ -32,6 +42,7 @@ static func load_settings() -> void:
 	view = clampi(int(cf.get_value("game", "view", 1)), 0, VIEW.size() - 1)
 	show_fps = bool(cf.get_value("game", "show_fps", false))
 	admin = bool(cf.get_value("game", "admin", false))
+	quality = clampi(int(cf.get_value("game", "quality", 2)), 0, QUALITY.size() - 1)
 
 static func save_settings() -> void:
 	var cf := ConfigFile.new()
@@ -40,4 +51,5 @@ static func save_settings() -> void:
 	cf.set_value("game", "view", view)
 	cf.set_value("game", "show_fps", show_fps)
 	cf.set_value("game", "admin", admin)
+	cf.set_value("game", "quality", quality)
 	cf.save(PATH)
