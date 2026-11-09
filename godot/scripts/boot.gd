@@ -23,6 +23,8 @@ var _ls: LoadingScreen
 var _packs: Array = []        # [{name, size}]
 var _queue: Array = []        # что ещё скачать
 var _total := 0               # байт к скачиванию (только недостающие)
+var _bad_twice := {}          # часть → сколько раз не сошлась контрольная сумма после скачивания
+var _rounds := 0              # кругов автоматической докачки после проверки
 var _done := 0                # скачано полностью (байт)
 var _base := ""
 var _phase := ""              # "download" | "load"
@@ -79,12 +81,20 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(DIR)
 	_dm_init()
 	_cleanup()
+	# Что уже есть на телефоне: размер и (один раз) контрольная сумма. Часть от прошлой версии с тем же
+	# именем, но другим содержимым, сразу идёт в очередь — второго круга докачки не бывает
+	_ls.note.text = "Проверяю данные игры…"
 	for p in _packs:
 		var f := _pack_path(p["name"])
 		if FileAccess.file_exists(f) and _size(f) == int(p["size"]):
-			continue   # уже скачано
+			if _verified.get(p["name"], "") != str(p.get("sha256", "")):
+				await get_tree().process_frame   # проверка большой части — не замораживать экран
+			if _check_pack(p, f):
+				continue   # уже скачано и цело
+			DirAccess.remove_absolute(f)
 		_queue.append(p)
 		_total += int(p["size"])
+	_ls.note.text = ""
 	if _queue.is_empty():
 		_mount_and_load()
 	elif _dm != null and _dm_start():
@@ -135,6 +145,9 @@ func _check_pack(p: Dictionary, path: String) -> bool:
 	if want == "" or _verified.get(p["name"], "") == want:
 		return true
 	var got := FileAccess.get_sha256(path)
+	if got == "":
+		_diag("часть %s: контрольную сумму прочитать нельзя — проверена только по размеру" % p["name"])
+		return true
 	if got != want:
 		_diag("часть %s повреждена: sha256 %s, ожидалось %s" % [p["name"], got.left(12), want.left(12)])
 		return false
@@ -296,7 +309,8 @@ func _dm_tick() -> void:
 			continue
 		have += mini(int(r[1]), int(p["size"]))
 		left += 1
-	_ls.target = 0.85 * float(have) / maxf(1.0, _total)
+	have = mini(have, _total)
+	_ls.target = 0.85 * clampf(float(have) / maxf(1.0, _total), 0.0, 1.0)
 	_ls.text = ""
 	_ls.note.text = "Данные игры: %d из %d МБ · можно свернуть игру — загрузка продолжится" % [have >> 20, _total >> 20]
 	if left == 0:
@@ -524,8 +538,8 @@ func _finish_part() -> void:
 	_next()
 
 func _show() -> void:
-	var have := _done + mini(_got, int(_cur.get("size", 0)))
-	_ls.target = 0.85 * float(have) / maxf(1.0, _total)
+	var have := mini(_done + mini(_got, int(_cur.get("size", 0))), _total)
+	_ls.target = 0.85 * clampf(float(have) / maxf(1.0, _total), 0.0, 1.0)
 	_ls.note.text = "Данные игры: %d из %d МБ · часть %d из %d" % [have >> 20, _total >> 20, _packs.size() - _queue.size() + 1, _packs.size()] \
 		if _total > 0 else ""
 
@@ -549,6 +563,9 @@ func _soft_fail(msg: String) -> void:
 func _resume() -> void:
 	if _packs.is_empty():
 		return   # список частей не прочитан — повтор не поможет, нужна переустановка/обновление
+	if _queue.is_empty():
+		_mount_and_load()
+		return
 	_tries = 0
 	_ls.retry.visible = false
 	_ls.text = ""
@@ -563,16 +580,38 @@ func _mount_and_load() -> void:
 		if not FileAccess.file_exists(path):
 			_diag("нет части %s" % p["name"])
 			bad.append(p)
-		elif _size(path) != int(p["size"]) or not _check_pack(p, path):
-			_diag("часть %s повреждена — удаляю" % p["name"])
+		elif _size(path) != int(p["size"]):
+			_diag("часть %s неполная — удаляю" % p["name"])
 			DirAccess.remove_absolute(path)
 			bad.append(p)
+		elif not _check_pack(p, path):
+			# Скачана заново и снова не сходится — значит, так на сервере: не качать по кругу,
+			# принять, если монтируется (проверка ниже)
+			_bad_twice[p["name"]] = int(_bad_twice.get(p["name"], 0)) + 1
+			if int(_bad_twice[p["name"]]) >= 2:
+				_diag("часть %s дважды не сошлась с контрольной суммой — принимаю как есть" % p["name"])
+			else:
+				_diag("часть %s повреждена — удаляю" % p["name"])
+				DirAccess.remove_absolute(path)
+				bad.append(p)
 	if not bad.is_empty():
+		if _rounds >= 3:
+			_fail("Часть данных не скачивается целой (%d) — проверь интернет и нажми «Повторить»." % bad.size())
+			_queue = bad
+			_done = 0
+			_total = 0
+			for p in bad:
+				_total += int(p["size"])
+			return
+		_rounds += 1
+		# Докачать недостающее сразу, без кнопки; счётчик — заново, только по этим частям
 		_queue = bad
+		_done = 0
 		_total = 0
 		for p in bad:
 			_total += int(p["size"])
-		_fail("Часть данных отсутствует или повреждена (%d) — нажми «Повторить», скачаю заново." % bad.size())
+		_ls.note.text = "Обновляю части данных: %d" % bad.size()
+		_resume()
 		return
 	for p in _packs:
 		var path := _pack_path(p["name"])

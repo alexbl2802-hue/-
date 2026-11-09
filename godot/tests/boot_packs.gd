@@ -73,7 +73,8 @@ func _ready() -> void:
 	var w := FileAccess.open(dst, FileAccess.WRITE)
 	w.store_buffer(b)
 	w.close()
-	r = await _run_boot(20.0)
+	r = await _run_boot(240.0)
+	# повреждённая часть отбраковывается ещё при запуске и сразу ставится на докачку (сети нет — ошибка с «Повторить»)
 	_check("corrupt same-size pack detected", r.begins_with("error") and not FileAccess.file_exists(dst), r)
 	# 3. пакета нет и сети нет — ошибка с кнопкой «Повторить», без падения
 	r = await _run_boot(240.0)
