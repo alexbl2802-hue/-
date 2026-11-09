@@ -33,7 +33,7 @@ var dash_form := "dash" # форма рывка: dash / slide / blink — для
 var skill_list: Array = []   # id навыков по порядку (dash, horizontal, art_sword …)
 var skill_icons := {}        # id → значок, если нет картинки
 const PAGE := 4
-const PAGE_SLOTS := [180.0, 210.0, 240.0, 270.0]
+const PAGE_SLOTS := [172.0, 207.0, 243.0, 278.0]   # шире, чтобы кнопки не жались друг к другу
 const PAGE_TURN := 90.0      # на сколько градусов уезжает страница при листании
 var _page := 0
 var _page_anim := 0.0        # -1/1 → 0: новая страница въезжает по дуге
@@ -127,7 +127,7 @@ func _buttons() -> Array:
 	list.append({"id": "run", "c": at.call(RING_OUT, 249.0), "r": 23.0, "label": "🏃", "fs": 17})
 	return list
 
-const RING_IN := 90.0     # радиус дуги навыков вокруг удара
+const RING_IN := 96.0     # радиус дуги навыков вокруг удара
 const RING_OUT := 146.0     # дальний круг (до миникарты не достаёт)
 
 func _act_rect() -> Rect2:
@@ -155,7 +155,7 @@ func _on_skill_arc(p: Vector2) -> bool:
 		return false
 	var v := p - _ring_center()
 	var a := fposmod(rad_to_deg(v.angle()), 360.0)
-	return absf(v.length() - RING_IN) < 30.0 and a > 165.0 and a < 285.0
+	return absf(v.length() - RING_IN) < 30.0 and a > 158.0 and a < 292.0
 
 func _press(id: String, down: bool) -> void:
 	_down[id] = down
