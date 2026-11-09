@@ -344,14 +344,6 @@ static func _normal_map(hm: Image, strength: float) -> ImageTexture:
 	n.generate_mipmaps()
 	return ImageTexture.create_from_image(n)
 
-static func _speckle(img: Image, r: RandomNumberGenerator, n: int, a: float) -> void:
-	var s := img.get_width()
-	for i in n:
-		var x := r.randi() % s
-		var y := r.randi() % s
-		var v := r.randf()
-		img.set_pixel(x, y, img.get_pixel(x, y).lerp(Color(v, v, v), a))
-
 static func _mip(img: Image) -> Image:
 	img.generate_mipmaps()
 	return img

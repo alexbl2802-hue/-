@@ -474,21 +474,6 @@ func _audit_skills(ap: AnimationPlayer, sk: Skeleton3D, x: Transform3D) -> void:
 		add("INFO", "SKILL", clip, "«Горизонталь»: удар клипа %.2f с (рука %.1f м/с), в игре %.2f с" % [best_t, best, hz[2][1]])
 		if absf(best_t - float(hz[2][1])) > 0.1:
 			add("WARNING", "SKILL_SYNC", clip, "удар «Горизонтали» не в такт: клип %.2f с, игра %.2f с" % [best_t, hz[2][1]])
-	# Вихрь: оборот корпуса на 360° внутри отрезка
-	var wk: Array = cm.get("WHIRL_KEYS", [])
-	clip = cm["WHIRL_CLIP"][0] if cm.has("WHIRL_CLIP") else "Sword_Spin_360"
-	if ap.has_animation(clip) and wk.size() >= 2:
-		var acc := 0.0
-		var t: float = wk[0][1]
-		var py: float = sample.call(clip, t)[1]
-		while t < wk[1][1]:
-			t += 0.02
-			var y: float = sample.call(clip, t)[1]
-			acc += angle_difference(py, y)
-			py = y
-		add("INFO", "SKILL", clip, "вихрь: за отрезок клипа корпус поворачивается на %.0f°" % absf(rad_to_deg(acc)))
-		if absf(rad_to_deg(acc)) < 300.0:
-			add("WARNING", "SKILL_SYNC", clip, "вихрь не делает полный оборот за время ударов (%.0f°)" % absf(rad_to_deg(acc)))
 	# Защита: к стойке рука с мечом поднята перед собой
 	clip = "Block10"
 	if ap.has_animation(clip) and cm.has("BLOCK_CLIP"):

@@ -62,37 +62,38 @@ func _ready() -> void:
 	var panel: Control = main.hud.skills
 	_check("skills panel opens", panel.visible and get_tree().paused, "")
 	await _shot("c_skills.png")
-	for id in ["whirl", "whirl", "dash", "strength"]:
+	for id in ["horizontal", "horizontal", "dash"]:
 		var row: Button = panel._list.get_children().filter(func(b): return (b as Button).text.contains(SkillDefs.find(id)["name"]))[0]
 		row.pressed.emit()
 		await _frames(1)
 		panel._up.pressed.emit()
 		await _frames(1)
-	panel._sel = "whirl"
+	panel._sel = "horizontal"
 	panel._render()
 	await _frames(5)
 	await _shot("c_skills2.png")
 	panel.close()
 	await _frames(5)
-	_check("skills learned", Game.rank("whirl") == 2 and Game.rank("dash") == 1, str(Game.skills))
-	# 6. Вихрь: три гоблина вокруг
+	_check("skills learned", Game.rank("horizontal") == 2 and Game.rank("dash") == 1, str(Game.skills))
+	# 6. «Горизонталь»: три гоблина впереди
 	_place(spot, 2.6)
 	var ring := []
 	for k in 3:
 		var s: Node3D = _enemy("goblin", k + 2)
-		var a := k * 2.1
+		var a := (k - 1) * 0.5
 		_move_enemy(s, hero.global_position + Vector3(sin(a) * 2.0, 0, cos(a) * 2.0))
 		s.hp = 25
 		s.T = s.T.duplicate()
 		s.T["aggro"] = 0.0
 		ring.append(s)
 	await _frames(10)
-	_tap(Vector2(vp.x - 160, vp.y - 130))
+	hero.facing = 0.0
+	hero.use_skill("horizontal")
 	await _frames(8)
-	await _shot("c_whirl.png")
+	await _shot("c_horizontal.png")
 	await _frames(30)
-	_check("whirl kills 3 goblins", ring.all(func(s): return s.dead), str(ring.map(func(s): return s.hp)))
-	_check("whirl cooldown", main.hero.cd["whirl"] > 0.0, str(main.hero.cd))
+	_check("horizontal kills 3 goblins", ring.all(func(s): return s.dead), str(ring.map(func(s): return s.hp)))
+	_check("horizontal cooldown", main.hero.cd["horizontal"] > 0.0, str(main.hero.cd))
 	# 7. Рывок сквозь гоблина
 	var gob2: Node3D = _enemy("goblin", 1)
 	hero.facing = 0.0

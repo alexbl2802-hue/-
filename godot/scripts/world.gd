@@ -731,59 +731,6 @@ func _build_campfire() -> void:
 	_tree_collider(body, campfire.position, 1.0)
 
 # ---------- Входы в подземелья
-func _build_entrances() -> void:
-	var body := StaticBody3D.new()
-	add_child(body)
-	for idx in WorldGen.sites.size():
-		var s: Dictionary = WorldGen.sites[idx]
-		var g := Node3D.new()
-		var stone := Mats.lp(0x8a8478 if idx == 0 else 0x6f6a66)
-		for x in [-1.9, 1.9]:
-			_box(g, Vector3(1.0, 4.2, 1.0), stone, Vector3(x, 2.1, 0))
-		_box(g, Vector3(5.2, 0.9, 1.3), stone, Vector3(0, 4.6, 0))
-		var dark := MeshInstance3D.new()
-		var q := QuadMesh.new()
-		q.size = Vector2(2.8, 4.2)
-		dark.mesh = q
-		dark.material_override = Mats.glow(0x000000)
-		dark.position = Vector3(0, 2.1, -0.2)
-		g.add_child(dark)
-		var mound := MeshInstance3D.new()
-		mound.mesh = _blob(6.0, 8, 4)
-		mound.material_override = Mats.lp(0x5d7a3a if idx == 0 else 0x6d6862)
-		mound.scale = Vector3(1.1, 0.85, 0.9)
-		mound.position = Vector3(0, 1.2, -5.2)
-		g.add_child(mound)
-		for i in 3:
-			_box(g, Vector3(2.8, 0.2, 0.6), stone, Vector3(0, 0.1 - i * 0.18, 0.9 - i * 0.6))
-		for x in [-2.7, 2.7]:
-			var post := MeshInstance3D.new()
-			post.mesh = _cyl(0.08, 0.1, 1.8, 5)
-			post.material_override = Mats.lp(0x4a3220)
-			post.position = Vector3(x, 0.9, 1.0)
-			g.add_child(post)
-			var fl := MeshInstance3D.new()
-			fl.mesh = _cyl(0.0, 0.17, 0.45, 5)
-			fl.material_override = Mats.glow(0xffb040)
-			fl.position = Vector3(x, 2.0, 1.0)
-			g.add_child(fl)
-		var light := OmniLight3D.new()
-		light.light_color = WorldGen.hex(0xff9a3c)
-		light.light_energy = 1.5
-		light.omni_range = 10.0
-		light.position = Vector3(0, 3, 2)
-		g.add_child(light)
-		var angle := atan2(-float(s["x"]), -float(s["z"]))  # лицом к городу
-		g.rotation.y = angle
-		g.position = Vector3(s["x"], s["h"], s["z"])
-		add_child(g)
-		var dir := Vector3(sin(angle), 0, cos(angle))
-		var basis := Basis(Vector3.UP, angle)
-		for x in [-1.9, 1.9]:
-			_tree_collider(body, g.position + basis * Vector3(x, 0, 0), 0.7)
-		_tree_collider(body, g.position + basis * Vector3(0, 0, -5.2), 4.8)
-		entrances.append({"name": s["name"], "door": g.position + dir * 1.0, "dir": dir, "x": s["x"], "z": s["z"]})
-
 # ---------- Башня этажей: высокая каменная башня, дверь смотрит на город
 func _build_tower() -> void:
 	var x := TOWER_POS.x

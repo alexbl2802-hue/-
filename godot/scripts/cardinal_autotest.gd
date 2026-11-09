@@ -42,8 +42,6 @@ var _stuck_pos := Vector3.ZERO
 var _stuck_t := 0.0
 var _mon_t := 0.0
 var _low_fps_t := 0.0
-var _hero_pose := Vector3.ZERO
-var _hero_frozen_t := 0.0
 var _mobs := {}             # монстр → {pos, slide_t, chase_d, chase_t}
 var _overlay: CanvasLayer
 var _ov_label: Label
@@ -52,12 +50,10 @@ var _rng := RandomNumberGenerator.new()
 # CARDINAL 3.1: подтверждённые проверки, а не число убитых монстров.
 var checks: Dictionary = {}
 var _initial_enemy_states: Dictionary = {}
-var _last_hp := -1.0
 var _last_position := Vector3.ZERO
 var _coverage_time := 0.0
 var _combat_seen := false
 var _killed := 0
-var _run_seconds := 0.0
 const CHECK_NAMES := ["hero_movement", "hero_health", "enemy_spawn", "enemy_combat", "enemy_death", "loot", "weapon_drop", "inventory", "equipment", "skills", "forge", "alchemist", "trade", "dungeon", "boss", "texture_clip", "script_errors", "performance", "save_load", "navigation_stall", "npc", "quests"]
 ## Названия проверок для отчёта и окна
 const CHECK_TITLES := {"hero_movement": "Движение героя", "hero_health": "Здоровье героя", "enemy_spawn": "Появление монстров",
@@ -68,18 +64,12 @@ const CHECK_TITLES := {"hero_movement": "Движение героя", "hero_hea
 	"performance": "Просадки кадров и лаги", "save_load": "Сохранение", "navigation_stall": "Застревания", "npc": "NPC", "quests": "Задания"}
 const FIELD_SECONDS := 60.0   # столько секунд игрового времени Кардинал сначала играет с монстрами
 const TEST_LIMIT_SECONDS := 900.0
-const SCENARIO_TIMEOUT := 25.0
-const MAX_RETRIES := 2
 var registry: Dictionary = {}
 var scenario_log: Array = []
 var _scenario_index := 0
 var _scenario_elapsed := 0.0
 var _scenario_attempt := 0
 var _test_elapsed := 0.0
-var _scenario_order: Array = []
-var _last_enemy_activity := 0.0
-var _last_enemy_hp := -1.0
-var _last_enemy_id := 0
 var _auto_complete := false
 var step := ""                 # что Кардинал сейчас проверяет (для окна и надписи)
 var _scripted := false         # идут сценарии — бот не управляет героем
@@ -352,7 +342,6 @@ func _coverage_tick(dt: float) -> void:
 			if e.get("hp") != null:
 				_initial_enemy_states[id]["hp"] = float(e.hp)
 	# Не объявляем неподключённые механики успешными: они остаются NOT_TESTED.
-
 
 
 ## Ошибки и предупреждения движка и скриптов во время автотеста (Godot 4.5+: OS.add_logger)

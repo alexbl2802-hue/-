@@ -39,9 +39,10 @@ func _ready() -> void:
 		gob.set_active(true)
 		for i in 10:
 			await get_tree().physics_frame
-		h.cd["art"] = 0.0
+		var aid: String = "art_" + Items.ALL[w].get("wt", "sword")
+		h.cd[aid] = 0.0
 		var hp0: float = gob.hp
-		h.use_skill("art")
+		h.use_skill(aid)
 		var shot := false
 		for i in 120:
 			await get_tree().physics_frame

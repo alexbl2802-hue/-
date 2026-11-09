@@ -76,7 +76,7 @@ func _ready() -> void:
 	_check("rabbit/kobold damage up", rb.T["dmg"] == 16 and preload("res://scripts/enemy.gd").TYPES["kobold"]["dmg"] == 23, "")
 	# 5. Эволюция навыка закрыта на максимуме
 	Game.level = 10
-	Game.skills = {"strength": 7}
+	Game.stats["str"] = 7
 	Game.refresh()
 	main.hud.open_skills()
 	await _frames(5)

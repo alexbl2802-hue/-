@@ -39,9 +39,6 @@ static func find(id: String) -> Dictionary:
 static func horizontal_cd(r: int) -> float:
 	return maxf(3.0, 7.0 - 1.0 * (maxi(1, r) - 1))
 
-static func whirl_cd(r: int) -> float:
-	return maxf(2.5, 8.0 - 1.5 * (r - 1))
-
 # ---------- Рывок и его эволюция: Рывок (10 ур.) → Скользящий шаг (5 ур.) → прорыв: Мерцание.
 # Урон сквозь врагов — 20%. Скорость — надбавка к базовой скорости рывка.
 const DASH_DMG := 0.2
@@ -82,11 +79,7 @@ static func dash_desc(speed: float, cd: float) -> String:
 ## Описание эффекта навыка на ранге r
 static func desc(id: String, r: int) -> String:
 	match id:
-		"strength": return "Урон +%d" % (5 * r)
-		"vitality": return "Здоровье +%d" % (20 * r)
-		"agility": return "Бег +%d%%, удары быстрее на %d%%" % [8 * r, 10 * r]
 		"regen": return "+%s здоровья/с, даже в бою" % String.num(1.5 * r)
-		"whirl": return "Удар вокруг: %d%% урона, откат %s с" % [120 + 30 * (r - 1), String.num(whirl_cd(r))]
 		"crit": return "%d%% шанс двойного урона" % (8 * r)
 		"dash": return dash_desc(1.0 + 0.1 * r, dash_cd(r))
 		"vamp": return "Лечение: %d%% от урона" % (4 * r)

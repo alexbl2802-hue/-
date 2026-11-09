@@ -210,8 +210,6 @@ func _ready() -> void:
 	global_position = home
 
 # ---------- Мобы на моделях Meshy: все движения — клипы Meshy (свои у модели или перенесённые
-# с героя: tools/prepare_models.py meshy_to), раскраска — перекраска Meshy в аниме-стиле.
-const HERO_MODEL := "res://models/hero.glb"
 const WOLF_MODEL := "res://models/wolf.glb"
 const SKELETON_MODEL := "res://models/skeleton.glb"   # присланный скелет-воин со своими движениями
 const SPIDER_MODEL := "res://models/spider.glb"
@@ -943,8 +941,6 @@ func stun(t: float, vulnerable := false) -> void:
 	_extra_hits = []
 	if vulnerable:
 		_vuln_t = t + 0.4
-	if hero and hero.ATTACK_RINGS:
-		Fx.ring(global_position + Vector3(0, T["bar"] - 0.4, 0), Color("#ffe060"), 0.6, 0.5)
 
 var _tilt := Vector2.ZERO    # наклон от удара: (вокруг X, вокруг Z) в системе монстра
 

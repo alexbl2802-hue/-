@@ -235,8 +235,8 @@ func refresh() -> void:
 		arm += Items.stat(e, "armor")
 		spd_b += Items.stat(e, "speed")
 		crit_b += Items.stat(e, "crit")
-	max_hp = 100.0 + (level - 1) * 15 + hp_b + rank("vitality") * 20 + stats["vit"] * STAT_VIT
-	dmg = 18 + (level - 1) * 4 + dmg_b + rank("strength") * 5 + stats["str"] * STAT_STR
+	max_hp = 100.0 + (level - 1) * 15 + hp_b + stats["vit"] * STAT_VIT
+	dmg = 18 + (level - 1) * 4 + dmg_b + stats["str"] * STAT_STR
 	armor = arm
 	speed_bonus = spd_b / 100.0
 	crit_bonus = crit_b / 100.0
@@ -416,11 +416,8 @@ func learn(id: String) -> bool:
 	var s := SkillDefs.find(id)
 	if s.is_empty() or points_free() <= 0 or level < s["lvl"] or rank(id) >= s["max"]:
 		return false
-	var before := max_hp
 	skills[id] = rank(id) + 1
 	refresh()
-	if id == "vitality":
-		hp += max_hp - before
 	save_game()
 	return true
 

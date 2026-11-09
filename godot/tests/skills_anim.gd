@@ -1,4 +1,4 @@
-## Кадры умений героя: Вихрь (удар с разворотом) и Рывок (длинный прыжок).
+## Кадры умения героя: Рывок.
 ## Запуск: godot --path godot res://tests/skills_anim.tscn -- <папка>
 extends Node
 
@@ -16,7 +16,7 @@ func _ready() -> void:
 		e.visible = false
 	main.enemies.set_process(false)
 	Game.level = 12
-	Game.skills = {"dash": 1, "whirl": 1}
+	Game.skills = {"dash": 1}
 	var h: Node3D = main.hero
 	print("anims: ", h._anim.get_animation_list())
 	var p := Vector3(-60, 0, -120)
@@ -25,7 +25,7 @@ func _ready() -> void:
 	main.rig.target = null
 	cam.current = true
 	cam.fov = 50.0
-	for skill in ["whirl", "dash"]:
+	for skill in ["dash"]:
 		h.global_position = Vector3(p.x, WorldGen.ground_at(p.x, p.z) + 0.2, p.z)
 		h.facing = PI * 0.5
 		var base := h.global_position
@@ -37,10 +37,10 @@ func _ready() -> void:
 		h.cd[skill] = 0.0
 		h.use_skill(skill)
 		var n := 8
-		var total: float = h.WHIRL_TIME if skill == "whirl" else h.DASH_TIME + h.DASH_LAND
+		var total: float = h.DASH_TIME + h.DASH_LAND
 		for k in n:
 			var target_t := total * (k + 0.5) / n
-			while (h._spin_t if skill == "whirl" else h._dash_t) >= 0.0 and (h._spin_t if skill == "whirl" else h._dash_t) < target_t:
+			while h._dash_t >= 0.0 and h._dash_t < target_t:
 				await get_tree().physics_frame
 			await get_tree().process_frame
 			get_viewport().get_texture().get_image().save_png(out + "%s_%d.png" % [skill, k])

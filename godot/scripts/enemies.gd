@@ -106,7 +106,6 @@ func _update_active() -> void:
 			on = true  # мёртвые ждут своего часа, чтобы вернуться
 		e.set_active(on)
 
-var _cardinal_loot := CardinalLootManager.new()
 
 func on_enemy_killed(e: Node3D) -> void:
 	if loot:

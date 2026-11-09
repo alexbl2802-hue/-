@@ -43,7 +43,8 @@ func _ready() -> void:
 	await _shot("l_rabbit.png", p, 0.0, 0.15, 3.0, 0.4)
 	# Навыки цифрами
 	Game.level = 10
-	Game.skills = {"strength": 7, "whirl": 2}
+	Game.stats["str"] = 7
+	Game.skills = {"horizontal": 2}
 	Game.refresh()
 	main.hud.open_skills()
 	await _frames(5)

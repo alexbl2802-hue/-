@@ -1,5 +1,5 @@
 ## Герой: модель из блоков, движение относительно камеры, прыжок, плавание,
-## бой мечом, умения Вихрь и Рывок, урон, лечение, смерть.
+## бой мечом, умения Рывок, Горизонталь и приёмы оружия, урон, лечение, смерть.
 extends CharacterBody3D
 
 signal hurt(dmg: int)
@@ -19,7 +19,7 @@ var attack_t := -1.0
 var dead := false
 var busy := false
 var underground := false   # в подземелье: никакой воды и плавания
-var cd := {"whirl": 0.0, "dash": 0.0, "art": 0.0, "dodge": 0.0, "horizontal": 0.0,
+var cd := {"dash": 0.0, "dodge": 0.0, "horizontal": 0.0,
 	"art_sword": 0.0, "art_great": 0.0, "art_rapier": 0.0, "art_dagger": 0.0}   # у каждого приёма своя перезарядка
 
 var _model: Node3D
@@ -39,8 +39,6 @@ var _attack_hit := false
 var _invuln := 0.0
 var _hurt_ago := 99.0
 var _push := Vector3.ZERO
-var _spin_t := -1.0
-var _spin_hit := false
 var _dash_t := -1.0
 var _dash_dir := Vector3.FORWARD
 var _dash_hit: Array = []
@@ -163,7 +161,6 @@ func _build_model() -> void:
 ## Блочная модель остаётся запасной: её прячем, а меч переносим в правую кисть.
 const CHAR_PATH := "res://models/hero.glb"
 const GRIP_PATH := "res://models/hero_grip.json"
-const SWORD_PATH := "res://models/longsword.glb"
 const RUST_TEX := "res://models/longsword_rust.jpg"
 const CHAR_SCALE := 1.05
 const GRIP_TILT := 10.0      # наклон клинка от поперечного к пальцам, градусы
@@ -173,11 +170,7 @@ const A_STANCE := "Combat_Stance"   # стойка на месте — из пр
 const A_WALK := "Running"      # отдельной ходьбы нет — медленный бег
 const A_RUN := "RunFast"
 const A_SLASH := "Right_Hand_Sword_Slash"
-const A_WHIRL := "MC_Whirl"   # круговой удар: снят с присланного видео (Open MoCap, tools/mocap)
 const A_DASH := "DashJump"      # прыжок через препятствие (Jump_Over_Obstacle)
-# Вихрь: длительность и момент удара — середина оборота в анимации
-const WHIRL_TIME := 1.1
-const WHIRL_HIT := 0.5
 const STRIDE_WALK := 4.8       # м/с, на которые уходит стопа за секунду анимации Running
 const STRIDE_RUN := 8.25       # то же для RunFast (замер: tests/gait.tscn)
 var _sk: Skeleton3D
@@ -193,9 +186,7 @@ var _rm_key := ""
 var _rm_prev := 0.0
 var _rm_t := 0.0
 const LOCO_WALK_FROM := 0.6    # м/с: с этой скорости — шаг
-const LOCO_FAST_FROM := 2.6    # отсюда шаг плавно переходит в бег
 const LOCO_FAST_FULL := 4.0
-var _trail: SwordTrail
 var _fight_check := 0.0
 var _in_fight := false
 
@@ -213,9 +204,8 @@ func _attach_character() -> void:
 	for n in [A_WALK, A_RUN]:
 		_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
 	_anim.get_animation(A_SLASH).loop_mode = Animation.LOOP_NONE
-	for n in [A_WHIRL, A_DASH]:
-		if _anim.has_animation(n):
-			_anim.get_animation(n).loop_mode = Animation.LOOP_NONE
+	if _anim.has_animation(A_DASH):
+		_anim.get_animation(A_DASH).loop_mode = Animation.LOOP_NONE
 	if _anim.has_animation(A_STANCE):
 		_anim.get_animation(A_STANCE).loop_mode = Animation.LOOP_LINEAR
 	if _anim.has_animation(BACKSTEP_CLIP):
@@ -272,10 +262,10 @@ func _attach_character() -> void:
 	_anim.seek(0.0, true)
 	# Все движения — клипы Meshy (сценарий «Meshy animations» → tools/prepare_models.py meshy_clips)
 	# Дерево анимаций: плавные переходы и удар на бегу (только верх тела)
-	if _has_idle and _anim.has_animation(A_WHIRL) and _anim.has_animation(A_DASH):
+	if _has_idle and _anim.has_animation(A_DASH):
 		_ha = HeroAnim.new()
 		add_child(_ha)
-		var acts := {"slash": A_SLASH, "whirl": A_WHIRL, "dash": A_DASH, "air": RUN_CLIP}
+		var acts := {"slash": A_SLASH, "dash": A_DASH, "air": RUN_CLIP}
 		# Движения из библиотеки Meshy (сценарий «Meshy animations», tools/prepare_models.py meshy_clips)
 		for m in MESHY_MOVES:
 			if _anim.has_animation(MESHY_MOVES[m][0]):
@@ -288,9 +278,6 @@ func _attach_character() -> void:
 				acts["art_" + k] = ART_CLIPS[k][0]
 		if _anim.has_animation(BLOCK_CLIP[0]):
 			acts["block"] = BLOCK_CLIP[0]
-		# Вихрь — удар в прыжке с разворотом, прыжок — прыжок с ударом вниз
-		if _anim.has_animation(WHIRL_CLIP[0]):
-			acts["whirl"] = WHIRL_CLIP[0]
 		if _anim.has_animation(JUMP_CLIP[0]):
 			acts["air"] = JUMP_CLIP[0]
 		if _anim.has_animation(DASH_LAND_CLIP[0]):
@@ -306,9 +293,6 @@ func _attach_character() -> void:
 		_ha.setup(_anim, sk, acts, [[A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE, 0.0], [walk, LOCO_WALK_FROM],
 			[walk, LOCO_WALK_TOP], [RUN_CLIP, LOCO_FAST_FULL], [RUN_CLIP, LOCO_RUN_TOP], [sprint, LOCO_SPRINT]], RUN)
 		_loco_clips = ["", walk, walk, RUN_CLIP, RUN_CLIP, sprint]
-	# След клинка
-	_trail = SwordTrail.new()
-	add_child(_trail)
 	_sk = sk
 	for i in sk.get_bone_count():
 		if sk.get_bone_name(i).ends_with("RightHand"):
@@ -406,16 +390,6 @@ func _fist_grip(sk: Skeleton3D, anim: Animation, hg: HandGrip) -> Array:
 	c /= pts.size()
 	return [c, (knuckle["Index"] - knuckle["Pinky"]).normalized()]
 
-## Модели клинков: у всех клинок по −Y, середина рукояти на y ≈ 0,65, ширина по X.
-## Переворачиваем клинком вверх и ставим серединой рукояти в начало хвата.
-## Длинный меч — ржавый (ржавая текстура), железный и стальной; костяной и кристальный — свои модели.
-const BLADES := {
-	"longsword": "res://models/longsword.glb",
-	"bone_blade": "res://models/bone_blade.glb",
-	"crystal_blade": "res://models/crystal_blade.glb",
-}
-const BLADE_OF := {"sword_bone": "bone_blade", "sword_crystal": "crystal_blade", "rapier_star": "crystal_blade", "dagger_venom": "bone_blade",
-	"u_bone_king": "bone_blade", "u_queen": "crystal_blade", "u_frost": "crystal_blade", "u_chief": "bone_blade"}
 
 ## Клинки в духе SAO (scripts/sao_gear.gd): по одному на тип оружия, цвет — по предмету
 const BLADE_REF_LEN := {"sword": 1.0, "great": 1.4, "rapier": 1.15, "dagger": 0.55}
@@ -488,12 +462,6 @@ func _build_gear(sk: Skeleton3D) -> void:
 
 const SHIELD_OFF := 0.085   # от оси предплечья до щита: щит прижат к руке снаружи, рука его не прорезает
 
-func _bone_local(sk: Skeleton3D, parent: int, suffix: String) -> Vector3:
-	for i in sk.get_bone_count():
-		if sk.get_bone_name(i).ends_with(suffix):
-			return sk.get_bone_global_rest(parent).affine_inverse() * sk.get_bone_global_rest(i).origin
-	return Vector3.UP * 0.1
-
 ## Анимации модели: стойка, ходьба, бег, удар, вихрь, рывок, прыжок
 ## Анимация через дерево: ходьба смешивается по скорости, действия накладываются поверх
 func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
@@ -538,7 +506,7 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 			_ha.follow("block", lerpf(BLOCK_FROM, BLOCK_CLIP[1], clampf((_time - _block_start) / BLOCK_RAISE, 0.0, 1.0)), dt, upper)
 		else:
 			_ha.act("slash", BLOCK_POSE, 0.0, upper)
-	elif _unblock_t >= 0.0 and _ha._names.has("block") and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0:
+	elif _unblock_t >= 0.0 and _ha._names.has("block") and attack_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0:
 		# Кнопку отпустили — меч опускается обратно по тому же клипу
 		_ha.follow("block", lerpf(BLOCK_CLIP[1], BLOCK_FROM, clampf(_unblock_t / BLOCK_LOWER, 0.0, 1.0)), dt, upper)
 	elif _art_t >= 0.0 and _ha._names.has("art_" + _art):
@@ -558,12 +526,6 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 				_ha.act("slash", 0.55, sp)   # уколы — повтор середины удара
 			else:
 				_ha.act("slash", -1.0, sp)
-	elif _spin_t >= 0.0:
-		if _ha._names.get("whirl", "") == WHIRL_CLIP[0]:
-			# Вихрь по ключевым позам: оборот клипа (0,15→0,75 с) — на время ударов вихря
-			_ha.follow("whirl", _key_t(WHIRL_KEYS, _spin_t), dt)
-		else:
-			_ha.act("whirl", 0.0 if _new_swing or _ha.current() != "whirl" else -1.0, _anim.get_animation(A_WHIRL).length / WHIRL_TIME)
 	elif _dash_t >= DASH_TIME and _ha._names.has("dash_land"):
 		# Появление: низкий присед → стойка с мечом вперёд
 		var u := clampf((_dash_t - DASH_TIME) / DASH_LAND, 0.0, 1.0)
@@ -572,7 +534,7 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		_ha.act("dash", 0.0 if _ha.current() != "dash" else -1.0, _anim.get_animation(A_DASH).length / DASH_TIME)
 	elif attack_t >= 0.0:
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
-		var sp: float = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
+		var sp: float = 2.6 * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
 		var key := "atk%d" % combo
 		if _ha._names.has(key):
 			# Удар — отрезок клипа Meshy вокруг момента удара (удар героя — на 0,2 из 0,48)
@@ -628,16 +590,13 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 				_anim.seek(0.55, false)   # уколы — повтор середины удара
 		_anim.speed_scale = speed
 		return
-	if _spin_t >= 0.0 and _anim.has_animation(A_WHIRL):
-		want = A_WHIRL
-		speed = _anim.get_animation(A_WHIRL).length / WHIRL_TIME
-	elif _dash_t >= 0.0 and _anim.has_animation(A_DASH):
+	if _dash_t >= 0.0 and _anim.has_animation(A_DASH):
 		want = A_DASH
 		speed = _anim.get_animation(A_DASH).length / DASH_TIME
-	elif attack_t >= 0.0 or _spin_t >= 0.0:
+	elif attack_t >= 0.0:
 		want = A_SLASH
 		# Вся анимация удара длится 1,5 с — сжимаем её в один удар героя
-		speed = 2.6 * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
+		speed = 2.6 * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED)
 	elif _dash_t >= 0.0:
 		# Прыжок рывка: ноги в широком шаге, как в полёте
 		want = A_RUN
@@ -659,7 +618,7 @@ func _animate_char(on_floor: bool, moving: bool) -> void:
 		want = A_SLASH
 		speed = 0.0
 		idle = true
-	var swing := (want == A_SLASH and not idle) or want == A_WHIRL or want == A_DASH
+	var swing := (want == A_SLASH and not idle) or want == A_DASH
 	if _anim.current_animation != want or (swing and _new_swing) or (idle and not _idle_pose):
 		_anim.play(want, 0.1 if swing else -1.0)
 		_anim.seek(0.08 if want == A_SLASH and not idle else 0.0, true)
@@ -743,8 +702,6 @@ func update_look() -> void:
 				mat.emission_enabled = true
 				mat.emission = glow
 				mat.emission_energy_multiplier = energy
-			bl["base"] = mat
-			bl["glow"] = mat.duplicate()
 	_tunic_mat.set_shader_parameter("albedo", WorldGen.hex(a.get("color", 0x2e6b8a)))
 	_tunic_mat.set_shader_parameter("metallic", 0.55 if a.get("metal", false) else 0.0)
 	_tunic_mat.set_shader_parameter("roughness", 0.45 if a.get("metal", false) else 0.8)
@@ -907,7 +864,6 @@ const MESHY_MOVES := {
 }
 const WALK_CLIP := "Walk_Fight_Forward"           # боевой шаг (Meshy)
 const RUN_CLIP := "Kirito_Sword_Run"               # бег героя (из модели героя)
-const WALK_STRIDE_M := 0.6     # шаг назад в блоке (Walk_Backward_with_Sword): м за секунду клипа
 # Шаг → бег → спринт: клипы и длина шага (м за секунду клипа: опорная стопа уходит назад с этой
 # скоростью; замер по стопе, tests/gait.tscn). Темп клипа = скорость героя / длина шага.
 const WALK_PLAIN := "Walking"                       # обычный шаг
@@ -965,7 +921,6 @@ func _stride_at(v: float) -> float:
 const BACKSTEP_CLIP := "Walk_Backward_with_Sword"   # шаг назад с мечом — в блоке
 const STOP_FROM := 8.5         # с какой скорости бега отпущенный джойстик — резкая остановка
 const LAND_FALL := 3.5         # с какой высоты падения — тяжёлое приземление
-const WHIRL_CLIP := ["MC_Whirl", 0.2, 2.7 / WHIRL_TIME]   # [клип, с какой секунды, темп] — весь оборот за время вихря
 const JUMP_CLIP := ["Basic_Jump", 1.45, 1.1]
 # Ключевые позы прыжка в Basic_Jump (секунды клипа, замер по стопам и тазу — tools/gait):
 # присед 1,38–1,60 · отрыв 1,72 · верхняя точка 2,02 · касание 2,38 · амортизация до 3,40
@@ -1000,7 +955,6 @@ func _jump_lift(t: float) -> float:
 			return lerpf(a[1], b[1], (t - a[0]) / (b[0] - a[0])) * CHAR_SCALE
 	return 0.0
 const RUN_FIGHT := "Sword_Run"                      # бег, когда рядом враги — присланный клип
-const RUN_FIGHT_STRIDE := 3.0
 const FIGHT_NEAR := 12.0
 ## Комбо из трёх ударов: [клип, момент удара в клипе (с)]
 ## (два удара — отрезки серии Double_Combo_Attack, третий — сильный удар из Attack; tools/rig_from_mannequin.py)
@@ -1009,7 +963,6 @@ const ATTACK_SEG := 0.8        # сколько секунд клипа зани
 ## Приёмы меча: тип оружия → [клип, момент (первого) удара, темп]
 const ART_CLIPS := {"sword": ["Thrust_Slash", 0.73, 1.0], "great": ["Charged_Slash", 1.2, 1.0], "rapier": ["Triple_Combo_Attack", 0.77, 2.4], "dagger": ["Weapon_Combo_2", 1.3, 1.6]}
 const BLOCK_CLIP := ["Block10", 0.35]
-const REACTIONS := ["hit_heavy", "stun", "knockdown", "getup"]
 var _move := ""
 var _move_t := 0.0
 var _move_dir := Vector3.ZERO
@@ -1034,7 +987,7 @@ func _start_move(name: String, dir: Vector3) -> void:
 ## без наклона — отскок назад. Короткая неуязвимость.
 func dodge() -> void:
 	_cancel_soft_move()
-	if dead or busy or _dash_t >= 0.0 or _spin_t >= 0.0 or _art_t >= 0.0 or cd["dodge"] > 0.0:
+	if dead or busy or _dash_t >= 0.0 or _art_t >= 0.0 or cd["dodge"] > 0.0:
 		return
 	if _move != "" and not _move.begins_with("dodge") and _move != "roll":
 		return
@@ -1072,16 +1025,11 @@ func _update_move(dt: float) -> Vector3:
 				if not _move_hit:
 					_move_hit = true
 					_sweep_begin()
-					if ATTACK_RINGS:
-						Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
 				_sweep(_blade_reach(), _horizontal_one)
 		elif not _move_hit and _move_t >= HZ_HIT:
 			_move_hit = true
 			_horizontal_hit()
 	if _move_t >= m["len"]:
-		if _move == "horizontal":
-			_set_blade_glow(Color(0, 0, 0, 0))
-			update_look()
 		var nxt: String = m.get("next", "")
 		_move = ""
 		if nxt != "":
@@ -1108,8 +1056,6 @@ func _horizontal_hit() -> void:
 		_deal(e, horizontal_mult(r) * _wt()["dmg"], (v / d + left * 0.8).normalized())
 		Game.wear_weapon()
 		hits += 1
-	if ATTACK_RINGS:
-			Fx.ring(global_position + Vector3(0, 1.0, 0), SkillDefs.ART_COLOR["sword"], 3.5, 0.3)
 	if hits > 0:
 		_finisher_fx()
 
@@ -1125,21 +1071,11 @@ func _horizontal_one(e: Node3D, v: Vector3, d: float) -> void:
 	if _sweep_hits.size() == 1:
 		_finisher_fx()
 
-## Один враг под вихрем
-func _whirl_one(e: Node3D, v: Vector3, d: float) -> void:
-	_deal(e, 1.2 + 0.3 * (Game.rank("whirl") - 1), v / d)
-	e.knock(1.5)
-
 # ---------- Ключевые позы приёмов (секунды клипа по времени приёма) и удар по ходу клинка
 # Замер клипов: рука с мечом и поворот корпуса (tests: tools/gait). Reaping_Swing: рука у бока 2,80 ·
-# замах 3,05 · удар (кисть 7 м/с) 3,28 · доводка 3,70. Sword_Spin_360: начало оборота 0,15 · 180° 0,44 ·
-# 360° 0,75. Block10: подъём меча 0 → стойка 0,35.
+# замах 3,05 · удар (кисть 7 м/с) 3,28 · доводка 3,70. Block10: подъём меча 0 → стойка 0,35.
 const HZ_KEYS := [[0.0, 2.80], [HZ_CHARGE, 3.05], [HZ_HIT, 3.28], [HZ_LEN, 3.70]]
 const HZ_SWEEP := [0.27, 0.50]           # время приёма, когда клинок режет
-# MC_Whirl (снят с видео): начало разворота 0,2 · спиной 0,95 · полный оборот 1,35 · низкий выпад 1,8 ·
-# горизонтальный удар 2,1 → 2,5 · стойка 2,9. В игре всё за 1,1 с, порядок поз как на видео.
-const WHIRL_KEYS := [[0.0, 0.2], [0.45, 1.35], [0.6, 1.8], [0.72, 2.1], [0.85, 2.5], [WHIRL_TIME, 2.9]]
-const WHIRL_SWEEP := [0.05, 0.85]
 const BLOCK_FROM := 0.0
 const BLOCK_RAISE := 0.15                # меч в защиту — за столько секунд
 const BLOCK_LOWER := 0.12
@@ -1197,7 +1133,7 @@ func _finisher_fx() -> void:
 
 func attack() -> void:
 	_cancel_soft_move()
-	if _spin_t >= 0.0 or _dash_t >= 0.0 or dead or busy or blocking or _art_t >= 0.0 or _move != "":
+	if _dash_t >= 0.0 or dead or busy or blocking or _art_t >= 0.0 or _move != "":
 		return
 	# Комбо: нажатие во время удара — следующий удар сразу после этого
 	if attack_t >= 0.0:
@@ -1242,15 +1178,10 @@ var _art_hits := 0
 var _art_hit: Array = []
 var _art_dir := Vector3.FORWARD
 
-func art_id() -> String:
-	return "art_" + Items.ALL[Game.equip["weapon"]["id"]].get("wt", "sword") if Game.equip["weapon"] != null else ""
-
-## Приём меча: id — какой (art_sword …; у каждого своя кнопка), пусто — приём надетого оружия
-func use_art(id := "") -> void:
+## Приём меча: id — какой (art_sword …; у каждого своя кнопка)
+func use_art(id: String) -> void:
 	_cancel_soft_move()
-	if id == "":
-		id = art_id()
-	if id == "" or Game.rank(id) == 0 or cd.get(id, 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0 or _spin_t >= 0.0:
+	if id == "" or Game.rank(id) == 0 or cd.get(id, 0.0) > 0.0 or dead or busy or _art_t >= 0.0 or _dash_t >= 0.0:
 		return
 	attack_t = -1.0
 	_art = id.substr(4)
@@ -1264,7 +1195,6 @@ func use_art(id := "") -> void:
 		facing = atan2(v.x, v.z)
 	_art_dir = Vector3(sin(facing), 0, cos(facing))
 	_new_swing = true
-	_set_blade_glow(SkillDefs.ART_COLOR[_art])
 
 func _art_action_end() -> float:
 	return _art_charge() + {"sword": LUNGE_DASH, "great": 0.3, "rapier": 0.6, "dagger": 0.15}[_art]
@@ -1298,8 +1228,6 @@ func _art_update(dt: float) -> Vector3:
 				if t >= 0.15 and _art_hits == 0:
 					_art_hits = 1
 					var c := global_position + _art_dir * 1.6
-					if ATTACK_RINGS:
-							Fx.ring(c + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["great"], 2.6, 0.4)
 					for e in enemies.alive_near(c, 3.2):
 						_deal(e, SkillDefs.art_mult(2.8, r), _flat(e.global_position - global_position).normalized())
 						if not e.dead:
@@ -1319,27 +1247,11 @@ func _art_update(dt: float) -> Vector3:
 						var back: Vector3 = Vector3(sin(e.facing), 0, cos(e.facing))
 						global_position = Vector3(e.global_position.x, global_position.y, e.global_position.z) - back * 1.2
 						facing = atan2(back.x, back.z)
-						if ATTACK_RINGS:
-								Fx.ring(global_position + Vector3(0, 0.1, 0), SkillDefs.ART_COLOR["dagger"], 1.5, 0.3)
 						var dmg := roundi((Game.dmg + randf() * 8.0) * SkillDefs.art_mult(3.0, r))
 						e.hit(dmg, back, true)
 	if _art_t >= _art_action_end() + _art_recover():
 		_art_t = -1.0
-		_set_blade_glow(Color(0, 0, 0, 0))
-		update_look()
 	return hv
-
-## Свечение клинка (приём меча); прозрачный цвет — выключить
-func _set_blade_glow(c: Color) -> void:
-	if not BLADE_GLOW:
-		return
-	for k in _blades:
-		var g: StandardMaterial3D = _blades[k]["glow"]
-		if c.a > 0.0 and (_blades[k]["node"] as Node3D).visible:
-			g.emission_enabled = true
-			g.emission = c
-			g.emission_energy_multiplier = 2.5
-			(_blades[k]["mesh"] as MeshInstance3D).material_override = g
 
 ## Комбо из трёх ударов: третий — выпад вперёд, сильнее и отбрасывает
 const COMBO_WINDOW := 0.5     # сколько ждать следующего нажатия после удара, с
@@ -1432,8 +1344,6 @@ func _blade_sweep(t: float) -> void:
 
 ## Конец третьего удара: кольцо и эффект добивания, если попал
 func _finisher_end() -> void:
-	if ATTACK_RINGS:
-		Fx.ring(global_position + Vector3(sin(facing), 0.1, cos(facing)) * 1.4, Color("#ffd479"), 2.0, 0.35)
 	if _finisher_landed:
 		_finisher_fx()
 	_finisher_landed = false
@@ -1475,9 +1385,6 @@ func _deal(e: Node3D, mult: float, dir: Vector3) -> void:
 
 func use_skill(id: String) -> void:
 	_cancel_soft_move()
-	if id == "art":
-		use_art()
-		return
 	if id.begins_with("art_"):
 		use_art(id)
 		return
@@ -1488,17 +1395,11 @@ func use_skill(id: String) -> void:
 		use_horizontal()
 		return
 	var r := Game.rank(id)
-	if r == 0 or cd[id] > 0.0 or dead or busy or _spin_t >= 0.0 or _dash_t >= 0.0:
+	if r == 0 or cd[id] > 0.0 or dead or busy or _dash_t >= 0.0:
 		return
 	attack_t = -1.0
 	_new_swing = true
-	if id == "whirl":
-		_spin_t = 0.0
-		if combat:
-			combat.attack_whirlwind()
-		_spin_hit = false
-		cd["whirl"] = SkillDefs.whirl_cd(r)
-	elif id == "dash":
+	if id == "dash":
 		# Направление — куда наклонён джойстик, иначе — куда смотрит герой
 		var dir := Vector3(sin(facing), 0, cos(facing))
 		var mv: Vector2 = touch.move if touch else Vector2.ZERO
@@ -1514,8 +1415,6 @@ func use_skill(id: String) -> void:
 		_dash_speed = SkillDefs.dash_stats(Game.skills)["speed"]
 		cd["dash"] = SkillDefs.dash_stats(Game.skills)["cd"]
 		# Аниме-рывок: герой исчезает со вспышкой там, где стоял (с места или на бегу)
-		if ATTACK_RINGS:
-			Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.0, 0.4, true)
 
 ## След рывка (как у Кирито на видео): размытая полоса от места старта до героя — тёмно-синяя,
 ## со штрихами скорости цвета рывка, к хвосту прозрачнее. Полоса всегда повёрнута к камере
@@ -1619,7 +1518,7 @@ func _dash_color() -> Color:
 
 func use_horizontal() -> void:
 	var r := Game.rank("horizontal")
-	if r == 0 or cd["horizontal"] > 0.0 or dead or busy or _move != "" or _spin_t >= 0.0 or _dash_t >= 0.0 or _art_t >= 0.0:
+	if r == 0 or cd["horizontal"] > 0.0 or dead or busy or _move != "" or _dash_t >= 0.0 or _art_t >= 0.0:
 		return
 	var best := _nearest_enemy(6.0)
 	if best:
@@ -1629,31 +1528,15 @@ func use_horizontal() -> void:
 	_start_move("horizontal", Vector3(sin(facing), 0, cos(facing)))
 	if combat:
 		combat.attack_horizontal()
-	_set_blade_glow(SkillDefs.ART_COLOR["sword"])
 
 func cooldown_total(id: String) -> float:
-	if id == "art":
-		return SkillDefs.art_cd(Game.rank(art_id()))
 	if id.begins_with("art_"):
 		return SkillDefs.art_cd(maxi(1, Game.rank(id)))
 	if id == "dodge":
 		return DODGE_CD
 	if id == "horizontal":
 		return SkillDefs.horizontal_cd(maxi(1, Game.rank("horizontal")))
-	var r := maxi(1, Game.rank(id))
-	return SkillDefs.whirl_cd(r) if id == "whirl" else SkillDefs.dash_stats(Game.skills)["cd"]
-
-func _whirl_hit() -> void:
-	var mult := 1.2 + 0.3 * (Game.rank("whirl") - 1)
-	if ATTACK_RINGS:
-			Fx.ring(global_position + Vector3(0, 0.6, 0), Color("#bfefff"), 7.0, 0.4)
-	for e in enemies.alive_near(global_position, 5.0):
-		var v := _flat(e.global_position - global_position)
-		var d := maxf(0.01, v.length())
-		if d > 3.3 + e.T["r"] or absf(e.global_position.y - global_position.y) > 2.5:
-			continue
-		_deal(e, mult, v / d)
-		e.knock(1.5)
+	return SkillDefs.dash_stats(Game.skills)["cd"]
 
 func _dash_hits() -> void:
 	var mult := SkillDefs.DASH_DMG   # сквозь врагов — 20% урона
@@ -1679,8 +1562,6 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 	if blocking and _time - _block_start < PARRY_WINDOW and fv.length() > 0.01 and absf(angle_difference(facing, atan2(fv.x, fv.z))) < BLOCK_ARC:
 		_invuln = 0.3
 		Fx.text("Отбито!", global_position, Color("#ffe060"), true)
-		if ATTACK_RINGS:
-			Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#ffe060"), 1.4, 0.3)
 		if attacker and attacker.has_method("stun"):
 			attacker.stun(PARRY_STUN, true)
 		# «Переключение»: отскок назад, пока враг оглушён
@@ -1703,8 +1584,6 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 	_push = _flat(global_position - from).normalized() * (3.0 if blocked else 10.0)
 	if blocked:
 		Fx.text("Блок −%d" % dmg, global_position, Color("#cfe0ff"))
-		if ATTACK_RINGS:
-			Fx.ring(global_position + Vector3(sin(facing), 1.0, cos(facing)) * 0.6, Color("#cfe0ff"), 0.8, 0.25)
 	else:
 		Fx.text("−%d" % dmg, global_position, Color("#ff6a5a"))
 	Input.vibrate_handheld(60)
@@ -1718,43 +1597,13 @@ func take_damage(raw: int, from: Vector3, attacker: Node3D = null, kind := "") -
 			if _ha:
 				_ha.tree.active = false
 		attack_t = -1.0
-		_spin_t = -1.0
 		_dash_t = -1.0
 		_model.visible = true
 		_streak_end()
 		died.emit()
 
-# ---------- След клинка: светится в ударе, вихре, приёмах и «Горизонтали»
-const TRAIL_LEN := 1.0        # длина клинка до кончика (м), у двуручника длиннее
-const SHOW_TRAIL := false
-const ATTACK_RINGS := false   # все кольца-вспышки героя (удары, приёмы, рывок, блок) — выключены
-const BLADE_GLOW := false     # свечение клинка во время приёмов — выключено   # белый след взмаха меча — пока выключен
-
-func _update_trail(dt: float) -> void:
-	if not SHOW_TRAIL:
-		if _trail:
-			_trail.emitting = false
-			_trail.visible = false
-		return
-	if _trail == null or _sword == null:
-		return
-	var swing := attack_t >= 0.06 and attack_t <= 0.36
-	var c := Color(0.85, 0.95, 1.0, 0.65)
-	if _move == "horizontal":
-		swing = _move_t >= HZ_CHARGE - 0.02 and _move_t <= 0.62
-		c = SkillDefs.ART_COLOR["sword"]
-		c.a = 0.9
-	elif _spin_t >= 0.0:
-		swing = true
-	elif _art_t >= _art_charge() and _art_t < _art_action_end():
-		swing = true
-		c = SkillDefs.ART_COLOR[_art]
-		c.a = 0.85
-	_trail.emitting = swing and _sword.is_visible_in_tree()
-	_trail.color = c
-	var reach: float = _wt()["reach"]
-	var g := _sword.global_transform
-	_trail.feed(g.origin + g.basis.y.normalized() * 0.15, g.origin + g.basis.y.normalized() * TRAIL_LEN * reach, dt)
+# Длина клинка до кончика (м); у двуручника и др. — множитель reach оружия
+const TRAIL_LEN := 1.0
 
 # ---------- Реакция на удар: корпус отшатывается от удара и пружиной возвращается
 
@@ -1852,7 +1701,7 @@ func _physics_process(dt: float) -> void:
 	var mag := minf(1.0, dir.length())
 	var swimming := not underground and global_position.y < WorldGen.WATER - 1.0
 	var speed := (RUN if touch and touch.run else WALK) * maxf(0.3, mag)
-	speed *= 1.0 + 0.08 * Game.rank("agility") + Game.speed_bonus
+	speed *= 1.0 + Game.speed_bonus
 	if swimming:
 		speed *= 0.5
 	if attack_t >= 0.0:
@@ -1860,7 +1709,7 @@ func _physics_process(dt: float) -> void:
 		# скользят по земле. На бегу удар берёт только верх тела, ноги бегут — тогда двигаемся.
 		speed *= 0.45 if _ha and _ha._upper else 0.0
 	var was_blocking := blocking
-	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0 and _move == ""
+	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0 and _move == ""
 	if blocking and not was_blocking:
 		_block_start = _time
 		_unblock_t = -1.0
@@ -1881,7 +1730,7 @@ func _physics_process(dt: float) -> void:
 	var hv := Vector3.ZERO
 	# Разворот на бегу: сначала резкая остановка (клип Meshy), потом бег в другую сторону —
 	# без «проскальзывания», когда ноги уже бегут назад, а тело ещё едет вперёд
-	if mag > 0.12 and _move == "" and attack_t < 0.0 and _art_t < 0.0 and _spin_t < 0.0 and _dash_t < 0.0 and is_on_floor() \
+	if mag > 0.12 and _move == "" and attack_t < 0.0 and _art_t < 0.0 and _dash_t < 0.0 and is_on_floor() \
 			and _hm_vel.length() > REVERSE_FROM and dir.normalized().dot(_hm_vel.normalized()) < -0.2 and _ha and _ha._names.has("stop"):
 		_start_move("stop", _hm_vel.normalized())
 	if mag > 0.12:
@@ -1901,7 +1750,7 @@ func _physics_process(dt: float) -> void:
 	else:
 		# Отпустил джойстик на спринте — резкая остановка (клип Meshy)
 		if _speed_now > STOP_FROM and is_on_floor() and _move == "" and attack_t < 0.0 and _art_t < 0.0 \
-				and _spin_t < 0.0 and _dash_t < 0.0 and not blocking and _ha and _ha._names.has("stop"):
+				and _dash_t < 0.0 and not blocking and _ha and _ha._names.has("stop"):
 			_start_move("stop", Vector3(sin(facing), 0, cos(facing)))
 		_speed_now = lerpf(_speed_now, 0.0, minf(1.0, dt * 10.0))
 		_backstep = false
@@ -1940,8 +1789,6 @@ func _physics_process(dt: float) -> void:
 			_model.visible = true
 			if was < DASH_TIME:
 				_streak_end()
-				if ATTACK_RINGS:
-					Fx.ring(global_position + Vector3(0, 0.1, 0), _dash_color(), 2.5, 0.45, true)
 			if _dash_t >= DASH_TIME + land:
 				_dash_t = -1.0
 	if _art_t >= 0.0 or _move != "" or _dash_t >= 0.0:
@@ -2012,7 +1859,7 @@ func _animate(dt: float) -> void:
 	var sm := _slash.material_override as StandardMaterial3D
 	sm.albedo_color.a = 0.0
 	if attack_t >= 0.0:
-		attack_t += dt * (1.0 + 0.1 * Game.rank("agility")) * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED) * (0.85 if combo == 2 else 1.0)
+		attack_t += dt * ATTACK_SPEED * _wt()["speed"] * (1.0 + Game.stats["agi"] * Game.STAT_AGI_SPEED) * (0.85 if combo == 2 else 1.0)
 		var t := attack_t
 		var ax: float
 		var az: float
@@ -2040,42 +1887,16 @@ func _animate(dt: float) -> void:
 			if _combo_queued and combo < 2:
 				combo += 1
 				_start_swing()
-	# Вихрь: герой крутится с вытянутым мечом
-	var spin := 0.0
-	if _spin_t >= 0.0:
-		_spin_t += dt
-		# С анимацией модели оборот делает сама анимация; у блочной модели — крутим её целиком
-		var whirl_anim := _anim != null and _anim.has_animation(A_WHIRL)
-		var total := WHIRL_TIME if whirl_anim else 0.45
-		if not whirl_anim:
-			spin = minf(1.0, _spin_t / total) * TAU
-		_arms[0].rotation = Vector3(0, 0, -1.4)
-		_arms[1].rotation = Vector3(0, 0, 1.2)
-		if whirl_anim and _hand_bone >= 0 and _ha and _ha._names.get("whirl", "") == WHIRL_CLIP[0]:
-			# Вихрь: удар каждому врагу в момент, когда клинок проходит его сторону
-			if _spin_t >= WHIRL_SWEEP[0] and _spin_t <= WHIRL_SWEEP[1]:
-				if not _spin_hit:
-					_spin_hit = true
-					_sweep_begin()
-					if ATTACK_RINGS:
-						Fx.ring(global_position + Vector3(0, 0.6, 0), Color("#bfefff"), 7.0, 0.4)
-				_sweep(_blade_reach(), _whirl_one)
-		elif not _spin_hit and _spin_t >= (WHIRL_HIT if whirl_anim else 0.2):
-			_spin_hit = true
-			_whirl_hit()
-		if _spin_t >= total:
-			_spin_t = -1.0
 	var bob := absf(cos(_walk)) * 0.08 if moving and on_floor else sin(_time * 1.7) * 0.015
 	if _char:
 		bob = 0.0
 		_animate_char(on_floor, moving)
 	_model.position.y = bob
-	_update_trail(dt)
 	if _feet:
 		# Стопы встают на землю под собой стоя и на шаге (на склонах и ступенях
 		# не проваливаются и не висят); в прыжке, рывке и приёмах — выключено
 		# На бегу IK выключен — бег в клипе сам ставит ноги, IK только портил сгиб колена
-		var calm := on_floor and not dead and _speed_now < FOOT_IK_MAX_SPEED and _dash_t < 0.0 and _spin_t < 0.0 and _art_t < 0.0 and _move == ""
+		var calm := on_floor and not dead and _speed_now < FOOT_IK_MAX_SPEED and _dash_t < 0.0 and _art_t < 0.0 and _move == ""
 		_model.position.y += _feet.update(dt, calm, facing)
 	_lean_update(dt, on_floor)
 	# Прыжок: подъём, заложенный в клипе, вычитается — высоту прыжка задаёт физика
@@ -2085,7 +1906,7 @@ func _animate(dt: float) -> void:
 		# Длинный прыжок: тело летит по дуге над землёй
 		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)
 		_model.position.y += 4.0 * DASH_JUMP * u * (1.0 - u)
-	_model.rotation.y = facing + spin
+	_model.rotation.y = facing
 	if dead:
 		_dead_t += dt
 		if _ragdoll.active():

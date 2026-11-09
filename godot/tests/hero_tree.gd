@@ -24,7 +24,7 @@ func _ready() -> void:
 	main.hud._banner_box.visible = false
 	main.hud.visible = false
 	Game.level = 20
-	Game.skills["whirl"] = 1
+	Game.skills["horizontal"] = 1
 	Game.refresh()
 	for e in main.enemies.list:
 		e.T = e.T.duplicate()
@@ -70,18 +70,18 @@ func _ready() -> void:
 	h.touch.block = true
 	for i in 20:
 		await get_tree().physics_frame
-	_check("block pose", h._ha.current() in ["slash", "block"] and h._ha.act_scale == 0.0, h._ha.current())
+	_check("block pose", h._ha.current() == "block", h._ha.current())
 	await shot.call("block")
 	h.touch.block = false
 	for i in 30:
 		await get_tree().physics_frame
 	_check("block released", h._ha.current() == "", h._ha.current())
-	# Вихрь
-	h.use_skill("whirl")
+	# Горизонталь
+	h.use_skill("horizontal")
 	for i in 20:
 		await get_tree().physics_frame
-	_check("whirl", h._ha.current() == "whirl", h._ha.current())
-	await shot.call("whirl")
+	_check("horizontal", h._ha.current() != "", h._ha.current())
+	await shot.call("horizontal")
 	for i in 60:
 		await get_tree().physics_frame
 	# Прыжок
