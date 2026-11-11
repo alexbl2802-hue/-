@@ -67,6 +67,25 @@ func _tree_y(pos: Vector3, h: float) -> float:
 		low = minf(low, WorldGen.ground_at(pos.x + cos(a) * r, pos.z + sin(a) * r))
 	return minf(pos.y, low)
 
+var _tree_grid := {}   # участок 10 м → деревья [позиция, высота]
+
+## Точка внутри кроны дерева? (для камеры: у крон нет столкновений, только у стволов)
+## Крона — от 0,3 до полной высоты, шириной 0,3 высоты внизу и сужается кверху
+func in_canopy(p: Vector3) -> bool:
+	var gx := floori(p.x / 10.0)
+	var gz := floori(p.z / 10.0)
+	for dx in [-1, 0, 1]:
+		for dz in [-1, 0, 1]:
+			for o in _tree_grid.get(Vector2i(gx + dx, gz + dz), []):
+				var h: float = o[1]
+				var u: float = (p.y - (o[0] as Vector3).y) / h
+				if u < 0.3 or u > 1.0:
+					continue
+				var r: float = h * lerpf(0.3, 0.08, (u - 0.3) / 0.7) + 0.4
+				if Vector2(p.x - o[0].x, p.z - o[0].z).length_squared() < r * r:
+					return true
+	return false
+
 func _near_tower(p: Vector3) -> bool:   # и не внутри увеличенного города
 	return Vector2(p.x - TOWER_POS.x, p.z - TOWER_POS.y).length() < TOWER_R + 6.0 \
 		or WorldGen.town_dist(p.x, p.z) < WorldGen.TOWN_WALL + 3.0
@@ -448,6 +467,7 @@ func _build_vegetation() -> void:
 			grid[key] = []
 		grid[key].append([pos, h])
 		placed[c[0]].append([pos, c[2], h])
+	_tree_grid = grid
 	_build_tree_models(placed, body)
 	# Трава
 	var tufts := []

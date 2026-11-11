@@ -13,8 +13,8 @@ uniform float radius = 17.0;
 uniform float wind_strength = 0.22;
 uniform float wind_speed = 1.4;
 uniform vec2 wind_dir = vec2(0.8, 0.6);
-uniform vec3 base_col : source_color = vec3(0.17, 0.27, 0.08);
-uniform vec3 tip_col : source_color = vec3(0.44, 0.55, 0.24);
+uniform vec3 base_col : source_color = vec3(0.24, 0.42, 0.11);
+uniform vec3 tip_col : source_color = vec3(0.42, 0.62, 0.22);
 uniform vec3 dry_col : source_color = vec3(0.62, 0.60, 0.30);
 
 varying float tip;
@@ -36,12 +36,12 @@ void vertex() {
 	float m = texture(mask_tex, uv).r;
 	float dist = length(pos - CAMERA_POSITION_WORLD.xz);
 	float grow = smoothstep(radius, radius * 0.65, dist) * smoothstep(0.35, 0.7, m);
-	float hs = (0.7 + h2 * 0.6) * grow;
+	float hs = (0.4 + h2 * 0.3) * grow;   // травинки 0,15–0,5 м: по щиколотку, монстров и ноги не прячут
 	float ang = h1 * 6.2832;
 	mat2 rot = mat2(vec2(cos(ang), sin(ang)), vec2(-sin(ang), cos(ang)));
 	local.xz = rot * local.xz;
 	local *= vec3(1.0, hs, 1.0) * mix(0.0, 1.0, step(0.001, grow));
-	tip = clamp(local.y / 0.7, 0.0, 1.0);
+	tip = clamp(local.y / 0.42, 0.0, 1.0);
 	// Ветер: волны по лугу и мелкая дрожь
 	float w = sin(TIME * wind_speed + dot(pos, wind_dir) * 0.18) * 0.7 + sin(TIME * wind_speed * 2.7 + pos.x * 1.3 + pos.y * 0.9) * 0.3;
 	float bend = (w * 0.6 + 0.45) * wind_strength * tip * tip;

@@ -192,11 +192,10 @@ func _ready() -> void:
 	# ---- 5. Стойка с одним мечом, блок мечом/щитом, щит на руке
 	var loco: AnimationNodeBlendSpace1D = (h._ha.tree.tree_root as AnimationNodeBlendTree).get_node("loco")
 	var p0name := func(): return String((loco.get_blend_point_node(0) as AnimationNodeAnimation).animation)
-	_check("stance: one sword, no shield -> ANIMATE4 stance", p0name.call() == h.A4_STANCE, p0name.call())
+	_check("stance: calm Idle without enemies, Combat_Stance in a fight", p0name.call() == (h.A_STANCE if h._in_fight else h.A_IDLE), "%s (в бою: %s)" % [p0name.call(), h._in_fight])
 	_check("block: no shield -> sword block clip", h._ha._names.get("block", "") == h.BLOCK_CLIP[0], h._ha._names.get("block", ""))
 	Game.equip["shield"] = Items.make("shield_wood")
 	h.update_look()
-	_check("stance: with shield -> game stance", p0name.call() != h.A4_STANCE, p0name.call())
 	_check("block: shield -> shield block clip", h._ha._names.get("block", "") == h.A4_BLOCK_SHIELD, h._ha._names.get("block", ""))
 	h.touch.block = true
 	await _frames(40)

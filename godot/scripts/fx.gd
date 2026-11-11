@@ -13,7 +13,12 @@ static var floaters: Array = []   # [{text, pos, color, big, t}]
 
 ## Надпись, всплывающая над точкой и тающая
 static func text(t: String, pos: Vector3, color: Color, big := false) -> void:
-	floaters.append({"text": t, "pos": pos + Vector3(randf_range(-0.3, 0.3), 2.2, randf_range(-0.3, 0.3)), "color": color, "big": big, "t": 0.0})
+	# Несколько надписей в одном месте подряд (урон, опыт, добыча) встают лесенкой, а не друг на друга
+	var row := 0
+	for f in floaters:
+		if f["t"] < 0.9 and Vector2(f["pos"].x - pos.x, f["pos"].z - pos.z).length() < 2.5:
+			row += 1
+	floaters.append({"text": t, "pos": pos + Vector3(randf_range(-0.3, 0.3), 2.2 + 0.5 * (row % 5), randf_range(-0.3, 0.3)), "color": color, "big": big, "t": 0.0})
 
 static func update(dt: float) -> void:
 	for i in range(floaters.size() - 1, -1, -1):

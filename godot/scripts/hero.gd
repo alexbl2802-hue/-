@@ -481,6 +481,7 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 		walk_anim = BACKSTEP_CLIP
 	elif _sidestep != 0:
 		walk_anim = "MS_strafe_left" if _sidestep > 0 else "MS_strafe_right"
+	_set_loco(0, _idle_clip())
 	for i in [1, 2]:
 		_set_loco(i, walk_anim)
 	for i in [3, 4]:
@@ -833,13 +834,18 @@ func _load_animate4() -> void:
 	_a4 = ok
 
 ## Стойка с одним мечом (одноручное оружие без щита) — ANIMATE 4.0; блок: со щитом — щитом, без щита — мечом
+## Стойка на месте: рядом враги — боевая (меч наготове), иначе — спокойная, с дыханием
+func _idle_clip() -> String:
+	if _in_fight and _anim.has_animation(A_STANCE):
+		return A_STANCE
+	return A_IDLE if _anim.has_animation(A_IDLE) else A_STANCE
+
 func _stance_and_block() -> void:
 	if _ha == null or not _a4:
 		return
 	var w = Game.equip.get("weapon")
-	var one_hand: bool = w != null and Items.ALL[w["id"]].get("wt", "sword") in ["sword", "rapier", "dagger"]
 	var shield: bool = Game.equip.get("shield") != null
-	_ha.set_loco_anim(0, A4_STANCE if one_hand and not shield else (A_STANCE if _anim.has_animation(A_STANCE) else A_IDLE))
+	_set_loco(0, _idle_clip())
 	_ha.set_act_anim("block", A4_BLOCK_SHIELD if shield else BLOCK_CLIP[0])
 
 func _show_shield() -> void:
@@ -972,6 +978,17 @@ func _jump_clip_t() -> float:
 	else:
 		_jump_t = lerpf(JUMP_APEX, JUMP_TOUCH - 0.05, clampf(-vy / JUMP, 0.0, 1.0))
 	return _jump_t
+
+var _foot_base := NAN          # высота нижней стопы над началом модели, когда герой стоит
+
+## Высота нижней стопы над началом модели в текущей позе (м)
+func _feet_low() -> float:
+	var lo := INF
+	for b in ["LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase"]:
+		var bi := PoseLib.bone(_sk, b)
+		if bi >= 0:
+			lo = minf(lo, (_model.global_transform.affine_inverse() * (_sk.global_transform * _sk.get_bone_global_pose(bi).origin)).y)
+	return lo if lo != INF else 0.0
 
 ## На сколько клип прыжка поднял ноги (м) — модель опускается на это, чтобы стопы были там, где герой
 func _jump_lift(t: float) -> float:
@@ -1857,8 +1874,12 @@ func _animate(dt: float) -> void:
 		_model.position.y += _feet.update(dt, calm, facing)
 	_lean_update(dt, on_floor)
 	# Прыжок: подъём, заложенный в клипе, вычитается — высоту прыжка задаёт физика
-	if _ha and not on_floor and _ha.current() == "air" and _ha._names.get("air", "") == JUMP_CLIP[0]:
-		_model.position.y -= _jump_lift(_jump_t)
+	# (подъём меряется по стопам в самой позе, а не по таблице: если в клипе подъёма нет, тело не тонет)
+	var foot_y := _feet_low()
+	if on_floor and _ha and _ha.current() == "" and _move == "":
+		_foot_base = foot_y if is_nan(_foot_base) else lerpf(_foot_base, foot_y, 0.1)
+	elif _ha and not on_floor and _ha.current() == "air" and _ha._names.get("air", "") == JUMP_CLIP[0] and not is_nan(_foot_base):
+		_model.position.y -= clampf(foot_y - _foot_base, 0.0, _jump_lift(_jump_t)) * _ha.weight()
 	if _dash_t >= 0.0 and _dash_t < DASH_TIME:
 		# Длинный прыжок: тело летит по дуге над землёй
 		var u := clampf(_dash_t / DASH_TIME, 0.0, 1.0)

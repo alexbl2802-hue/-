@@ -84,6 +84,7 @@ func _ready() -> void:
 	rig.name = "CameraRig"
 	add_child(rig)
 	rig.target = hero
+	rig.canopy = world.in_canopy
 	# Фонарь «за плечом» — только в подземельях
 	_hero_light = OmniLight3D.new()
 	_hero_light.light_color = WorldGen.hex(0xffd9a0)
