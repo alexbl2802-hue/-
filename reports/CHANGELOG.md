@@ -58,3 +58,15 @@
 - `godot/scripts/boot.gd`: контрольная сумма уже лежащих частей проверяется при запуске (с экраном «Проверяю данные игры…»); прогресс ограничен 100 %; при повторной постановке счётчик обнуляется; авто-докачка без кнопки (до 3 кругов); защита от бесконечной перекачки.
 - `tools/data_pack.py`, `.github/workflows/godot-android.yml`: неизменённые части — из последнего релиза байт в байт.
 - `godot/tests/boot_packs.gd`: повреждённая часть отбраковывается ещё при запуске.
+
+## Повторный аудит (2026-11-11) и файлы владельца 2.0.66 / 2.0.67
+- `godot/scripts/cardinal_scenarios.gd`, `enemies.gd` (`spawn_guard`): бой с проверочным стражем, если страж уже побеждён.
+- `godot/scripts/cardinal_autotest.gd`: подбор лежащей добычи перед итогом; убран неиспользуемый `_skip`.
+- `godot/addons/cardinal/scripts/cardinal.gd`, `cardinal_guardian.gd`: счёт бодрствующих монстров, предупреждение о пределе созданных.
+- `godot/scripts/boot.gd`: без списка пакетов — ошибка вместо запуска без моделей.
+- `godot/hybrid_movement/scripts/hybrid_character.gd`: обновление 2.0.66 (буфер удара, скорость падения, клип `Land`, поворот в рывке). Герой игры этот модуль не использует.
+- `.github/workflows/godot-android.yml`, `tools/check_build_inputs.py`, `tools/validate_release.py`: проверки до и после сборки, ошибки импорта не игнорируются.
+- Версии: `project.godot` и пресет Android 2.0.67, плагин ANIMATE 4.0.
+- Добавлены `CLAUDE.md`, `README_GITHUB_BUILD_RU.md`, `README_UPDATE_2.0.66_RU.md` из архивов владельца.
+- `godot/tests/cardinal_autoplay.gd`: режим `boss_beaten`.
+- Регрессия после правок: все проверки ALL OK; автотест CARDINAL 4 прогона PASSED 21/0/1.
