@@ -25,6 +25,10 @@ signal animation_issue(issue: String, details: Dictionary)
 @export var attack_lock_duration := 0.36
 @export var combo_window := 0.42
 @export var max_combo := 3
+@export var attack_buffer_seconds := 0.22
+@export var dash_steering := false
+@export var landing_animation := "Land"
+@export var landing_animation_min_fall_speed := 5.0
 @export_group("Animation names (rename to match imported clips)")
 @export var idle_anim := "Idle"
 @export var walk_anim := "Walk"
@@ -46,6 +50,8 @@ var _attack_left := 0.0
 var _combo_left := 0.0
 var _combo_index := 0
 var _queued_attack := false
+var _attack_buffer_left := 0.0
+var _fall_speed := 0.0
 var _active_animation := ""
 var _missing_clips: Dictionary = {}
 var _last_grounded := true
@@ -67,10 +73,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
  _dash_cooldown_left = maxf(0.0, _dash_cooldown_left - delta)
  _combo_left = maxf(0.0, _combo_left - delta)
+ _attack_buffer_left = maxf(0.0, _attack_buffer_left - delta)
  _attack_left = maxf(0.0, _attack_left - delta)
  if _attack_left <= 0.0 and _queued_attack:
   _queued_attack = false
-  _start_attack()
+  if _attack_buffer_left > 0.0:
+   _start_attack()
  if _combo_left <= 0.0 and _attack_left <= 0.0:
   _combo_index = 0
  var keyboard_input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -101,12 +109,16 @@ func _physics_process(delta: float) -> void:
   velocity.x = move_toward(velocity.x, target.x, rate * delta)
   velocity.z = move_toward(velocity.z, target.z, rate * delta)
  if not is_on_floor():
+  _fall_speed = maxf(_fall_speed, -velocity.y)
   velocity.y -= gravity_strength * delta
  elif velocity.y < 0.0:
   velocity.y = -0.2
  move_and_slide()
  if is_on_floor() and not _last_grounded:
-  movement_event.emit("landed", {"vertical_speed": velocity.y})
+  movement_event.emit("landed", {"fall_speed": _fall_speed})
+  if _fall_speed >= landing_animation_min_fall_speed:
+   _play_clip(landing_animation, 0.08)
+  _fall_speed = 0.0
  _last_grounded = is_on_floor()
  _update_facing(direction, delta)
  _update_animation()
@@ -124,8 +136,12 @@ func _camera_relative_direction(axis: Vector2) -> Vector3:
  return (right * axis.x - forward * axis.y).normalized() if axis.length_squared() > 0.0001 else Vector3.ZERO
 
 func _update_facing(direction: Vector3, delta: float) -> void:
- if visual_root == null or _dash_left > 0.0:
+ if visual_root == null:
   return
+ if _dash_left > 0.0:
+  if not dash_steering:
+   return
+  direction = _dash_direction
  var desired := direction
  if combat_mode and camera_pivot != null:
   desired = -camera_pivot.global_transform.basis.z
@@ -158,6 +174,7 @@ func request_attack() -> void:
  if _attack_left > 0.0:
   if _combo_left > 0.0:
    _queued_attack = true
+   _attack_buffer_left = attack_buffer_seconds
   return
  _start_attack()
 
@@ -167,6 +184,7 @@ func _start_attack() -> void:
  _combo_index = (_combo_index % maxi(1, max_combo)) + 1
  _attack_left = attack_lock_duration
  _combo_left = combo_window
+ _attack_buffer_left = 0.0
  movement_event.emit("attack_started", {"combo": _combo_index})
  _play_clip(attack_prefix + str(_combo_index), 0.08)
 
@@ -206,4 +224,4 @@ func _play_clip(clip: String, blend: float) -> void:
  _active_animation = clip
 
 func get_diagnostics() -> Dictionary:
- return {"combat_mode": combat_mode, "speed": Vector2(velocity.x, velocity.z).length(), "on_floor": is_on_floor(), "animation": _active_animation, "missing_clips": _missing_clips.keys(), "dash_cooldown": _dash_cooldown_left}
+ return {"combat_mode": combat_mode, "speed": Vector2(velocity.x, velocity.z).length(), "on_floor": is_on_floor(), "animation": _active_animation, "missing_clips": _missing_clips.keys(), "dash_cooldown": _dash_cooldown_left, "combo_index": _combo_index, "attack_buffer": _attack_buffer_left, "fall_speed": _fall_speed}

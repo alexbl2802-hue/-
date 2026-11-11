@@ -66,9 +66,13 @@ func _ready() -> void:
 		list = LIST
 	# В редакторе и в сборке, где данные уже внутри, качать нечего
 	var force := OS.get_environment("ZEMLI_FORCE_PACKS") == "1"   # для проверки загрузчика в редакторе
-	if (ResourceLoader.exists("res://models/hero.glb") and not force) or not FileAccess.file_exists(list):
+	if ResourceLoader.exists("res://models/hero.glb") and not force:
 		_diag("данные внутри сборки — пакеты не нужны (версия %s)" % ver)
 		_load_world()
+		return
+	if not FileAccess.file_exists(list):
+		_diag("Отсутствует обязательный список пакетов: " + list)
+		_fail("Отсутствует список игровых ресурсов. Требуется корректная сборка с data/packs.json")
 		return
 	var err := _read_list(list)
 	if err != "":

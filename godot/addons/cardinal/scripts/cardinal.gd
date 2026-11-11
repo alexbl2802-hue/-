@@ -78,4 +78,9 @@ func set_player_performance(deaths: int, wins: int) -> void:
 
 func active_counts() -> Dictionary:
     _cleanup_registry()
-    return {'mobs': _mobs.size(), 'bosses': _bosses.size(), 'chests': _chests.size()}
+    # awake — живые монстры, которые сейчас бодрствуют (их и ограничивает max_active_mobs)
+    var awake := 0
+    for m in _mobs:
+        if m.is_physics_processing() and not m.get('dead'):
+            awake += 1
+    return {'mobs': _mobs.size(), 'awake': awake, 'bosses': _bosses.size(), 'chests': _chests.size()}

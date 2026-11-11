@@ -286,11 +286,17 @@ func _boss() -> void:
 	await _wait(1.6)
 	await _frames(4)
 	var boss: Node3D = main.enemies.boss_of(idx)
+	# Страж уже побеждён в сохранении — бой всё равно проводится: на время проверки ставится проверочный
+	# страж, лестница закрывается. Сохранение игрока не меняется (после автотеста оно возвращается как было)
+	var isolated := false
+	if boss == null and main.enemies.boss_beaten(idx):
+		isolated = true
+		Game.bosses.erase(idx)
+		d.set_stairs(false)
+		boss = main.enemies.spawn_guard(d)
+		await _frames(4)
 	if boss == null:
-		if main.enemies.boss_beaten(idx):
-			at._pass("boss", "Страж этажа 1 уже побеждён в этом сохранении; лестница открыта: %s" % d.stairs_open)
-		else:
-			at._fail("boss", "На этаже 1 нет стража")
+		at._fail("boss", "На этаже 1 нет стража")
 		main.exit_dungeon()
 		await _wait(1.6)
 		return
@@ -304,8 +310,16 @@ func _boss() -> void:
 			break
 	await _wait(0.5)
 	var opened: bool = d.stairs_open
+	if isolated:
+		# вернуть как было в сохранении: страж побеждён, лестница открыта
+		if not Game.bosses.has(idx):
+			Game.bosses.append(idx)
+		d.set_stairs(true)
+		if not boss.dead:
+			main.enemies.list.erase(boss)
+			boss.queue_free()
 	if dead and opened:
-		at._pass("boss", "Страж «%s» на этаже 1; после победы открылась лестница на этаж 2" % name)
+		at._pass("boss", "Страж «%s» на этаже 1%s; после победы открылась лестница на этаж 2" % [name, " (проверочный: в сохранении уже побеждён)" if isolated else ""])
 	else:
 		at._fail("boss", "Страж «%s»: побеждён=%s, лестница открыта=%s" % [name, dead, opened])
 	main.exit_dungeon()

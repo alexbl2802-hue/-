@@ -23,7 +23,6 @@ const LIST := [
 ]
 
 ## Приёмы меча: урон (множитель) растёт на 15% за ранг, откат меньше
-const ART_COLOR := {"sword": Color("#7fd0ff"), "great": Color("#ff8a3a"), "rapier": Color("#ffe27a"), "dagger": Color("#b07cff")}
 static func art_mult(base: float, r: int) -> float:
 	return base * (1.0 + 0.15 * (maxi(1, r) - 1))
 

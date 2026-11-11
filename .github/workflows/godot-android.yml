@@ -83,7 +83,7 @@ jobs:
       - name: Configure Android SDK and signing for Godot
         run: |
           # Первый запуск редактора создаёт файл настроек, затем прописываем SDK и общий отладочный ключ
-          ~/godot-cache/godot --headless --editor --path godot --quit || true
+          ~/godot-cache/godot --headless --editor --path godot --quit
           S=~/.config/godot/editor_settings-${GODOT_VERSION}.tres
           KS="${{ github.workspace }}/android/app/debug.keystore"
           sed -i "s|^export/android/android_sdk_path = .*|export/android/android_sdk_path = \"$ANDROID_HOME\"|" "$S"
@@ -104,13 +104,17 @@ jobs:
       - name: Join big models (stored in parts, GitHub file limit 100 MB)
         run: sh tools/join_big.sh
 
+      - name: Verify complete game assets before import
+        run: python3 tools/check_build_inputs.py
+
       - name: Import project
-        run: ~/godot-cache/godot --headless --path godot --import || true
+        run: ~/godot-cache/godot --headless --path godot --import
 
       - name: Data packs (models and textures, downloaded by the game after install, only what changed)
         run: |
           # Неизменённые части берём байт в байт из прошлого релиза — телефон их не перекачивает
           PREV_PACKS_URL="https://github.com/${{ github.repository }}/releases/latest/download/" python3 tools/data_pack.py ~/godot-cache/godot build
+          python3 tools/validate_release.py godot/data/packs.json build
           cat godot/data/packs.json
 
       - name: Export APK

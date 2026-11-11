@@ -9,7 +9,6 @@
 class_name HeroStates
 extends RefCounted
 
-const STATES := ["idle", "combat", "walk", "run", "sprint", "dash", "dodge", "roll", "jump", "land", "block", "attack", "skill", "stagger", "dead"]
 const STAGGER_MOVES := ["stun", "hit_heavy", "knockdown", "getup"]
 const COMBAT_RANGE := 12.0      # враг ближе — стойка «бой»
 

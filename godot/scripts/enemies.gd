@@ -37,14 +37,7 @@ func spawn_dungeon(d: Node3D) -> void:
 			list.append(en)
 	# Босс стережёт сундук: стоит между сундуком и входом. Побеждённый больше не появляется
 	if d.tower and not boss_beaten(d.index):
-		# Страж этажа ждёт в своей комнате за воротами
-		var g: CharacterBody3D = script.new()
-		g.in_dungeon = true
-		g.dungeon_idx = d.index
-		g.setup(d.def["boss"], d.boss_pos + Vector3(0, 0.3, 0), hero, lvl + 2)
-		g.guard_room = d
-		add_child(g)
-		list.append(g)
+		spawn_guard(d)
 	elif d.def.has("boss") and not boss_beaten(d.index):
 		var c: Vector3 = d.chest["pos"]
 		var to_start: Vector3 = d.start_pos - c
@@ -55,6 +48,17 @@ func spawn_dungeon(d: Node3D) -> void:
 		b.setup(d.def["boss"], c + to_start.normalized() * 3.5 + Vector3(0, 0.3, 0), hero, lvl + 2)
 		add_child(b)
 		list.append(b)
+
+## Страж этажа башни: ждёт в своей комнате за воротами
+func spawn_guard(d: Node3D) -> Node3D:
+	var g: CharacterBody3D = preload("res://scripts/enemy.gd").new()
+	g.in_dungeon = true
+	g.dungeon_idx = d.index
+	g.setup(d.def["boss"], d.boss_pos + Vector3(0, 0.3, 0), hero, int(d.def.get("level", 1)) + 2)
+	g.guard_room = d
+	add_child(g)
+	list.append(g)
+	return g
 
 ## Монстры Плато ветров (второй мир)
 func spawn_world2(w2: Node3D) -> void:

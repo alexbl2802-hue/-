@@ -1,5 +1,6 @@
 ## Кардинал играет сам: проверка моделей + игра N секунд игрового времени, затем отчёт.
-## godot --path godot res://tests/cardinal_autoplay.tscn -- <папка> [секунд]
+## godot --path godot res://tests/cardinal_autoplay.tscn -- <папка> [секунд] [boss_beaten]
+## boss_beaten — страж этажа 1 заранее отмечен побеждённым (проверка боя с проверочным стражем)
 extends Node
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -11,6 +12,15 @@ func _ready() -> void:
 		await get_tree().process_frame
 	main.hud.menu._on_main()
 	await get_tree().process_frame
+	var b_idx: int = DungeonDefs.floor_index(1)
+	if args.size() > 2 and args[2] == "boss_beaten":
+		var g: Node3D = main.enemies.boss_of(b_idx)
+		if g:
+			main.enemies.list.erase(g)
+			g.queue_free()
+		if not Game.bosses.has(b_idx):
+			Game.bosses.append(b_idx)
+		print("страж этажа 1 отмечен побеждённым до теста")
 	main.hud.touch.cardinal_pressed.emit()
 	var play: Button = main.hud.cardinal._play
 	play.pressed.emit()
@@ -30,6 +40,7 @@ func _ready() -> void:
 	print("moved from ", t0.round(), " to ", main.hero.global_position.round(), " kills ", Game.kills)
 	if at.playing:
 		at.stop()
+	print("после теста: страж этажа 1 побеждён в сохранении = %s, живой страж в мире = %s" % [Game.bosses.has(b_idx), main.enemies.boss_of(b_idx) != null])
 	print("ИТОГ: ", at._result_status(), " ", at.coverage())
 	for id in at.CHECK_NAMES:
 		print("  %-34s %-10s %s" % [at.CHECK_TITLES.get(id, id), at.checks[id]["status"], at.checks[id]["detail"]])

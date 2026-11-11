@@ -95,12 +95,6 @@ func set_step(t: String) -> void:
 	step = t
 	changed.emit()
 
-func _skip(id: String, detail: String) -> void:
-	if not playing:
-		return
-	if checks.has(id) and checks[id]["status"] == "NOT_TESTED":
-		checks[id] = {"status": "SKIPPED", "detail": detail}
-		changed.emit()
 
 ## Есть ли пол под точкой (луч вниз до 6 м)
 func floor_under(p: Vector3) -> bool:
@@ -207,7 +201,17 @@ func _run_scenarios() -> void:
 		t.run = false
 		t.block = false
 	set_step("сценарии")
-	# Итоги полевой части
+	# Итоги полевой части. Добыча могла выпасть в самом конце и ещё лежать — герой подходит к ней
+	var loot = main.get("loot")
+	if _loot_seen and not _loot_picked and loot and (loot._items as Array).size() > 0:
+		var lp: Vector3 = loot._items[0]["pos"]
+		hero.global_position = Vector3(lp.x, lp.y, lp.z)
+		hero.velocity = Vector3.ZERO
+		for i in 180:
+			await hero.get_tree().physics_frame
+			_loot_tick()
+			if _loot_picked or (loot._items as Array).is_empty():
+				break
 	if _loot_seen and _loot_picked:
 		_pass("loot", "Из монстров выпадает добыча и подбирается в инвентарь/кошелёк")
 	elif _loot_seen:

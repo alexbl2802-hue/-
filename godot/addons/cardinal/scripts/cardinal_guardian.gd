@@ -15,8 +15,10 @@ func _process(delta: float) -> void:
     scan()
 func scan() -> void:
     var counts := Cardinal.active_counts()
-    if counts['mobs'] > Cardinal.max_active_mobs:
-        diagnostic.emit('warning','MOB_OVERFLOW','Активных монстров больше лимита; новые появления заблокированы')
+    if counts['awake'] > Cardinal.max_active_mobs:
+        diagnostic.emit('warning','MOB_OVERFLOW','Бодрствующих монстров больше лимита (%d из %d)' % [counts['awake'], Cardinal.max_active_mobs])
+    if counts['mobs'] >= Cardinal.max_registered_mobs:
+        diagnostic.emit('warning','MOB_REGISTRY_FULL','Создано монстров до предела (%d); новые появления заблокированы' % counts['mobs'])
     if Cardinal.max_active_mobs < 1 or not is_finite(Cardinal.difficulty):
         diagnostic.emit('error','CONFIG','Обнаружена некорректная конфигурация')
         if auto_repair: Cardinal._monitor_health()
