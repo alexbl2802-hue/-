@@ -35,6 +35,10 @@ func setup(player: AnimationPlayer, sk: Skeleton3D, anims: Dictionary, loco_poin
 	var loco := AnimationNodeBlendSpace1D.new()
 	loco.min_space = 0.0
 	loco.max_space = max_speed
+	# Все клипы смеси идут всегда, даже с нулевым весом: у соседних точек с одним и тем же клипом
+	# (бег 4,0 и 7,5 м/с) фазы совпадают. Без этого вторая точка стартовала позже, и на обычном
+	# беге (5,5 м/с) две копии бега в противофазе гасили друг друга — ноги почти не двигались
+	loco.sync = true
 	for i in loco_points.size():
 		loco.add_blend_point(_anim_node(loco_points[i][0]), loco_points[i][1], -1, StringName("p%d" % i))
 	bt.add_node("loco", loco, Vector2(0, 0))
