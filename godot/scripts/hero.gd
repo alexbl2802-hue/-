@@ -257,8 +257,11 @@ func _attach_character() -> void:
 			var width := (axis - blade * axis.dot(blade)).normalized()
 			_sword.transform = Transform3D(Basis(width, blade, width.cross(blade).normalized()), fist[0])
 	_sword.scale = Vector3.ONE / CHAR_SCALE
+	_hand_att = att
+	_sword_hand_tr = _sword.transform
 	_attach_blades()
 	_build_gear(sk)
+	_build_sheath(sk)
 	_anim.play(A_IDLE if _has_idle else A_SLASH)
 	_anim.seek(0.0, true)
 	# Все движения — клипы Meshy (сценарий «Meshy animations» → tools/prepare_models.py meshy_clips)
@@ -266,7 +269,7 @@ func _attach_character() -> void:
 	if _has_idle and _anim.has_animation(A_DASH):
 		_ha = HeroAnim.new()
 		add_child(_ha)
-		var acts := {"slash": A_SLASH, "dash": A_DASH, "air": RUN_CLIP}
+		var acts := {"slash": A_SLASH, "dash": A_DASH, "air": RUN_CLIP, "sheathe": RUN_CLIP}
 		# Движения из библиотеки Meshy (сценарий «Meshy animations», tools/prepare_models.py meshy_clips)
 		for m in MESHY_MOVES:
 			if _anim.has_animation(MESHY_MOVES[m][0]):
@@ -556,6 +559,9 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 	elif _land_t >= 0.0 and _ha._names.get("air", "") == JUMP_CLIP[0]:
 		# Приземление: амортизация по клипу (присел на касании — выпрямился)
 		_ha.follow("air", minf(JUMP_TOUCH + _land_t * JUMP_LAND_RATE, JUMP_RECOVER), dt)
+	elif _sheathe_t >= 0.0 and _ha._names.get("sheathe", "") == A4_SHEATHE:
+		_ha.act("sheathe", 0.0 if _sheathe_new else -1.0, 1.0)
+		_sheathe_new = false
 	else:
 		_ha.stop()
 	_new_swing = false
@@ -651,6 +657,7 @@ func _half_ring(r0: float, r1: float, segs: int) -> ArrayMesh:
 ## Надетое снаряжение видно на герое: цвет и длина меча, доспех, шлем
 func update_look() -> void:
 	var w := Items.get_item(Game.equip["weapon"]["id"]) if Game.equip["weapon"] != null else {}
+	_show_sheath()
 	var a := Items.get_item(Game.equip["armor"]["id"]) if Game.equip["armor"] != null else {}
 	var h := Items.get_item(Game.equip["helm"]["id"]) if Game.equip["helm"] != null else {}
 	_sword.visible = not w.is_empty()
@@ -832,13 +839,132 @@ func _load_animate4() -> void:
 			continue
 		AnimatePipeline.export_to(_anim, n, load(path))
 	_a4 = ok
+	if ResourceLoader.exists(SHEATHE_PATH):
+		AnimatePipeline.export_to(_anim, "hero_sheathe", load(SHEATHE_PATH))
+		_ha.set_act_anim("sheathe", A4_SHEATHE)
 
 ## Стойка с одним мечом (одноручное оружие без щита) — ANIMATE 4.0; блок: со щитом — щитом, без щита — мечом
 ## Стойка на месте: рядом враги — боевая (меч наготове), иначе — спокойная, с дыханием
 func _idle_clip() -> String:
 	if _in_fight and _anim.has_animation(A_STANCE):
 		return A_STANCE
+	# Меч в ножнах — руки свободно опущены (не за спиной)
+	if _sheathed and _anim.has_animation(CALM_IDLE):
+		return CALM_IDLE
 	return A_IDLE if _anim.has_animation(A_IDLE) else A_STANCE
+
+# ---------- Меч в ножны за спину (ANIMATE 4.0, раскадровка владельца)
+## Остановился и стоит без врагов рядом — убирает меч в ножны за спину; удар, приём, блок или
+## враги рядом — меч снова в руке. На бегу меч остаётся в ножнах
+const SHEATHE_PATH := "res://data/anim/hero_sheathe.res"
+const A4_SHEATHE := "ANIMATE4/hero_sheathe"
+const CALM_IDLE := "MS_idle_brisk"   # спокойная стойка с опущенными руками (Moveset)
+const SHEATHE_AFTER := 0.35          # сколько стоять на месте, прежде чем убрать меч (с)
+const SHEATHE_LEN := 1.33
+const SHEATHE_RELEASE := 1.0         # кадр 30: клинок вошёл в ножны — хват отпущен
+var _sheathe_t := -1.0
+var _sheathe_new := false
+var _sheathed := false
+var _still_t := 0.0
+var _hand_att: BoneAttachment3D      # кисть с мечом
+var _back_att: BoneAttachment3D      # грудь: ножны и меч в них
+var _sheath: Node3D
+var _sword_hand_tr: Transform3D      # меч в руке (как задан хватом)
+var _sword_back_tr: Transform3D      # меч в ножнах за спиной
+
+## Ножны за спиной: от правого плеча (устье) к левому бедру (наконечник), по диагонали
+func _build_sheath(sk: Skeleton3D) -> void:
+	var chest := PoseLib.bone(sk, "Spine2")
+	if chest < 0:
+		chest = PoseLib.bone(sk, "Spine1")
+	if chest < 0 or _hand_att == null:
+		return
+	_back_att = BoneAttachment3D.new()
+	sk.add_child(_back_att)
+	_back_att.bone_name = sk.get_bone_name(chest)
+	_back_att.bone_idx = chest
+	# Оси персонажа (X — влево, Y — вверх, Z — вперёд) → система кости груди в покое
+	var to_sk: Transform3D = (_model.global_transform.affine_inverse() * sk.global_transform).affine_inverse()
+	var bone_g: Transform3D = sk.get_bone_global_rest(chest)
+	var c_model: Vector3 = to_sk.affine_inverse() * bone_g.origin
+	var d := Vector3(0.48, -1.0, -0.08).normalized()                      # клинок: вниз, к левому бедру
+	var mouth := c_model + Vector3(-0.13, 0.2, -0.2) * CHAR_SCALE        # устье над правой лопаткой
+	var width := d.cross(Vector3(0, 0, 1)).normalized()
+	var basis_m := Basis(width, d, width.cross(d).normalized())
+	var length := 0.95 * CHAR_SCALE
+	var to_bone: Transform3D = bone_g.affine_inverse() * to_sk
+	# Меч в ножнах: рукоять торчит над плечом, клинок уходит в ножны
+	_sword_back_tr = to_bone * Transform3D(basis_m, mouth - d * 0.16 * CHAR_SCALE)
+	_sword_back_tr.basis = _sword_back_tr.basis.orthonormalized()
+	# Ножны: чёрная кожа, металлическое устье и наконечник
+	_sheath = Node3D.new()
+	_sheath.name = "Sheath"
+	_back_att.add_child(_sheath)
+	_sheath.transform = Transform3D((to_bone.basis * basis_m).orthonormalized(), to_bone * mouth)
+	var leather := Mats.lp(0x16141a, 0.75, 0.0)
+	var metal := Mats.lp(0x8a8f99, 0.35, 0.8)
+	_box(_sheath, Vector3(0.075, length, 0.035), leather, Vector3(0, length * 0.5, 0))
+	_box(_sheath, Vector3(0.09, 0.07, 0.05), metal, Vector3(0, 0.02, 0))
+	_box(_sheath, Vector3(0.08, 0.08, 0.045), metal, Vector3(0, length - 0.03, 0))
+	_sheath.scale = Vector3.ONE
+	_show_sheath()
+
+func _show_sheath() -> void:
+	if _sheath:
+		var w = Game.equip.get("weapon")
+		_sheath.visible = w != null and not (w as Dictionary).is_empty()
+
+## Меч — в ножны (за спину) или в руку
+func _sword_to_back(on: bool) -> void:
+	if _sword == null or _hand_att == null or _back_att == null:
+		return
+	var want: Node = _back_att if on else _hand_att
+	if _sword.get_parent() != want:
+		_sword.get_parent().remove_child(_sword)
+		want.add_child(_sword)
+	_sword.transform = _sword_back_tr if on else _sword_hand_tr
+	_sword.scale = Vector3.ONE / CHAR_SCALE
+
+## Достать меч (удар, приём, блок, враги рядом): прерывает уборку
+func _draw_sword() -> void:
+	_sheathe_t = -1.0
+	_still_t = 0.0
+	if _sheathed:
+		_sheathed = false
+		_sword_to_back(false)
+		if _ha:
+			_set_loco(0, _idle_clip())
+
+## Каждый кадр: стоит ли убирать меч и ход уборки
+func _sheathe_update(dt: float, moving: bool) -> void:
+	if _back_att == null or _ha == null or not _ha._names.get("sheathe", "") == A4_SHEATHE:
+		return
+	var w = Game.equip.get("weapon")
+	var armed: bool = w != null and not (w as Dictionary).is_empty()
+	var busy_now: bool = dead or not is_on_floor() or attack_t >= 0.0 or _art_t >= 0.0 or _dash_t >= 0.0 or _move != "" or blocking or _unblock_t >= 0.0 or (not underground and global_position.y < WorldGen.WATER - 1.0)
+	if _in_fight and armed:
+		_draw_sword()
+		return
+	if _sheathe_t >= 0.0:
+		if moving or busy_now:
+			# прервали: если клинок уже в ножнах — так и остаётся
+			_sheathe_t = -1.0
+			return
+		_sheathe_t += dt
+		if _sheathe_t >= SHEATHE_RELEASE and not _sheathed:
+			_sheathed = true
+			_sword_to_back(true)
+		if _sheathe_t >= SHEATHE_LEN:
+			_sheathe_t = -1.0
+			_set_loco(0, _idle_clip())
+		return
+	if _sheathed or not armed or moving or busy_now:
+		_still_t = 0.0
+		return
+	_still_t += dt
+	if _still_t >= SHEATHE_AFTER:
+		_sheathe_t = 0.0
+		_sheathe_new = true
 
 func _stance_and_block() -> void:
 	if _ha == null or not _a4:
@@ -1179,6 +1305,7 @@ func attack() -> void:
 	_cancel_soft_move()
 	if not HeroStates.can(self, "attack"):
 		return
+	_draw_sword()
 	# Комбо: нажатие во время удара — следующий удар сразу после этого
 	if attack_t >= 0.0:
 		if attack_t > 0.12 and combo < 2:
@@ -1227,6 +1354,7 @@ func use_art(id: String) -> void:
 	_cancel_soft_move()
 	if id == "" or Game.rank(id) == 0 or cd.get(id, 0.0) > 0.0 or not HeroStates.can(self, "skill"):
 		return
+	_draw_sword()
 	attack_t = -1.0
 	_art = id.substr(4)
 	_art_t = 0.0
@@ -1435,6 +1563,7 @@ func use_skill(id: String) -> void:
 	if id == "dodge":
 		dodge()
 		return
+	_draw_sword()
 	if id == "horizontal":
 		use_horizontal()
 		return
@@ -1685,6 +1814,7 @@ func _physics_process(dt: float) -> void:
 	var was_blocking := blocking
 	blocking = touch != null and touch.block and not dead and not busy and attack_t < 0.0 and _dash_t < 0.0 and _art_t < 0.0 and _move == ""
 	if blocking and not was_blocking:
+		_draw_sword()
 		_block_start = _time
 		_unblock_t = -1.0
 		if combat:
@@ -1864,6 +1994,7 @@ func _animate(dt: float) -> void:
 	var bob := absf(cos(_walk)) * 0.08 if moving and on_floor else sin(_time * 1.7) * 0.015
 	if _char:
 		bob = 0.0
+		_sheathe_update(dt, moving)
 		_animate_char(on_floor, moving)
 	_model.position.y = bob
 	if _feet:

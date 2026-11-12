@@ -52,14 +52,8 @@ func _ready() -> void:
 	var a10 := _awake(en)
 	_check("cap applies to non-boss monsters", a10[0] - a10[1] <= 10, "в радиусе %d, бодрствуют при 35: %d, при 10: %d (боссов %d)" % [best_n, a35[0], a10[0], a10[1]])
 	Cardinal.max_active_mobs = CardinalConfig.ACTIVE_MOBS_DEFAULT
-	# Скрытая кнопка CARDINAL
-	var was := Settings.admin
-	Settings.admin = false
+	# Кнопка CARDINAL видна всем
 	var ids: Array = main.hud.touch._buttons().map(func(b): return b["id"])
-	_check("CARDINAL hidden for players", not ids.has("cardinal"))
-	Settings.admin = true
-	ids = main.hud.touch._buttons().map(func(b): return b["id"])
-	_check("CARDINAL shown in admin mode", ids.has("cardinal"))
-	Settings.admin = was
+	_check("CARDINAL button always shown", ids.has("cardinal"))
 	print("RESULT: %s" % ("ALL OK" if ok else "FAILED"))
 	get_tree().quit(0 if ok else 1)

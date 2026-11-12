@@ -20,7 +20,6 @@ func _ready() -> void:
 		await get_tree().process_frame
 	main.hud.menu._on_main()
 	Game.skills = {"dash": 1, "horizontal": 1, "art_sword": 1, "art_great": 1, "art_rapier": 1, "art_dagger": 1}
-	Settings.admin = true   # все кнопки, включая скрытую CARDINAL
 	for i in 20:
 		await get_tree().process_frame
 	var t: Control = main.hud.touch

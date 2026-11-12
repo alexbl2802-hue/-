@@ -115,6 +115,8 @@ static func check_animation(sk: Skeleton3D, anim: Animation, tpl: Dictionary, co
 			still.append("%s (%.0f°)" % [gname, best])
 	if tpl.get("name", "") == "stance":
 		still = []   # стойка — почти неподвижна по замыслу
+	elif tpl.get("name", "") == "sheathe":
+		still = still.filter(func(x): return not String(x).contains("нога"))   # уборка меча — ноги стоят на месте
 	checks.append({"name": "full_body", "ok": still.is_empty(), "detail": "участвуют таз/позвоночник, обе руки и обе ноги" if still.is_empty() else "почти не движутся: " + ", ".join(still)})
 	# 5. Клинок по ключам
 	var hand := PoseLib.bone(sk, "RightHand")

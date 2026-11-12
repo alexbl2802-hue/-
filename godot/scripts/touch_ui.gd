@@ -114,9 +114,8 @@ func _buttons() -> Array:
 		{"id": "skills", "rect": _top_rect(2), "label": "👤", "fs": 16, "badge": str(free_points) if free_points > 0 else "", "glow": free_points > 0},
 		{"id": "menu", "rect": _top_rect(3), "label": "☰", "fs": 16},
 	]
-	# CARDINAL (и через него ANIMATE) — скрытый интерфейс администратора
-	if Settings.admin:
-		list.append({"id": "cardinal", "rect": _top_rect(4), "label": "◈", "fs": 16})
+	# CARDINAL (и через него ANIMATE) — видна всегда
+	list.append({"id": "cardinal", "rect": _top_rect(4), "label": "◈", "fs": 16})
 	# Ближний круг — навыки текущей страницы (при листании въезжают по дуге)
 	for k in PAGE:
 		var i := _page * PAGE + k

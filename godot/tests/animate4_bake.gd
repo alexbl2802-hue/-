@@ -1,9 +1,9 @@
 ## Запечь клипы ANIMATE 4.0 для героя в res://data/anim/ (входят в APK; игра их только загружает):
-## стойка с одним мечом и блок щитом. Запуск (в проекте, не на телефоне):
+## стойка с одним мечом, блок щитом и уборка меча в ножны за спину. Запуск (в проекте, не на телефоне):
 ## godot --headless --path godot res://tests/animate4_bake.tscn
 extends Node
 
-const CLIPS := [["hero_stance_sword", "стойка с мечом"], ["hero_block_shield", "блок щитом"]]
+const CLIPS := [["hero_stance_sword", "стойка с мечом"], ["hero_block_shield", "блок щитом"], ["hero_sheathe", "убрать меч в ножны"]]
 
 func _ready() -> void:
 	for k in Game.equip:

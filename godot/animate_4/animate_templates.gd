@@ -29,6 +29,7 @@ static func build(spec: Dictionary) -> Dictionary:
 		"block_shield": return _block_shield()
 		"dash": return _dash(spec["dir"], spec["from_run"])
 		"stance": return _stance_loop()
+		"sheathe": return _sheathe()
 	return {}
 
 static func _k(u: float, phase: String, p: Dictionary, hips: Vector3, plant: Array, sword := Vector3.ZERO) -> Dictionary:
@@ -196,3 +197,37 @@ static func _dash(dir: String, from_run: bool) -> Dictionary:
 		_k(0.76, "recovery", land, d * 0.04 + Vector3(0, -0.12, 0), both, STANCE_SWORD),
 		_stance(1.0, "recovery")]
 	return {"name": "dash_" + dir, "length": 0.6, "keys": keys}
+
+# ---------------------------------------------------------------- уборка меча
+
+## Уборка меча в ножны за спину (раскадровка владельца, 1,33 с): подготовка → подъём меча (сгиб
+## локтя) → замах и перевод через правое плечо → поиск ножен (рука и клинок за спину, клинок вниз
+## к левому бедру) → ввод меча → фиксация (отпускание хвата) → рука опускается, спокойная стойка.
+## Корпус чуть поворачивается вправо (5–15°), голова провожает руку
+static func _sheathe() -> Dictionary:
+	var both := ["LeftFoot", "RightFoot"]
+	# ноги стоят как в стойке весь клип (стопы не скользят); руки — спокойно опущены
+	var calm := {"RightShoulder": Vector3.ZERO, "RightArm": Vector3(4, 0, 6), "RightForeArm": Vector3(-14, 0, 0), "LeftArm": Vector3(4, 0, -6), "LeftForeArm": Vector3(-14, 0, 0), "Spine": Vector3(2, 0, 0)}
+	# Углы руки подобраны замером положения кисти относительно головы (ключица поднята на 25°):
+	# подъём — кисть перед лицом выше головы; замах — над головой; поиск ножен — за головой справа;
+	# ввод — за шеей, клинок вниз за спину
+	var sh := {"RightShoulder": Vector3(0, 0, -25)}
+	var lift := PoseLib.merge(sh, {"Spine": Vector3(4, -6, 0), "RightArm": Vector3(0, 0, -120), "RightForeArm": Vector3(-30, 0, 0)})
+	var over := PoseLib.merge(sh, {"Spine": Vector3(0, -12, 0), "Spine1": Vector3(-2, -4, 0), "Neck": Vector3(0, -8, 0),
+		"RightArm": Vector3(-60, 0, -90), "RightForeArm": Vector3(-80, 0, 0)})
+	var behind := PoseLib.merge(sh, {"Spine": Vector3(0, -14, 0), "Spine1": Vector3(-2, -5, 0), "Neck": Vector3(0, -10, 0),
+		"RightArm": Vector3(-90, 0, -90), "RightForeArm": Vector3(-130, 0, 0)})
+	var push := PoseLib.merge(sh, {"Spine": Vector3(2, -10, 0), "Spine1": Vector3(0, -4, 0), "Neck": Vector3(0, -6, 0),
+		"RightArm": Vector3(-60, 0, -120), "RightForeArm": Vector3(-130, 0, 0)})
+	var release := {"RightShoulder": Vector3(0, 0, -10), "Spine": Vector3(2, -6, 0), "RightArm": Vector3(-30, 0, -90), "RightForeArm": Vector3(-100, 0, 0)}
+	var down := Vector3(0.55, -1.0, -0.3)      # клинок за спиной: вниз, к левому бедру, чуть назад
+	return {"name": "sheathe", "length": 1.33, "keys": [
+		_stance(0.0, "ready", both),
+		_k(0.15, "ready", PoseLib.merge(calm, {"RightArm": Vector3(-10, 0, 4), "RightForeArm": Vector3(-30, 0, 0)}), STANCE_HIPS, both, Vector3(-0.3, -0.6, 0.7)),
+		_k(0.25, "anticipation", PoseLib.merge(calm, lift), STANCE_HIPS, both, Vector3(-0.1, 1.0, 0.3)),
+		_k(0.40, "active", PoseLib.merge(calm, over), STANCE_HIPS, both, Vector3(-0.1, 0.4, -1.0)),
+		_k(0.55, "active", PoseLib.merge(calm, behind), STANCE_HIPS, both, down),
+		_k(0.75, "active", PoseLib.merge(calm, push), STANCE_HIPS, both, down),
+		_k(0.86, "recovery", PoseLib.merge(calm, release), STANCE_HIPS, both, down),
+		_k(1.0, "recovery", calm, STANCE_HIPS, both),
+	]}
