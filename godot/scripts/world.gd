@@ -67,6 +67,16 @@ func _tree_y(pos: Vector3, h: float) -> float:
 		low = minf(low, WorldGen.ground_at(pos.x + cos(a) * r, pos.z + sin(a) * r))
 	return minf(pos.y, low)
 
+## Дома и лавки города — модели по 1–5 млн треугольников: упрощённые копии включаются раньше
+## (замер у ворот: 12,1 → 7,1 млн треугольников в кадре; сами модели и текстуры не меняются)
+const TOWN_LOD_BIAS := 0.55
+
+func _town_lod(n: Node) -> void:
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).lod_bias = TOWN_LOD_BIAS
+	for c in n.get_children():
+		_town_lod(c)
+
 var _tree_grid := {}   # участок 10 м → деревья [позиция, высота]
 
 ## Точка внутри кроны дерева? (для камеры: у крон нет столкновений, только у стволов)
@@ -220,6 +230,7 @@ func build() -> void:
 	# Входов в склеп и пещеру больше нет — подземелья только в башне
 	_build_tower()
 	town_map = Town.build(self)
+	_town_lod(get_node("Town"))
 
 func _process(dt: float) -> void:
 	_time += dt
