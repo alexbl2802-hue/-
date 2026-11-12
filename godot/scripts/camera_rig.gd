@@ -37,8 +37,7 @@ func _ready() -> void:
 	camera.fov = 60.0
 	camera.near = 0.1
 	camera.far = 1500.0
-	add_child(camera)   # не внутри SpringArm: длину руки ведём сами — плавно и с учётом крон деревьев
-	camera.position = Vector3(0, 0, dist)
+	_arm.add_child(camera)   # стены и склоны: SpringArm сам держит камеру перед ними в том же кадре
 	camera.current = true
 
 ## Сразу перенести камеру к герою (после перехода в подземелье и обратно)
@@ -56,10 +55,10 @@ func _process(dt: float) -> void:
 	else:
 		global_position = global_position.lerp(tp, 1.0 - exp(-dt * 14.0))
 	rotation = Vector3(-pitch, yaw, 0)
-	_arm.spring_length = dist
-	# Длина руки: до стены/склона (SpringArm), а в кроне дерева — ближе, пока камера не выйдет из неё
-	var wall := minf(dist, _arm.get_hit_length())
-	var want := wall
+	# Длина руки: в кроне дерева — ближе, пока камера не выйдет из неё; после препятствия камера
+	# отъезжает обратно плавно. Стены и склоны SpringArm обрабатывает сам поверх этой длины
+	var wall := minf(_len, _arm.get_hit_length())
+	var want := dist
 	if canopy.is_valid():
 		var back := global_transform.basis.z
 		while want > LEN_MIN and canopy.call(global_position + back * want):
@@ -68,9 +67,9 @@ func _process(dt: float) -> void:
 	if snap_now:
 		_len = want
 	else:
+		_len = minf(_len, wall)   # после стены — отъезд от того места, где камера была
 		_len = lerpf(_len, want, 1.0 - exp(-dt * (LEN_IN if want < _len else LEN_OUT)))
-		_len = minf(_len, wall)   # за стену камера не заходит ни на кадр
-	camera.position = Vector3(0, 0, _len)
+	_arm.spring_length = _len
 	if _shake_t > 0.0:
 		# Тряска по настоящему времени: замедление времени её не растягивает
 		var rdt := dt / maxf(Engine.time_scale, 0.01)
