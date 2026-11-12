@@ -30,6 +30,7 @@ static func build(spec: Dictionary) -> Dictionary:
 		"dash": return _dash(spec["dir"], spec["from_run"])
 		"stance": return _stance_loop()
 		"sheathe": return _sheathe()
+		"calm": return _calm_loop()
 	return {}
 
 static func _k(u: float, phase: String, p: Dictionary, hips: Vector3, plant: Array, sword := Vector3.ZERO) -> Dictionary:
@@ -230,4 +231,23 @@ static func _sheathe() -> Dictionary:
 		_k(0.75, "active", PoseLib.merge(calm, push), STANCE_HIPS, both, down),
 		_k(0.86, "recovery", PoseLib.merge(calm, release), STANCE_HIPS, both, down),
 		_k(1.0, "recovery", calm, STANCE_HIPS, both),
+	]}
+
+## Спокойная стойка без меча в руке (меч в ножнах): руки свободно опущены, вдох — грудь
+## поднимается, плечи чуть вверх и назад, голова чуть приподнимается; выдох — обратно. 3,2 с по кругу
+static func _calm_loop() -> Dictionary:
+	var both := ["LeftFoot", "RightFoot"]
+	var legs := {"LeftUpLeg": Vector3(-4, 0, 6), "LeftLeg": Vector3(6, 0, 0), "LeftFoot": Vector3(-2, 0, -3),
+		"RightUpLeg": Vector3(-2, 0, -6), "RightLeg": Vector3(6, 0, 0), "RightFoot": Vector3(-4, 0, 3)}
+	var out_p := PoseLib.merge(legs, {"Spine": Vector3(3, 0, 0), "Spine1": Vector3(1, 0, 0), "Neck": Vector3(-2, 0, 0),
+		"RightArm": Vector3(4, 0, 6), "RightForeArm": Vector3(-14, 0, 0), "LeftArm": Vector3(4, 0, -6), "LeftForeArm": Vector3(-14, 0, 0),
+		"RightShoulder": Vector3.ZERO, "LeftShoulder": Vector3.ZERO})
+	var in_p := PoseLib.merge(out_p, {"Spine": Vector3(-1, 0, 0), "Spine1": Vector3(-3, 0, 0), "Neck": Vector3(-5, 0, 0),
+		"RightShoulder": Vector3(0, 0, -5), "LeftShoulder": Vector3(0, 0, 5),
+		"RightArm": Vector3(1, 0, 8), "RightForeArm": Vector3(-18, 0, 0), "LeftArm": Vector3(1, 0, -8), "LeftForeArm": Vector3(-18, 0, 0)})
+	var h0 := Vector3(0, -0.01, 0)
+	return {"name": "calm", "length": 3.2, "loop": true, "keys": [
+		{"u": 0.0, "phase": "ready", "p": out_p, "hips": h0, "plant": both},
+		{"u": 0.45, "phase": "ready", "p": in_p, "hips": h0, "plant": both},
+		{"u": 1.0, "phase": "ready", "p": out_p, "hips": h0, "plant": both},
 	]}

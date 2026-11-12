@@ -14,6 +14,7 @@ const MOTION_WORDS := [
 	["block_sword", ["блок", "защит", "парир", "block", "guard", "parry"]],
 	["dash", ["рывок", "рывк", "dash", "сдвиг", "уклон"]],
 	["sheathe", ["ножн", "убра", "sheath"]],
+	["calm", ["спокойн", "дыш", "calm", "breath"]],
 	["stance", ["стойк", "stance", "idle"]],
 ]
 const DIR_WORDS := {

@@ -3,7 +3,7 @@
 ## godot --headless --path godot res://tests/animate4_bake.tscn
 extends Node
 
-const CLIPS := [["hero_stance_sword", "стойка с мечом"], ["hero_block_shield", "блок щитом"], ["hero_sheathe", "убрать меч в ножны"]]
+const CLIPS := [["hero_stance_sword", "стойка с мечом"], ["hero_block_shield", "блок щитом"], ["hero_sheathe", "убрать меч в ножны"], ["hero_calm", "спокойная стойка, дышит"]]
 
 func _ready() -> void:
 	for k in Game.equip:

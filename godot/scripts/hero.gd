@@ -478,6 +478,8 @@ func _animate_tree(dt: float, on_floor: bool, moving: bool) -> void:
 			_in_fight = not enemies.alive_near(global_position, FIGHT_NEAR).is_empty()
 	var walk_anim: String = _loco_clips[1]
 	var run_anim: String = RUN_CLIP
+	if _sheathed and _anim.has_animation(RUN_FREE):
+		run_anim = RUN_FREE   # меч в ножнах — бег без меча, руки работают свободно
 	if _in_fight:
 		walk_anim = WALK_CLIP   # бег в бою — тот же Kirito_Sword_Run: Sword_Run шагает на месте (проверка ANIMATE)
 	if _backstep and _anim.has_animation(BACKSTEP_CLIP):
@@ -842,6 +844,11 @@ func _load_animate4() -> void:
 	if ResourceLoader.exists(SHEATHE_PATH):
 		AnimatePipeline.export_to(_anim, "hero_sheathe", load(SHEATHE_PATH))
 		_ha.set_act_anim("sheathe", A4_SHEATHE)
+	if ResourceLoader.exists(CALM_PATH):
+		AnimatePipeline.export_to(_anim, "hero_calm", load(CALM_PATH))
+	for n in [CALM_IDLE, RUN_FREE]:
+		if _anim.has_animation(n):
+			_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR   # стоит и дышит, бежит — по кругу
 
 ## Стойка с одним мечом (одноручное оружие без щита) — ANIMATE 4.0; блок: со щитом — щитом, без щита — мечом
 ## Стойка на месте: рядом враги — боевая (меч наготове), иначе — спокойная, с дыханием
@@ -851,6 +858,10 @@ func _idle_clip() -> String:
 	# Меч в ножнах — руки свободно опущены (не за спиной)
 	if _sheathed and _anim.has_animation(CALM_IDLE):
 		return CALM_IDLE
+	# Меч в руке, врагов нет — стойка с мечом ANIMATE 4.0: из неё же начинается уборка меча,
+	# поэтому рука не дёргается (раньше перед уборкой мелькала стойка с руками за спиной)
+	if _a4 and _anim.has_animation(A4_STANCE):
+		return A4_STANCE
 	return A_IDLE if _anim.has_animation(A_IDLE) else A_STANCE
 
 # ---------- Меч в ножны за спину (ANIMATE 4.0, раскадровка владельца)
@@ -858,8 +869,9 @@ func _idle_clip() -> String:
 ## враги рядом — меч снова в руке. На бегу меч остаётся в ножнах
 const SHEATHE_PATH := "res://data/anim/hero_sheathe.res"
 const A4_SHEATHE := "ANIMATE4/hero_sheathe"
-const CALM_IDLE := "MS_idle_brisk"   # спокойная стойка с опущенными руками (Moveset)
-const SHEATHE_AFTER := 0.35          # сколько стоять на месте, прежде чем убрать меч (с)
+const CALM_IDLE := "ANIMATE4/hero_calm"   # спокойная стойка: руки опущены, дышит (ANIMATE 4.0)
+const CALM_PATH := "res://data/anim/hero_calm.res"
+const SHEATHE_AFTER := 0.15          # сколько стоять на месте, прежде чем убрать меч (с)
 const SHEATHE_LEN := 1.33
 const SHEATHE_RELEASE := 1.0         # кадр 30: клинок вошёл в ножны — хват отпущен
 var _sheathe_t := -1.0
@@ -869,6 +881,10 @@ var _still_t := 0.0
 var _hand_att: BoneAttachment3D      # кисть с мечом
 var _back_att: BoneAttachment3D      # грудь: ножны и меч в них
 var _sheath: Node3D
+var _belt: Node3D
+## Устье ножен и ремень — точки относительно кости груди в осях персонажа (X влево, Y вверх, Z вперёд), м
+const SHEATH_MOUTH := Vector3(-0.13, 0.2, -0.12)
+const BELT_PATH := [Vector3(-0.15, 0.27, 0.0), Vector3(-0.12, 0.2, 0.12), Vector3(0.13, -0.3, 0.13), Vector3(0.17, -0.36, 0.02), Vector3(0.14, -0.38, -0.11)]
 var _sword_hand_tr: Transform3D      # меч в руке (как задан хватом)
 var _sword_back_tr: Transform3D      # меч в ножнах за спиной
 
@@ -888,7 +904,7 @@ func _build_sheath(sk: Skeleton3D) -> void:
 	var bone_g: Transform3D = sk.get_bone_global_rest(chest)
 	var c_model: Vector3 = to_sk.affine_inverse() * bone_g.origin
 	var d := Vector3(0.48, -1.0, -0.08).normalized()                      # клинок: вниз, к левому бедру
-	var mouth := c_model + Vector3(-0.13, 0.2, -0.2) * CHAR_SCALE        # устье над правой лопаткой
+	var mouth := c_model + SHEATH_MOUTH * CHAR_SCALE                      # устье над правой лопаткой
 	var width := d.cross(Vector3(0, 0, 1)).normalized()
 	var basis_m := Basis(width, d, width.cross(d).normalized())
 	var length := 0.95 * CHAR_SCALE
@@ -907,12 +923,42 @@ func _build_sheath(sk: Skeleton3D) -> void:
 	_box(_sheath, Vector3(0.09, 0.07, 0.05), metal, Vector3(0, 0.02, 0))
 	_box(_sheath, Vector3(0.08, 0.08, 0.045), metal, Vector3(0, length - 0.03, 0))
 	_sheath.scale = Vector3.ONE
+	# Перевязь: ремень от правого плеча через грудь к левому бедру, сзади — к устью и наконечнику ножен
+	_belt = Node3D.new()
+	_belt.name = "SwordBelt"
+	_back_att.add_child(_belt)
+	var tip := mouth + d * length * 0.92
+	var strap := Mats.lp(0x3a2a1e, 0.8, 0.0)
+	var buckle := Mats.lp(0xb8a070, 0.35, 0.9)
+	var pts := [mouth + Vector3(0, 0.02, 0.02) * CHAR_SCALE]
+	for p in BELT_PATH:
+		pts.append(c_model + (p as Vector3) * CHAR_SCALE)
+	pts.append(tip + Vector3(0, 0, 0.02) * CHAR_SCALE)
+	for i in pts.size() - 1:
+		_strap_seg(to_bone, pts[i], pts[i + 1], strap)
+	# пряжка на груди
+	var mid: Vector3 = (pts[2] + pts[3]) * 0.5
+	var bk := _box(_belt, Vector3(0.07, 0.07, 0.02), buckle, Vector3.ZERO)
+	bk.transform = Transform3D(to_bone.basis.orthonormalized(), to_bone * (mid + Vector3(0, 0, 0.012)))
 	_show_sheath()
+
+## Отрезок ремня между двумя точками (оси персонажа) — плоская полоса, лежит на теле
+func _strap_seg(to_bone: Transform3D, a: Vector3, b: Vector3, mat: Material) -> void:
+	var dir := b - a
+	var y := dir.normalized()
+	var out := Vector3(0, 0, 1) if absf(a.z + b.z) < 0.001 else Vector3(0, 0, signf(a.z + b.z))
+	var x := y.cross(out).normalized()
+	if x.length() < 0.5:
+		x = Vector3(1, 0, 0)
+	var z := x.cross(y).normalized()
+	var seg := _box(_belt, Vector3(0.055, dir.length() + 0.02, 0.012), mat, Vector3.ZERO)
+	seg.transform = Transform3D((to_bone.basis * Basis(x, y, z)).orthonormalized(), to_bone * ((a + b) * 0.5))
 
 func _show_sheath() -> void:
 	if _sheath:
 		var w = Game.equip.get("weapon")
 		_sheath.visible = w != null and not (w as Dictionary).is_empty()
+		_belt.visible = _sheath.visible
 
 ## Меч — в ножны (за спину) или в руку
 func _sword_to_back(on: bool) -> void:
@@ -1029,7 +1075,9 @@ const RUN_CLIP := "Kirito_Sword_Run"               # бег героя (из м�
 # скоростью; замер по стопе, tests/gait.tscn). Темп клипа = скорость героя / длина шага.
 const WALK_PLAIN := "Walking"                       # обычный шаг
 const SPRINT_CLIP := "RunFast"                      # быстрый бег: длинный шаг, долгая фаза полёта
-const STRIDE_M := {"Walking": 1.61, "Walk_Fight_Forward": 1.14, "Kirito_Sword_Run": 5.37, "RunFast": 12.49,
+const RUN_FREE := "Running"                         # бег без меча в руке (меч в ножнах)
+# Running — замер tests/gait (стопа 4,62 против 4,54 у Kirito_Sword_Run) в масштабе этой таблицы
+const STRIDE_M := {"Walking": 1.61, "Walk_Fight_Forward": 1.14, "Kirito_Sword_Run": 5.37, "RunFast": 12.49, "Running": 5.47,
 	"Sword_Run": 3.0, "Walk_Backward_with_Sword": 0.6, "MS_strafe_left": 0.33, "MS_strafe_right": 0.33}
 const SIDESTEP_SPEED := 1.0    # м/с: приставной шаг в блоке (клип Moveset — шаг 0,33 м за секунду клипа)
 var _sidestep := 0             # в блоке идёт вбок: 1 — влево, −1 — вправо
