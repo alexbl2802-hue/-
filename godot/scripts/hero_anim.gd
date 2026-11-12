@@ -23,6 +23,7 @@ var act_scale := 1.0
 var _upper := false
 var _loco_pos := 0.0
 var _loco_target := 0.0
+var _reseek := false         # после смены действия повторить перемотку, когда дерево обработает смену
 
 ## player — AnimationPlayer модели; anims — действие → имя анимации;
 ## loco_points — [[имя анимации, скорость м/с], …] для смешения ходьбы
@@ -69,6 +70,13 @@ func setup(player: AnimationPlayer, sk: Skeleton3D, anims: Dictionary, loco_poin
 	_set_upper_filter(sk, player)
 	tree.active = true
 	player.active = false
+	tree.mixer_applied.connect(_after_tree)
+
+## Дерево обработало кадр: смена действия уже принята — теперь перемотка сработает
+func _after_tree() -> void:
+	if _reseek and _cur != "":
+		_reseek = false
+		tree.set("parameters/act_seek/seek_request", act_time)
 
 func _anim_node(n: String) -> AnimationNodeAnimation:
 	var a := AnimationNodeAnimation.new()
@@ -122,6 +130,9 @@ func act(kind: String, pos: float, scale: float, upper := false) -> void:
 		tree.set("parameters/act/transition_request", kind)
 		if pos < 0.0:
 			pos = 0.0
+		# Смена действия в этом же кадре сбрасывает клип в начало и перемотку не принимает
+		# (прыжок показывал стойку из начала клипа) — перемотка повторяется на следующем кадре
+		_reseek = pos > 0.0
 	if pos >= 0.0:
 		act_time = pos
 		tree.set("parameters/act_seek/seek_request", pos)
