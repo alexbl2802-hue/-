@@ -873,7 +873,9 @@ const CALM_IDLE := "ANIMATE4/hero_calm"   # спокойная стойка: р�
 const CALM_PATH := "res://data/anim/hero_calm.res"
 const SHEATHE_AFTER := 0.15          # сколько стоять на месте, прежде чем убрать меч (с)
 const SHEATHE_LEN := 1.33
+const SHEATHE_INSERT := 0.73         # кадр 23: начало ввода — клинок скользит в ножны
 const SHEATHE_RELEASE := 1.0         # кадр 30: клинок вошёл в ножны — хват отпущен
+var _ins_from: Transform3D           # меч в начале ввода (в системе кости груди)
 var _sheathe_t := -1.0
 var _sheathe_new := false
 var _sheathed := false
@@ -973,8 +975,11 @@ func _sword_to_back(on: bool) -> void:
 
 ## Достать меч (удар, приём, блок, враги рядом): прерывает уборку
 func _draw_sword() -> void:
+	var inserting := _sheathe_t >= SHEATHE_INSERT and not _sheathed
 	_sheathe_t = -1.0
 	_still_t = 0.0
+	if inserting:
+		_sword_to_back(false)   # меч уже въезжал в ножны — обратно в руку
 	if _sheathed:
 		_sheathed = false
 		_sword_to_back(false)
@@ -993,10 +998,26 @@ func _sheathe_update(dt: float, moving: bool) -> void:
 		return
 	if _sheathe_t >= 0.0:
 		if moving or busy_now:
-			# прервали: если клинок уже в ножнах — так и остаётся
+			# прервали: если клинок уже в ножнах — так и остаётся; если вводился — возвращается в руку
+			if not _sheathed and _sheathe_t >= SHEATHE_INSERT:
+				_sword_to_back(false)
 			_sheathe_t = -1.0
 			return
+		var was := _sheathe_t
 		_sheathe_t += dt
+		if was < SHEATHE_INSERT and _sheathe_t >= SHEATHE_INSERT and not _sheathed:
+			# Ввод: меч переходит к ножнам там, где он сейчас в руке, и плавно въезжает в них
+			var g: Transform3D = _sword.global_transform
+			_sword.get_parent().remove_child(_sword)
+			_back_att.add_child(_sword)
+			_sword.global_transform = g
+			_ins_from = _sword.transform
+		if _sheathe_t >= SHEATHE_INSERT and not _sheathed:
+			var u := smoothstep(SHEATHE_INSERT, SHEATHE_RELEASE, _sheathe_t)
+			var a := Transform3D(_ins_from.basis.orthonormalized(), _ins_from.origin)
+			var b := Transform3D(_sword_back_tr.basis.orthonormalized(), _sword_back_tr.origin)
+			_sword.transform = a.interpolate_with(b, u)
+			_sword.scale = Vector3.ONE / CHAR_SCALE
 		if _sheathe_t >= SHEATHE_RELEASE and not _sheathed:
 			_sheathed = true
 			_sword_to_back(true)

@@ -3,7 +3,7 @@
 ## godot --headless --path godot res://tests/animate4_bake.tscn
 extends Node
 
-const CLIPS := [["hero_stance_sword", "стойка с мечом"], ["hero_block_shield", "блок щитом"], ["hero_sheathe", "убрать меч в ножны"], ["hero_calm", "спокойная стойка, дышит"]]
+const CLIPS := [["hero_stance_sword", "стойка с мечом"], ["hero_block_shield", "блок щитом"], ["hero_sheathe", "убрать меч в ножны"], ["hero_calm", "спокойная стойка, дышит", "Walking"]]
 
 func _ready() -> void:
 	for k in Game.equip:
@@ -21,7 +21,9 @@ func _ready() -> void:
 	var ok := true
 	DirAccess.make_dir_recursive_absolute("res://data/anim")
 	for c in CLIPS:
-		var r := AnimatePipeline.generate(c[1], sk, prefix, {"blade": blade, "ref": ref, "ref_t": 0.0})
+		# пальцы и кисти вне поз — из клипа-образца: у спокойной стойки — расслабленные (Walking), не кулак
+		var r_ref: Animation = ap.get_animation(c[2]) if c.size() > 2 else ref
+		var r := AnimatePipeline.generate(c[1], sk, prefix, {"blade": blade, "ref": r_ref, "ref_t": 0.0})
 		var line := "%s %s «%s»" % ["PASS" if r["ok"] else "FAIL", c[0], c[1]]
 		for ch in r.get("report", {}).get("checks", []):
 			if not ch["ok"]:
